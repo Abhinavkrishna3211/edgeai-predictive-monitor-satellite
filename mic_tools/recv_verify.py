@@ -106,8 +106,9 @@ HISTORY_LEN    = 200   # ~90 s of history at 2.2 fps — Uno Q 4GB easily holds 
 WATERFALL_ROWS = 120   # time rows in the mic FFT waterfall (~55 s at 2.2 fps)
 
 # Alert persistence — prevents transient factory noise false positives
-WARN_PERSIST  = 2   # consecutive WARN frames required to raise alert
-CLEAR_PERSIST = 3   # consecutive OK  frames required to clear alert
+WARN_PERSIST        = 2   # consecutive non-OK frames required to raise alert
+CLEAR_PERSIST       = 3   # consecutive OK frames to clear a WARN
+FAULT_CLEAR_PERSIST = 8   # consecutive OK frames to clear a FAULT (longer hold so the alarm is noticed)
 
 # High-band energy threshold — bearing faults excite 2-8kHz resonance;
 # factory noise is mostly <500Hz. Only alert if high-band carries enough energy.
@@ -433,8 +434,8 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb):
     # Raise: need WARN_PERSIST consecutive non-OK frames
     if warn_streak >= WARN_PERSIST:
         final = raw
-    # Clear: need CLEAR_PERSIST consecutive OK frames to go back to OK
-    elif ok_streak >= CLEAR_PERSIST:
+    # Clear: FAULT requires more consecutive OK frames than WARN before auto-clearing
+    elif ok_streak >= (FAULT_CLEAR_PERSIST if sent_alert == EPM_ALERT_FAULT else CLEAR_PERSIST):
         final = EPM_ALERT_OK
     else:
         final = sent_alert   # hold previous state during transition
@@ -964,6 +965,21 @@ header{display:flex;align-items:center;padding:0 22px;height:56px;background:var
 @keyframes pfault{0%,20%,40%,60%,80%,100%{opacity:1}10%,30%,50%,70%,90%{opacity:.1}}
 .hdr-uptime{font-size:.62rem;color:var(--muted);font-variant-numeric:tabular-nums}
 @media(max-width:680px){.hdr-sep,#factory-lbl,.hdr-uptime,.chip-muted{display:none}}
+.c-pstatus{text-align:center;font-size:.78rem;font-weight:700;padding:5px 12px 3px;letter-spacing:.03em;border-bottom:1px solid var(--border)}
+@media(max-width:640px){
+  header{padding:0 10px}
+  .summary{padding:8px 10px;gap:6px}
+  .tile{min-width:72px;padding:8px 10px}
+  .tile-val{font-size:1.35rem}
+  .tile-lbl{font-size:.52rem}
+  .tabs-bar{padding:8px 10px 0;overflow-x:auto}
+  .pane{padding:10px 10px 48px}
+  .cards-grid{grid-template-columns:1fr}
+  .c-metrics{grid-template-columns:repeat(2,1fr)}
+  .met.sp3{grid-column:span 2}
+  .c-actions{flex-wrap:wrap}
+  .btn{font-size:.62rem;padding:4px 8px}
+}
 
 /* BANNER */
 #banner{display:none;align-items:center;justify-content:center;gap:8px;padding:9px 22px;font-size:.8rem;font-weight:700;letter-spacing:.02em}
@@ -1387,13 +1403,15 @@ function cardHTML(s){
     +'<div class="c-fw">FW '+s.fw+(s.calibrated?' · ✓ Calibrated':' · ⧖ Calibrating')+'</div></div>'
     +'<div class="c-right"><div class="sdot '+al+'"></div><span class="badge '+al+'">'+s.alert+'</span>'
     +'<span class="ft-badge ft-'+ftCls(s.fault_type||'Normal')+'" id="FT_'+s.name+'">'+(s.fault_type||'Normal')+'</span></div></div>'
+    +'<div class="c-pstatus" id="PS_'+s.name+'" style="color:'+(al==='fault'?'var(--fault)':al==='warn'?'var(--warn)':'var(--ok)')+';">'
+    +(al==='fault'?'⚠ FAULT — Inspect machine immediately':al==='warn'?'⚠ Elevated vibration — attention needed':'Machine running normally')+'</div>'
     +'<div class="c-metrics">'
-    +'<div class="met"><div class="ml">Kurtosis</div><div class="mv" style="color:'+kCol(m.mic_kurtosis||0)+'" id="K_'+s.name+'">'+(m.mic_kurtosis||0).toFixed(2)+'</div></div>'
-    +'<div class="met"><div class="ml">Crest Factor</div><div class="mv" id="CF_'+s.name+'">'+(m.mic_crest||0).toFixed(2)+'</div></div>'
-    +'<div class="met"><div class="ml">High-Band %</div><div class="mv" id="HB_'+s.name+'">'+(((m.high_band_ratio||0)*100).toFixed(1))+'%</div></div>'
-    +'<div class="met"><div class="ml">Mic RMS</div><div class="mv" id="RMS_'+s.name+'">'+(m.mic_rms||0).toFixed(5)+'</div></div>'
-    +'<div class="met"><div class="ml">Z-Score</div><div class="mv" style="color:'+(s.z_score>3?'var(--fault)':s.z_score>1.5?'var(--warn)':'inherit')+'" id="Z_'+s.name+'">'+s.z_score.toFixed(1)+'</div></div>'
-    +'<div class="met"><div class="ml">Frame Rate</div><div class="mv" id="FPS_'+s.name+'">'+s.fps.toFixed(1)+' fps</div></div>'
+    +'<div class="met"><div class="ml">Vibration Level</div><div class="mv" style="color:'+kCol(m.mic_kurtosis||0)+'" id="K_'+s.name+'">'+(m.mic_kurtosis||0).toFixed(2)+'</div></div>'
+    +'<div class="met"><div class="ml">Shock Level</div><div class="mv" id="CF_'+s.name+'">'+(m.mic_crest||0).toFixed(2)+'</div></div>'
+    +'<div class="met"><div class="ml">High-Freq %</div><div class="mv" id="HB_'+s.name+'">'+(((m.high_band_ratio||0)*100).toFixed(1))+'%</div></div>'
+    +'<div class="met"><div class="ml">Sound Level</div><div class="mv" id="RMS_'+s.name+'">'+(m.mic_rms||0).toFixed(5)+'</div></div>'
+    +'<div class="met"><div class="ml">Anomaly Score</div><div class="mv" style="color:'+(s.z_score>3?'var(--fault)':s.z_score>1.5?'var(--warn)':'inherit')+'" id="Z_'+s.name+'">'+s.z_score.toFixed(1)+'</div></div>'
+    +'<div class="met"><div class="ml">Data Rate</div><div class="mv" id="FPS_'+s.name+'">'+s.fps.toFixed(1)+' fps</div></div>'
     +'<div class="met sp3"><div class="ml">Est. Remaining Useful Life</div>'
     +'<div class="mv" id="RUL_'+s.name+'" style="color:'+rulCol(s.rul_days)+';font-size:.8rem">'+fmtRul(s.rul_days)+'</div></div>'
     +'</div>'
@@ -1448,6 +1466,10 @@ function upCard(s){
   card.className='card '+al+(s.connected?'':' offline');
   card.querySelector('.sdot').className='sdot '+al;
   const b=card.querySelector('.badge');b.className='badge '+al;b.textContent=s.alert;
+  const ps=$('PS_'+s.name);if(ps){
+    ps.textContent=al==='fault'?'⚠ FAULT — Inspect machine immediately':al==='warn'?'⚠ Elevated vibration — attention needed':'Machine running normally';
+    ps.style.color=al==='fault'?'var(--fault)':al==='warn'?'var(--warn)':'var(--ok)';
+  }
   const g=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
   const gs=(id,p,v)=>{const e=$(id);if(e)e.style[p]=v;};
   g('K_'+s.name,(m.mic_kurtosis||0).toFixed(2));gs('K_'+s.name,'color',kCol(m.mic_kurtosis||0));
