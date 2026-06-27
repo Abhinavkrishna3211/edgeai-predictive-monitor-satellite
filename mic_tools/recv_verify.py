@@ -33,6 +33,7 @@ import os
 import smtplib
 import socket
 import struct
+import math
 import sys
 import threading
 import time
@@ -709,9 +710,19 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
     mic_freqs = np.linspace(0, mic_fs / 2, mic_bins)
     imu_freqs = np.linspace(0, imu_fs / 2, imu_bins)
 
-    crest_mic  = collections.deque([0.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
-    crest_imu  = collections.deque([0.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
-    kurt_mic   = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
+    # Per-satellite history — keyed by satellite name so alternating frames
+    # from different satellites don't clear each other's accumulated history.
+    _sat_crest_mic: dict = {}
+    _sat_crest_imu: dict = {}
+    _sat_kurt_mic:  dict = {}
+    _sat_wf_buf:    dict = {}
+
+    def _ensure_sat_history(name):
+        if name not in _sat_crest_mic:
+            _sat_crest_mic[name] = collections.deque([0.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
+            _sat_crest_imu[name] = collections.deque([0.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
+            _sat_kurt_mic[name]  = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
+            _sat_wf_buf[name]    = np.full((WATERFALL_ROWS, mic_bins), -120.0, dtype=np.float32)
 
     # Waterfall: rows=time (newest at top), cols=frequency bins
     wf_buf = np.full((WATERFALL_ROWS, mic_bins), -120.0, dtype=np.float32)
@@ -818,9 +829,9 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
 
     # ── Crest & kurtosis history ───────────────────────────────────────────────
     xc = np.arange(HISTORY_LEN)
-    lc_mic,  = ax_cr.plot(xc, list(crest_mic), lw=1.0, color='cyan',    label='MIC crest')
-    lc_imu,  = ax_cr.plot(xc, list(crest_imu), lw=1.0, color='#ff7f0e', label='IMU crest')
-    lc_kurt, = ax_cr.plot(xc, list(kurt_mic),  lw=1.2, color='#aa44ff', label='MIC kurtosis/3')
+    lc_mic,  = ax_cr.plot(xc, [0.0] * HISTORY_LEN, lw=1.0, color='cyan',    label='MIC crest')
+    lc_imu,  = ax_cr.plot(xc, [0.0] * HISTORY_LEN, lw=1.0, color='#ff7f0e', label='IMU crest')
+    lc_kurt, = ax_cr.plot(xc, [3.0] * HISTORY_LEN, lw=1.2, color='#aa44ff', label='MIC kurtosis/3')
     ax_cr.axhline(CREST_WARN,  color='yellow', ls='--', lw=0.8, alpha=0.8,
                   label=f'Warn {CREST_WARN}')
     ax_cr.axhline(CREST_FAULT, color='red',    ls='--', lw=0.8, alpha=0.8,
@@ -840,7 +851,6 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
     plt.show()
 
     last_id  = -1
-    last_sat = None
 
     while plt.fignum_exists(fig.number):
         _display.wait(timeout=0.3)
@@ -850,12 +860,11 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
             continue
         last_id = frame['frame_id']
 
-        if satname != last_sat:
-            crest_mic.clear(); crest_mic.extend([0.0] * HISTORY_LEN)
-            crest_imu.clear(); crest_imu.extend([0.0] * HISTORY_LEN)
-            kurt_mic.clear();  kurt_mic.extend([3.0] * HISTORY_LEN)
-            wf_buf[:] = -120.0
-            last_sat = satname
+        _ensure_sat_history(satname)
+        crest_mic = _sat_crest_mic[satname]
+        crest_imu = _sat_crest_imu[satname]
+        kurt_mic  = _sat_kurt_mic[satname]
+        wf_buf    = _sat_wf_buf[satname]
 
         for line, data, ax in (
             (line_mic, frame['mic_fft'], ax_mic),
@@ -1346,9 +1355,9 @@ function ftCls(ft){
   if(ft.includes('Looseness')||ft.includes('Misalign')||ft.includes('Anomal')||ft.includes('Elevated'))return 'warn';
   return 'info';
 }
-function showQR(name){
+function showQR(name,mac){
   const m=$('qr-modal');
-  m.querySelector('.qr-name').textContent=name;
+  m.querySelector('.qr-name').textContent=name+(mac?' · '+mac:'');
   const url=location.origin+'/api/report?name='+encodeURIComponent(name);
   const canvas=m.querySelector('#qr-canvas');
   canvas.width=0;canvas.height=0;
@@ -1369,7 +1378,8 @@ function cardHTML(s){
   return '<div class="card '+al+(s.connected?'':' offline')+'" id="C_'+s.name+'">'
     +'<div class="c-head"><div><div class="c-name">'+s.name+'</div><div class="c-mac">'+s.mac+'</div>'
     +'<div class="c-fw">FW '+s.fw+(s.calibrated?' · ✓ Calibrated':' · ⧖ Calibrating')+'</div></div>'
-    +'<div class="c-right"><div class="sdot '+al+'"></div><span class="badge '+al+'">'+s.alert+'</span></div></div>'
+    +'<div class="c-right"><div class="sdot '+al+'"></div><span class="badge '+al+'">'+s.alert+'</span>'
+    +'<span class="ft-badge ft-'+(ftCls(s.fault_type||\'Normal\'))+'" id="FT_'+s.name+'">'+(s.fault_type||\'Normal\')+'</span></div></div>'
     +'<div class="c-metrics">'
     +'<div class="met"><div class="ml">Kurtosis</div><div class="mv" style="color:'+kCol(m.mic_kurtosis||0)+'" id="K_'+s.name+'">'+(m.mic_kurtosis||0).toFixed(2)+'</div></div>'
     +'<div class="met"><div class="ml">Crest Factor</div><div class="mv" id="CF_'+s.name+'">'+(m.mic_crest||0).toFixed(2)+'</div></div>'
@@ -1533,7 +1543,10 @@ async function refresh(){
     if($('pane-maintenance').classList.contains('active'))renderMaintGrid(sats);
 
     $('footer').textContent='EPM Gateway · '+(d.factory_name||'EPM')+' · Auto-refresh 2 s · K≥'+TH.k_warn+' WARN / K≥'+TH.k_fault+' FAULT · CF≥'+TH.cf_warn+' WARN / CF≥'+TH.cf_fault+' FAULT';
-  }catch(e){console.warn('[refresh]',e);}
+  }catch(e){
+    console.warn('[refresh]',e);
+    const gs=$('gstatus');if(gs){gs.textContent='⚠ API error';gs.className='chip chip-fault';}
+  }
 }
 
 /* --- reports tab --- */
@@ -1828,6 +1841,15 @@ def _sat_health(sat):
     return round(score, 1), maint, days, rul_days
 
 
+def _safe_f(v, default=0.0):
+    """Return float v if finite; replace NaN/Inf with default so json.dumps never raises."""
+    try:
+        f = float(v)
+        return f if math.isfinite(f) else default
+    except (TypeError, ValueError):
+        return default
+
+
 def _build_status_json():
     now = time.time()
     with _sat_lock:
@@ -1839,12 +1861,12 @@ def _build_status_json():
         m = {}
         if s.last_frame:
             m = {
-                'mic_rms':          round(float(s.last_frame.get('mic_rms',  0)), 6),
-                'mic_kurtosis':     round(float(s.last_frame.get('mic_kurtosis', 0)), 2),
-                'mic_crest':        round(float(s.last_frame.get('mic_crest', 0)), 2),
-                'imu_rms':          round(float(s.last_frame.get('imu_rms',  0)), 5),
-                'imu_crest':        round(float(s.last_frame.get('imu_crest', 0)), 2),
-                'high_band_ratio':  round(s.last_hb, 3),
+                'mic_rms':         round(_safe_f(s.last_frame.get('mic_rms',  0)), 6),
+                'mic_kurtosis':    round(_safe_f(s.last_frame.get('mic_kurtosis', 0)), 2),
+                'mic_crest':       round(_safe_f(s.last_frame.get('mic_crest', 0)), 2),
+                'imu_rms':         round(_safe_f(s.last_frame.get('imu_rms',  0)), 5),
+                'imu_crest':       round(_safe_f(s.last_frame.get('imu_crest', 0)), 2),
+                'high_band_ratio': round(_safe_f(s.last_hb), 3),
             }
         with _MAINT_LOG_LOCK:
             maint_rec = dict(_MAINT_LOG.get(s.mac_hex, {}))
@@ -1856,7 +1878,7 @@ def _build_status_json():
             'connected':        s.connected,
             'uptime_s':         int(now - s.connect_t),
             'frame_count':      s.frame_count,
-            'fps':              round(s.fps, 1),
+            'fps':              round(_safe_f(s.fps), 1),
             'calibrated':       s.calibrated,
             'health_score':     health,
             'maintenance':      maint,
@@ -1865,14 +1887,14 @@ def _build_status_json():
             'warn_frames':      s.warn_frames,
             'fault_frames':     s.fault_frames,
             'last_fault_t':     s.last_fault_t,
-            'z_score':          round(s.last_z, 2),
+            'z_score':          round(_safe_f(s.last_z), 2),
             'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
             'history': {
                 'alerts':   list(s.history_alerts),
-                'kurtosis': [round(v, 2) for v in s.history_kurtosis],
-                'crest':    [round(v, 2) for v in s.history_crest],
+                'kurtosis': [round(_safe_f(v), 2) for v in s.history_kurtosis],
+                'crest':    [round(_safe_f(v), 2) for v in s.history_crest],
             },
         })
 
@@ -2372,7 +2394,19 @@ class _DashHandler(BaseHTTPRequestHandler):
             self._send(200, 'text/html; charset=utf-8', _DASHBOARD_HTML)
 
         elif path == '/api/status':
-            self._send(200, 'application/json', _build_status_json())
+            try:
+                self._send(200, 'application/json', _build_status_json())
+            except Exception as exc:
+                fallback = json.dumps({
+                    'error': str(exc), 'satellites': [],
+                    'satellite_count': 0, 'total_faults_today': 0,
+                    'factory_name': _FACTORY_NAME, 'server_uptime_s': 0,
+                    'notify_active': False,
+                    'thresholds': {'k_warn': K_WARN, 'k_fault': K_FAULT,
+                                   'cf_warn': CREST_WARN, 'cf_fault': CREST_FAULT},
+                })
+                self._send(500, 'application/json', fallback)
+                print(f'[dash] /api/status error: {exc}')
 
         elif path == '/api/alerts':
             n = int(qs.get('n', ['200'])[0])
