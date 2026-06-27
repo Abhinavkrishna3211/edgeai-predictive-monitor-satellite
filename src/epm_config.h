@@ -29,6 +29,9 @@
 #ifndef SPEC_AVG_N
 #define SPEC_AVG_N  4       /* spectral frames to average before sending      */
 #endif
+#if SPEC_AVG_N <= 0
+#error "SPEC_AVG_N must be > 0 (division by zero in mic_task / imu_task)"
+#endif
 
 /* ─── Sample rates ───────────────────────────────────────────────────────── */
 
@@ -103,6 +106,14 @@
 #define LED_PIN_B     3   /* GPIO for Blue  */
 #endif
 
+/* ─── Fault thresholds ───────────────────────────────────────────────────── */
+
+/* Consecutive mic_capture_read_block failures before escalating to LOGE.
+ * At ~62 ms/block (FFT_MIC_N=1024, Fs=16 kHz) this gives ~3 s before alarm. */
+#ifndef MIC_FAIL_MAX
+#define MIC_FAIL_MAX  50
+#endif
+
 /* ─── FreeRTOS task sizing ───────────────────────────────────────────────── */
 
 #define TASK_STACK_MIC   8192
@@ -154,6 +165,7 @@ typedef struct {
     float    fft_z[FFT_IMU_N / 2];  /* Z axis axial  FFT in dBFS           */
     float    rms_x, rms_y, rms_z;   /* per-axis RMS                        */
     float    crest_x, crest_y, crest_z; /* per-axis crest factor           */
+    float    dc_x;                   /* X-axis DC offset (gravity component)*/
     uint8_t  clip;                   /* 1 if any axis clipped               */
     uint32_t timestamp_ms;
 } imu_frame_t;

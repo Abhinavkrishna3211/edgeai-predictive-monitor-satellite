@@ -58,6 +58,7 @@ except ImportError:
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
 _ML_MODEL = None   # populated by _load_ml_model() if --model is given (legacy global)
 _sat_models: dict = {}  # mac_hex → model dict; one per satellite (takes priority over global)
+_sat_models_lock = threading.Lock()   # protects _sat_models across satellite + training threads
 
 N_TRAIN_FRAMES = 300  # OK frames to buffer before auto-training a per-satellite model
 
@@ -287,7 +288,13 @@ def parse_frame(raw, exp_mic_bins, exp_imu_bins):
 
     exp_size = HEADER_SIZE + mic_bins * 4 + imu_bins * 4 * imu_axes
     if len(raw) != exp_size:
-        errs.append(f"size {len(raw)} != expected {exp_size}")
+        # Raise immediately — np.frombuffer on a short buffer silently returns
+        # fewer elements than requested, corrupting all FFT arrays downstream.
+        raise ValueError(
+            f"frame payload {len(raw)} B != expected {exp_size} B "
+            f"(mic_bins={mic_bins} imu_bins={imu_bins} imu_axes={imu_axes}); "
+            f"header errors: {errs or 'none'}"
+        )
 
     off     = HEADER_SIZE
     mic_fft = np.frombuffer(raw, dtype='<f4', count=mic_bins, offset=off).copy()
@@ -461,7 +468,8 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb):
             'high_band_ratio': hb,
             'z_score':         z_score,
         }
-        sat_model = _sat_models.get(sat.mac_hex)
+        with _sat_models_lock:
+            sat_model = _sat_models.get(sat.mac_hex)
         if sat_model is not None:
             ml_alert = _ml_score_with(ml_frame, sat_model)
         else:
@@ -709,9 +717,20 @@ def _ml_score(frame: dict) -> int | None:
 
 
 def _ml_score_with(frame: dict, model: dict) -> int | None:
-    """Run ML inference using an explicit model dict (per-satellite or global)."""
+    """Run ML inference using an explicit model dict (per-satellite or global).
+
+    Derived features (log_kurtosis, log_z) are computed on the fly so that
+    inference always matches the feature set the model was trained on, even
+    when the caller's frame dict only carries the raw base features.
+    """
     try:
-        feat  = [frame.get(c, 0.0) for c in model['feat_cols']]
+        # Build extended feature dict matching training feature set
+        f = frame if ('log_kurtosis' in frame and 'log_z' in frame) else dict(frame)
+        if 'log_kurtosis' not in f:
+            f['log_kurtosis'] = math.log1p(max(f.get('mic_kurtosis', 0.0), 0.0))
+        if 'log_z' not in f:
+            f['log_z'] = math.log1p(max(f.get('z_score', 0.0), 0.0))
+        feat  = [f.get(c, 0.0) for c in model['feat_cols']]
         X_s   = model['scaler'].transform([feat])
         score = float(model['model'].decision_function(X_s)[0])
         if score <= model['t_fault']:
@@ -744,14 +763,15 @@ def _try_load_sat_model(sat):
             with open(meta_p) as f:
                 meta = json.load(f)
             bundle = _jl.load(iso_p)
-            _sat_models[sat.mac_hex] = {
-                'scaler':    bundle['scaler'],
-                'model':     bundle['model'],
-                'feat_cols': meta.get('feature_cols',
-                                      meta.get('base_features', _TRAIN_FEATS)),
-                't_warn':    meta['threshold_warn'],
-                't_fault':   meta['threshold_fault'],
-            }
+            with _sat_models_lock:
+                _sat_models[sat.mac_hex] = {
+                    'scaler':    bundle['scaler'],
+                    'model':     bundle['model'],
+                    'feat_cols': meta.get('feature_cols',
+                                          meta.get('base_features', _TRAIN_FEATS)),
+                    't_warn':    meta['threshold_warn'],
+                    't_fault':   meta['threshold_fault'],
+                }
             sat.ml_trained    = True
             sat.ml_trained_at = meta.get('trained_at')
             print(f'[ml] [{sat.name}] Loaded model: '
@@ -833,13 +853,14 @@ def _train_sat_model_bg(sat, buf):
         with open(meta_path, 'w') as f:
             json.dump(meta, f, indent=2)
 
-        _sat_models[sat.mac_hex] = {
-            'scaler':    scaler,
-            'model':     iso,
-            'feat_cols': feat_cols,
-            't_warn':    t_warn,
-            't_fault':   t_fault,
-        }
+        with _sat_models_lock:
+            _sat_models[sat.mac_hex] = {
+                'scaler':    scaler,
+                'model':     iso,
+                'feat_cols': feat_cols,
+                't_warn':    t_warn,
+                't_fault':   t_fault,
+            }
         with _sat_lock:
             sat.ml_trained    = True
             sat.ml_trained_at = trained_at
