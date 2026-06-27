@@ -165,6 +165,7 @@ class SatelliteState:
         self.ml_trained    = False
         self.ml_training   = False
         self.ml_trained_at = None  # ISO string or float epoch after training
+        self.ml_backend    = 'none'  # 'Qualcomm NPU (QNN-HTP)', 'CPU (TFLite)', 'IsolationForest', 'none'
 
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
@@ -612,6 +613,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                     sat.last_fault_t  = now
                 # Buffer healthy OK frames for per-satellite auto-training
                 if alert == EPM_ALERT_OK and sat.calibrated:
+                    _mic_fft = frame.get('mic_fft')
                     _feat = {
                         'mic_rms':         float(frame['mic_rms']),
                         'mic_crest':       float(frame['mic_crest']),
@@ -620,6 +622,8 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                         'imu_crest':       float(frame.get('imu_crest', 0.0)),
                         'high_band_ratio': float(hb),
                         'z_score':         float(z_score),
+                        # mic_fft included for spectral autoencoder training
+                        'mic_fft':         _mic_fft.copy() if _mic_fft is not None else None,
                     }
                     sat.ml_buf.append(_feat)
                     if len(sat.ml_buf) > N_TRAIN_FRAMES:
@@ -719,12 +723,13 @@ def _ml_score(frame: dict) -> int | None:
 def _ml_score_with(frame: dict, model: dict) -> int | None:
     """Run ML inference using an explicit model dict (per-satellite or global).
 
-    Derived features (log_kurtosis, log_z) are computed on the fly so that
-    inference always matches the feature set the model was trained on, even
-    when the caller's frame dict only carries the raw base features.
+    Routes to TFLite neural autoencoder (NPU) when available, otherwise falls
+    back to scikit-learn IsolationForest (CPU).
     """
+    if model.get('type') == 'tflite':
+        return _ml_score_tflite(frame, model)
+    # ── IsolationForest fallback path ─────────────────────────────────────────
     try:
-        # Build extended feature dict matching training feature set
         f = frame if ('log_kurtosis' in frame and 'log_z' in frame) else dict(frame)
         if 'log_kurtosis' not in f:
             f['log_kurtosis'] = math.log1p(max(f.get('mic_kurtosis', 0.0), 0.0))
@@ -742,6 +747,34 @@ def _ml_score_with(frame: dict, model: dict) -> int | None:
         return None
 
 
+def _ml_score_tflite(frame: dict, model: dict) -> int | None:
+    """Score one frame using the TFLite neural autoencoder (NPU path)."""
+    try:
+        from autoencoder import make_feature_vector
+        feat = make_feature_vector(frame)
+    except ImportError:
+        # Minimal fallback if autoencoder.py is somehow missing
+        kurtosis = float(frame.get('mic_kurtosis', 3.0))
+        z_score  = float(frame.get('z_score', 0.0))
+        stats = [
+            float(frame.get('mic_rms', 0.0)), float(frame.get('mic_crest', 1.0)),
+            kurtosis, float(frame.get('imu_rms', 0.0)), float(frame.get('imu_crest', 1.0)),
+            float(frame.get('high_band_ratio', 0.0)), z_score,
+            math.log1p(max(kurtosis, 0.0)), math.log1p(max(z_score, 0.0)),
+        ]
+        import numpy as _np
+        feat = _np.array(stats + [0.0] * 32, dtype=_np.float32)
+    try:
+        mse = model['inferencer'].infer(feat)
+        if mse >= model['t_fault']:
+            return EPM_ALERT_FAULT
+        if mse >= model['t_warn']:
+            return EPM_ALERT_WARN
+        return EPM_ALERT_OK
+    except Exception:
+        return None
+
+
 # ─── Per-satellite ML helpers ─────────────────────────────────────────────────
 
 _TRAIN_FEATS = ['mic_rms', 'mic_crest', 'mic_kurtosis',
@@ -749,11 +782,41 @@ _TRAIN_FEATS = ['mic_rms', 'mic_crest', 'mic_kurtosis',
 
 
 def _try_load_sat_model(sat):
-    """Load a per-satellite model from disk into _sat_models (silent if missing)."""
+    """Load a per-satellite model from disk into _sat_models (silent if missing).
+
+    Priority:
+      1. TFLite neural autoencoder (NPU-ready) — <name>_autoencoder.tflite
+      2. IsolationForest joblib bundle          — <name>_iso.joblib  (legacy)
+    """
+    model_dir = os.path.join(os.path.dirname(__file__), 'model')
+    mac_slug  = sat.mac_hex.replace(':', '')
+
+    # ── 1. Try TFLite autoencoder (NPU path) ─────────────────────────────────
+    try:
+        from autoencoder import load_npu_model
+        for stem in (sat.name, mac_slug):
+            model_dict = load_npu_model(os.path.join(model_dir, stem))
+            if model_dict is None:
+                continue
+            with _sat_models_lock:
+                _sat_models[sat.mac_hex] = model_dict
+            sat.ml_trained    = True
+            sat.ml_trained_at = model_dict.get('trained_at')
+            sat.ml_backend    = model_dict.get('backend', 'TFLite')
+            print(f'[ml] [{sat.name}] Neural autoencoder loaded  '
+                  f'backend={model_dict["backend"]}  '
+                  f'n={model_dict["n_samples"]}  '
+                  f'WARN≥{model_dict["t_warn"]:.4f}  '
+                  f'FAULT≥{model_dict["t_fault"]:.4f}')
+            return
+    except ImportError:
+        pass   # autoencoder.py or tflite_runtime not installed
+    except Exception as e:
+        print(f'[ml] [{sat.name}] TFLite load warning: {e}')
+
+    # ── 2. Fall back to IsolationForest joblib ────────────────────────────────
     try:
         import joblib as _jl
-        model_dir = os.path.join(os.path.dirname(__file__), 'model')
-        mac_slug  = sat.mac_hex.replace(':', '')
         for stem in (sat.name, mac_slug):
             prefix = os.path.join(model_dir, stem)
             meta_p = prefix + '_meta.json'
@@ -765,6 +828,7 @@ def _try_load_sat_model(sat):
             bundle = _jl.load(iso_p)
             with _sat_models_lock:
                 _sat_models[sat.mac_hex] = {
+                    'type':      'isolation_forest',
                     'scaler':    bundle['scaler'],
                     'model':     bundle['model'],
                     'feat_cols': meta.get('feature_cols',
@@ -774,8 +838,8 @@ def _try_load_sat_model(sat):
                 }
             sat.ml_trained    = True
             sat.ml_trained_at = meta.get('trained_at')
-            print(f'[ml] [{sat.name}] Loaded model: '
-                  f'trained={str(meta.get("trained_at", "?"))[:10]}  '
+            sat.ml_backend    = 'IsolationForest (CPU)'
+            print(f'[ml] [{sat.name}] IsolationForest loaded (no TFLite model found)  '
                   f'n={meta.get("n_samples", "?")}  '
                   f'WARN≤{meta["threshold_warn"]:.4f}  '
                   f'FAULT≤{meta["threshold_fault"]:.4f}')
@@ -803,7 +867,68 @@ def _trigger_sat_training(sat):
 
 
 def _train_sat_model_bg(sat, buf):
-    """Train IsolationForest for one satellite in a daemon thread."""
+    """Train per-satellite anomaly detection model in a daemon thread.
+
+    Tries in order:
+      1. Neural autoencoder → TFLite export (runs on Qualcomm NPU on Uno Q)
+      2. IsolationForest fallback (if TensorFlow unavailable)
+    """
+    model_dir  = os.path.join(os.path.dirname(__file__), 'model')
+    os.makedirs(model_dir, exist_ok=True)
+    prefix     = os.path.join(model_dir, sat.name)
+    trained_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # ── 1. Neural autoencoder path (preferred — NPU) ──────────────────────────
+    try:
+        from autoencoder import make_feature_vector, train_autoencoder, export_tflite, load_npu_model
+
+        feat_vecs = [make_feature_vector(f) for f in buf]
+        X = np.array(feat_vecs, dtype=np.float32)
+        X = X[~np.any(np.isnan(X) | np.isinf(X), axis=1)]
+
+        if len(X) < 30:
+            raise ValueError(f'only {len(X)} valid rows after cleaning')
+
+        print(f'[ml] [{sat.name}] Training neural autoencoder on {len(X)} frames…')
+        model, scaler, t_warn, t_fault, _ = train_autoencoder(X)
+
+        export_tflite(model, scaler, prefix, X)
+
+        meta = {
+            'trained_at':      trained_at,
+            'satellite':       sat.name,
+            'mac':             sat.mac_hex,
+            'n_samples':       len(X),
+            'contamination':   0.05,
+            'threshold_warn':  t_warn,
+            'threshold_fault': t_fault,
+            'model_type':      'autoencoder_tflite',
+        }
+        with open(prefix + '_meta.json', 'w') as mf:
+            json.dump(meta, mf, indent=2)
+
+        model_dict = load_npu_model(prefix)
+        if model_dict:
+            with _sat_models_lock:
+                _sat_models[sat.mac_hex] = model_dict
+            with _sat_lock:
+                sat.ml_trained    = True
+                sat.ml_trained_at = trained_at
+                sat.ml_training   = False
+                sat.ml_backend    = model_dict.get('backend', 'TFLite')
+            print(f'[ml] [{sat.name}] Autoencoder trained + NPU loaded  '
+                  f'backend={model_dict["backend"]}  '
+                  f'WARN≥{t_warn:.4f}  FAULT≥{t_fault:.4f}')
+            return
+
+    except ImportError:
+        print(f'[ml] [{sat.name}] TensorFlow not available — falling back to IsolationForest')
+    except Exception as e:
+        import traceback
+        print(f'[ml] [{sat.name}] Autoencoder training failed: {e} — falling back to IsolationForest')
+        print(traceback.format_exc())
+
+    # ── 2. IsolationForest fallback (CPU — no TF required) ────────────────────
     try:
         import numpy as np
         from sklearn.ensemble import IsolationForest
@@ -830,14 +955,10 @@ def _train_sat_model_bg(sat, buf):
         t_warn  = float(np.percentile(scores, 5.0))
         t_fault = float(np.percentile(scores, 1.67))
 
-        model_dir   = os.path.join(os.path.dirname(__file__), 'model')
-        os.makedirs(model_dir, exist_ok=True)
-        prefix      = os.path.join(model_dir, sat.name)
         bundle_path = prefix + '_iso.joblib'
         meta_path   = prefix + '_meta.json'
 
         _jl.dump({'scaler': scaler, 'model': iso}, bundle_path, compress=3)
-        trained_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         meta = {
             'trained_at':      trained_at,
             'satellite':       sat.name,
@@ -849,12 +970,14 @@ def _train_sat_model_bg(sat, buf):
             'base_features':   _TRAIN_FEATS,
             'threshold_warn':  t_warn,
             'threshold_fault': t_fault,
+            'model_type':      'isolation_forest',
         }
         with open(meta_path, 'w') as f:
             json.dump(meta, f, indent=2)
 
         with _sat_models_lock:
             _sat_models[sat.mac_hex] = {
+                'type':      'isolation_forest',
                 'scaler':    scaler,
                 'model':     iso,
                 'feat_cols': feat_cols,
@@ -865,12 +988,13 @@ def _train_sat_model_bg(sat, buf):
             sat.ml_trained    = True
             sat.ml_trained_at = trained_at
             sat.ml_training   = False
+            sat.ml_backend    = 'IsolationForest (CPU)'
 
-        print(f'[ml] [{sat.name}] Model trained: {len(X_raw)} samples  '
+        print(f'[ml] [{sat.name}] IsolationForest trained: {len(X_raw)} samples  '
               f'WARN≤{t_warn:.4f}  FAULT≤{t_fault:.4f}  → {bundle_path}')
     except Exception as e:
         import traceback
-        print(f'[ml] [{sat.name}] Training failed: {e}\n{traceback.format_exc()}')
+        print(f'[ml] [{sat.name}] All training paths failed: {e}\n{traceback.format_exc()}')
         with _sat_lock:
             sat.ml_training = False
 
@@ -1594,10 +1718,15 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();})
 /* --- per-satellite ML helpers --- */
 function mlStatusText(ml){
   if(!ml)return '\u{1F9E0} AI: no data';
-  if(ml.training)return '\u{1F9E0} AI: Training… (this takes ~10 s)';
-  if(ml.trained&&ml.active)return '\u{1F9E0} AI: Active ✔ — personalised model loaded';
-  if(ml.buf_frames>=ml.buf_target)return '\u{1F9E0} AI: Ready to train ('+ml.buf_frames+' OK frames collected)';
-  return '\u{1F9E0} AI: Collecting baseline data ('+ml.buf_frames+'/'+ml.buf_target+' OK frames)';
+  if(ml.training)return '\u{1F9E0} AI: Training neural net on Uno Q… (~30 s)';
+  if(ml.trained&&ml.active){
+    const npu=ml.npu_active;
+    const hw=npu?'⚡ NPU':'CPU';
+    const be=(ml.backend||'').replace('Qualcomm ','').split(' (')[0];
+    return '\u{1F9E0} Autoencoder ['+hw+': '+be+'] ✔ — '+(ml.trained_at||'').slice(0,10);
+  }
+  if(ml.buf_frames>=ml.buf_target)return '\u{1F9E0} AI: Ready to train ('+ml.buf_frames+' OK frames)';
+  return '\u{1F9E0} AI: Collecting baseline — '+ml.buf_frames+'/'+ml.buf_target+' OK frames';
 }
 async function retrainModel(name){
   try{
@@ -2147,6 +2276,8 @@ def _build_status_json():
                 'buf_frames': len(s.ml_buf),
                 'buf_target': N_TRAIN_FRAMES,
                 'active':     s.mac_hex in _sat_models,
+                'backend':    getattr(s, 'ml_backend', 'none'),
+                'npu_active': 'NPU' in getattr(s, 'ml_backend', ''),
             },
             'history': {
                 'alerts':   list(s.history_alerts),

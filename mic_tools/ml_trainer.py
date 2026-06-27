@@ -180,29 +180,53 @@ def _train_and_save(satellite: str | None, log_dir: str, model_dir: str,
     print(f'  Saved: {out_meta}')
 
 
+def _train_autoencoder_path(satellite, log_dir, model_dir, output, contamination):
+    """Train neural autoencoder + export TFLite (NPU model for Uno Q)."""
+    import re
+    _DATE_RE = re.compile(r'^epm_(.+)_(\d{8})\.csv$')
+    pattern  = f'epm_{satellite}_*.csv' if satellite else 'epm_*.csv'
+    files    = sorted(glob.glob(os.path.join(log_dir, pattern)))
+    if not files:
+        sys.exit(f'No CSV files matching "{pattern}" in {log_dir}.')
+    prefix = output or os.path.join(model_dir, satellite or 'epm_model')
+    os.makedirs(os.path.dirname(prefix) or '.', exist_ok=True)
+
+    from autoencoder import train_and_export
+    result = train_and_export(files, prefix, contamination)
+    if result is None:
+        sys.exit('Autoencoder training failed — check logs above.')
+    print(f'\n  NPU model ready: {prefix}_autoencoder.tflite')
+    print(f'  Backend: {result["backend"]}')
+    print(f'  WARN≥{result["t_warn"]:.4f}   FAULT≥{result["t_fault"]:.4f}')
+    return prefix
+
+
 def main():
     ap = argparse.ArgumentParser(
-        description='Train EPM bearing anomaly detection model from CSV logs',
+        description='Train EPM bearing anomaly detection model from CSV logs.\n\n'
+                    'Default: neural autoencoder → TFLite (runs on Qualcomm NPU on Arduino Uno Q).\n'
+                    'Use --isolation-forest for the legacy scikit-learn fallback.',
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--satellite',
                     default=None,
                     help='Train on one satellite only.  '
-                         'Default: train one model per satellite automatically '
-                         '(reads satellite names from CSV filenames in --log-dir).')
+                         'Default: train one model per satellite automatically.')
     ap.add_argument('--all-in-one',
                     action='store_true',
                     help='Train a single global model across all satellites '
                          'instead of one model per satellite.')
+    ap.add_argument('--isolation-forest',
+                    action='store_true',
+                    help='Use IsolationForest (CPU, no TF required) instead of autoencoder.')
     ap.add_argument('--contamination',
                     type=float, default=0.05,
                     help='Expected anomaly fraction 0.01–0.45 (default 0.05 = 5%%)')
     ap.add_argument('--n-estimators',
                     type=int, default=200,
-                    help='IsolationForest tree count (default 200)')
+                    help='IsolationForest tree count (ignored for autoencoder, default 200)')
     ap.add_argument('--output',
                     default=None,
-                    help='Output path prefix (overrides default per-satellite naming). '
-                         'Two files: <prefix>_iso.joblib and <prefix>_meta.json')
+                    help='Output path prefix (overrides default per-satellite naming).')
     ap.add_argument('--log-dir',
                     default=LOG_DIR,
                     help=f'CSV log directory (default {LOG_DIR})')
@@ -216,28 +240,43 @@ def main():
 
     os.makedirs(args.model_dir, exist_ok=True)
 
-    # ── Per-satellite mode (default) ─────────────────────────────────────────
+    use_autoencoder = not args.isolation_forest
+    if use_autoencoder:
+        try:
+            import autoencoder as _ae  # noqa: F401
+            import tensorflow as _tf   # noqa: F401
+            print('[trainer] Mode: Neural Autoencoder → TFLite (Qualcomm NPU on Uno Q)')
+        except ImportError:
+            print('[trainer] WARNING: TensorFlow not available — falling back to IsolationForest')
+            use_autoencoder = False
+
+    if not use_autoencoder:
+        print('[trainer] Mode: IsolationForest (CPU fallback)')
+
+    # ── Per-satellite mode ───────────────────────────────────────────────────
     if args.satellite:
-        print(f'\n[trainer] Training per-satellite model for: {args.satellite}')
-        _train_and_save(args.satellite, args.log_dir, args.model_dir, args.output,
-                        args.contamination, args.n_estimators)
-        prefix = args.output or os.path.join(args.model_dir, args.satellite)
-        print(f'\nTo enable for this satellite:')
-        print(f'  python recv_verify.py  (model auto-loaded on satellite connect)')
-        print(f'To run offline analysis:')
-        print(f'  python ml_infer.py --model {prefix}')
+        print(f'\n[trainer] Training for satellite: {args.satellite}')
+        if use_autoencoder:
+            _train_autoencoder_path(
+                args.satellite, args.log_dir, args.model_dir, args.output, args.contamination)
+        else:
+            _train_and_save(args.satellite, args.log_dir, args.model_dir, args.output,
+                            args.contamination, args.n_estimators)
+        print('\nModel auto-loaded by recv_verify.py on next satellite connect.')
         return
 
     if args.all_in_one:
         print('\n[trainer] Training single global model (all satellites combined)…')
         output_prefix = args.output or os.path.join(args.model_dir, 'epm_model')
-        _train_and_save(None, args.log_dir, args.model_dir, output_prefix,
-                        args.contamination, args.n_estimators)
-        print(f'\nTo enable global ML alerting:')
-        print(f'  python recv_verify.py --model {output_prefix}')
+        if use_autoencoder:
+            _train_autoencoder_path(None, args.log_dir, args.model_dir, output_prefix,
+                                    args.contamination)
+        else:
+            _train_and_save(None, args.log_dir, args.model_dir, output_prefix,
+                            args.contamination, args.n_estimators)
         return
 
-    # ── Default: auto-discover satellites and train one model each ───────────
+    # ── Default: auto-discover satellites, train one model each ─────────────
     satellites = _discover_satellites(args.log_dir)
     if not satellites:
         sys.exit(f'No CSV files found in {args.log_dir}.  '
@@ -247,13 +286,19 @@ def main():
     for sat in satellites:
         print(f'\n  ── {sat} ──')
         try:
-            _train_and_save(sat, args.log_dir, args.model_dir, None,
-                            args.contamination, args.n_estimators)
+            if use_autoencoder:
+                _train_autoencoder_path(sat, args.log_dir, args.model_dir, None,
+                                        args.contamination)
+            else:
+                _train_and_save(sat, args.log_dir, args.model_dir, None,
+                                args.contamination, args.n_estimators)
         except SystemExit as e:
             print(f'  Skipped {sat}: {e}')
 
     print(f'\n[trainer] Done.  Per-satellite models saved to {args.model_dir}/')
     print('  Models are auto-loaded by recv_verify.py when each satellite connects.')
+    if use_autoencoder:
+        print('  NPU acceleration active on Arduino Uno Q (Qualcomm Hexagon).')
 
 
 if __name__ == '__main__':
