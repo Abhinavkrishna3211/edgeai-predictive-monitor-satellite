@@ -1,61 +1,96 @@
 # EdgeAI Predictive Monitor — Satellite Node
 
 A wireless multi-satellite bearing-fault detection system for industrial motors.
-XIAO ESP32-S3 sensor nodes stream real-time FFT data over WiFi to a Python gateway
-that applies statistical + ML anomaly detection, logs CSV data, and serves a live
-web dashboard accessible from any device on the LAN.
+XIAO ESP32-S3 sensor nodes stream real-time FFT data over WiFi to an Arduino Uno Q
+gateway that applies statistical + ML anomaly detection, classifies fault types,
+logs sensor data, and serves a live web dashboard accessible from any device on the LAN.
 
 ---
 
 ## System Architecture
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│  XIAO ESP32-S3  (satellite node)  ×N                       │
-│                                                            │
-│  INMP441 mic ─► I2S ─► 1024-pt FFT ×4 avg  (16 kHz)      │
-│  KX134 IMU   ─► SPI ─► 2048-pt FFT ×3 axes (25.6 kHz)    │
-│                            ↓                               │
-│  led_task ◄── alert byte ◄── TCP frame ──► gateway         │
-└──────────────────────────────────────────────────────────┘
-                         WiFi / TCP
-┌────────────────────────────────────────────────────────────┐
-│  Arduino Uno Q  (permanent gateway + AI engine)            │
-│                                                            │
-│  recv_verify.py  --no-plot                                 │
-│   ├─ 30-frame adaptive baseline (z-score calibration)      │
-│   ├─ kurtosis + crest factor + high-band energy scoring    │
-│   ├─ IsolationForest ML anomaly detection (optional)       │
-│   ├─ CSV log → mic_tools/logs/  (per satellite per day)    │
-│   ├─ Maintenance log → logs/maintenance_log.json           │
-│   ├─ Web dashboard  http://<uno-q-ip>:8080/                │
-│   └─ 1-byte alert reply to satellite  0x00/0x01/0x02       │
-└──────────────────────────────────────────────────────────┘
-                         LAN (WiFi / Ethernet)
-┌────────────────────────────────────────────────────────────┐
-│  Any browser on the LAN  (phone / tablet / laptop)         │
-│                                                            │
-│  http://<uno-q-ip>:8080/   ← live dashboard               │
-│  http://<uno-q-ip>:8080/api/report  ← printable report    │
-└──────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  XIAO ESP32-S3  (satellite sensor node)  ×N                    │
+│                                                                │
+│  INMP441 mic ─► I2S ─► 1024-pt FFT ×4 avg  (16 kHz)          │
+│  KX134 IMU   ─► SPI ─► 2048-pt FFT ×3 axes (25.6 kHz)        │
+│                              ↓ TCP binary frame  ~14.3 KB      │
+│  led_task ◄── alert byte (0x00/0x01/0x02) ◄──────────────     │
+└────────────────────────────────────────────────────────────────┘
+                           WiFi 2.4 GHz / TCP port 5100
+┌────────────────────────────────────────────────────────────────┐
+│  Arduino Uno Q 4GB  — ABX00173  (permanent AI gateway)         │
+│                                                                │
+│  MPU: Qualcomm Dragonwing QRB2210                              │
+│       Quad-core ARM Cortex-A53 @ 2.0 GHz                      │
+│       4 GB LPDDR4 RAM  ·  16 GB eMMC  ·  Debian Linux         │
+│       Adreno GPU  ·  Qualcomm AI Engine (SNPE-capable)         │
+│       Wi-Fi 5 (2.4 / 5 GHz)  ·  BT 5.1                        │
+│                                                                │
+│  MCU: STM32U585  ARM Cortex-M33 @ 160 MHz  (real-time I/O)    │
+│                                                                │
+│  recv_verify.py  (runs on MPU / Linux side)                    │
+│   ├─ 30-frame adaptive Z-score baseline per satellite          │
+│   ├─ Kurtosis + crest factor + high-band energy scoring        │
+│   ├─ Spectral fault classification (6 fault types)             │
+│   ├─ IsolationForest ML anomaly detection (optional)           │
+│   ├─ CSV log  →  logs/  (per satellite per day)                │
+│   ├─ Maintenance log  →  logs/maintenance_log.json             │
+│   ├─ Web dashboard  http://<uno-q-ip>:8080/  (PWA)            │
+│   └─ 1-byte alert reply to satellite                           │
+└────────────────────────────────────────────────────────────────┘
+                           LAN — HTTP port 8080
+┌────────────────────────────────────────────────────────────────┐
+│  Any browser on LAN  (phone / tablet / laptop)                 │
+│   http://<uno-q-ip>:8080/           live dashboard             │
+│   http://<uno-q-ip>:8080/api/report  printable PDF report      │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-**The Arduino Uno Q is the only always-on compute node.**  
-Satellite firmware (ESP32) → streams sensor data only.  
-The laptop is used only during firmware development and flashing.  
-Once the system is deployed, the laptop is not needed at all.
+**The Arduino Uno Q is the only always-on compute node.**
+The laptop is used only to build and flash ESP32 firmware.
+Once deployed, the laptop is removed entirely.
 
 ---
 
 ## Hardware
 
-| Component | Role |
-|-----------|------|
-| Seeed XIAO ESP32-S3 | Satellite sensor node — captures vibration + sound, streams over WiFi |
-| INMP441 / ICS-43434 | External I2S MEMS microphone — wire to D1/D2/D3 |
-| KX134 3-axis IMU | SPI accelerometer — bolt to motor casing |
-| Arduino Uno Q | Permanent gateway: runs Python, scores data, serves dashboard |
-| 2.4 GHz AP / hotspot | WiFi access point — Windows / Android / iPhone hotspot all work |
+| Component | Specs | Role |
+|-----------|-------|------|
+| Seeed XIAO ESP32-S3 | Dual-core LX7 @ 160 MHz, 8 MB Flash, 2 MB PSRAM | Satellite sensor node — capture, FFT, stream |
+| INMP441 / ICS-43434 | I2S MEMS, −26 dBFS sensitivity, 60 Hz – 15 kHz | Acoustic bearing fault microphone |
+| KX134 3-axis IMU | SPI, ±8g / ±16g / ±32g / ±64g, up to 25.6 kHz ODR | Vibration accelerometer — bolt to motor |
+| **Arduino Uno Q 4GB** | QRB2210 quad A53 @ 2.0 GHz, **4 GB LPDDR4**, 16 GB eMMC, Adreno GPU, Wi-Fi 5 | AI gateway + dashboard server |
+| 2.4 GHz AP / hotspot | Windows / Android / iPhone hotspot all work | WiFi network for satellite connections |
+
+### Arduino Uno Q 4GB — Full Specification
+
+The gateway runs on the **MPU side** (Linux / Debian). The STM32 MCU side handles real-time I/O and is not used by this project.
+
+| Attribute | Value |
+|-----------|-------|
+| Model | ABX00173 |
+| MPU | Qualcomm Dragonwing QRB2210 |
+| CPU cores | 4× ARM Cortex-A53 @ 2.0 GHz |
+| RAM | **4 GB LPDDR4** |
+| Storage | 16 GB eMMC (expandable via USB) |
+| GPU | Qualcomm Adreno (hardware ML acceleration via SNPE) |
+| OS | Debian Linux (upstream kernel) |
+| WiFi | Wi-Fi 5 (802.11ac) 2.4 GHz + 5 GHz, onboard antenna |
+| Bluetooth | BT 5.1, onboard antenna |
+| MCU (co-processor) | STM32U585 ARM Cortex-M33 @ 160 MHz, 2 MB flash, 786 KB SRAM |
+| USB | USB-C with host/device switching and video output |
+| Container support | Docker + Docker Compose pre-installed |
+| AI framework | Arduino App Lab — one-click model deployment, OTA updates |
+| Power | USB-C 5V 3A or VIN 7–24 V |
+| Form factor | 68.85 × 53.34 mm (standard UNO) |
+
+**Why the 4 GB variant matters for this project:**
+- Runs full IsolationForest ML training on-device — no laptop needed for model updates
+- Holds 200-frame history per satellite in RAM without pressure (16+ satellites simultaneously)
+- Enough headroom to run larger neural network models (TFLite / ONNX) in future
+- 16 GB eMMC stores years of daily CSV sensor logs without SD card
 
 > **Microphone note:** The firmware uses the standard I2S driver targeting
 > **external** microphones (INMP441, ICS-43434) wired to GPIO 2/3/4.  
@@ -99,12 +134,13 @@ edgeai-predictive-monitor-satellite/
 │       └── include/mic_capture.h
 │
 ├── mic_tools/
-│   ├── recv_verify.py      # Gateway: receive, score, alert, CSV log, dashboard
+│   ├── recv_verify.py      # Gateway: receive, score, alert, CSV log, dashboard, reports
 │   ├── satellite_sim.py    # Test gateway without hardware (N simulated satellites)
 │   ├── bearing_math.py     # ISO bearing fault frequencies — BPFO/BPFI/BSF/FTF
 │   ├── ml_trainer.py       # Train IsolationForest anomaly model from CSV logs
 │   ├── ml_infer.py         # Offline anomaly analysis with trained model
 │   ├── plot_mic.py         # LEGACY serial debug tool — do not use with current firmware
+│   ├── Dockerfile          # Docker deployment for Arduino Uno Q (pre-installed on Uno Q)
 │   └── requirements.txt
 │
 ├── CMakeLists.txt          # Root ESP-IDF project
@@ -166,86 +202,137 @@ idf.py -p COM9 flash monitor    # adjust port for your system
 
 ---
 
-## Quick Start — Gateway on Arduino Uno Q
+## Quick Start — Gateway on Arduino Uno Q 4GB
 
-The Uno Q runs Python headlessly — no display, no laptop needed after setup.
+The Uno Q runs Python on its Linux (MPU) side — headless, no display, no laptop needed after first setup.
 
-### 1. Install dependencies on Uno Q
+### 1. First-time setup on Uno Q
 
 ```bash
-sudo apt update && sudo apt install python3 python3-pip -y
-cd mic_tools
+# Update packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Python (already on Debian, but ensure pip is available)
+sudo apt install python3 python3-pip python3-venv git -y
+
+# Clone the repo onto the Uno Q
+git clone https://github.com/Abhinavkrishna3211/edgeai-predictive-monitor-satellite.git
+cd edgeai-predictive-monitor-satellite/mic_tools
+
+# Create a virtual environment (keeps the system Python clean)
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
 pip3 install -r requirements.txt
 ```
 
 ### 2. Start the gateway
 
 ```bash
+# Activate venv first (if not already active)
+source venv/bin/activate
+
 # Minimal headless startup
 python3 recv_verify.py --no-plot
 
-# With factory label and HTTP Basic Auth (recommended for production)
+# Production startup with auth, factory label, and notifications
 python3 recv_verify.py --no-plot \
     --factory-name "Plant A — Line 3" \
-    --auth admin:yourpassword
-
-# With emergency notifications (Discord/Slack/Teams webhook)
-python3 recv_verify.py --no-plot \
-    --factory-name "Plant A" \
     --auth admin:yourpassword \
     --notify-webhook "https://hooks.slack.com/services/..."
 
 # With email alerts (SMTP)
 python3 recv_verify.py --no-plot \
-    --notify-email "from@example.com:to@example.com:smtp.gmail.com:587:user:pass"
+    --notify-email "from@gmail.com:to@gmail.com:smtp.gmail.com:587:user@gmail.com:apppassword"
 
-# With ML anomaly model (after training on collected CSVs)
+# With ML anomaly model (train first, see ML section below)
 python3 recv_verify.py --no-plot --model model/epm_model
 
-# With bearing fault frequency markers
+# With bearing fault frequency markers (if shaft speed is known)
 python3 recv_verify.py --no-plot --shaft-rpm 1500 --bearing 6205
-
-# Override alert thresholds
-python3 recv_verify.py --no-plot --crest-warn 4.5 --crest-fault 9.0
 ```
 
-### 3. Run as a background service (always-on)
-
-```bash
-nohup python3 recv_verify.py --no-plot \
-    --factory-name "Plant A" \
-    --auth admin:yourpassword &
-echo $! > gateway.pid
-```
-
-Or install as a `systemd` service so it starts automatically on Uno Q boot:
+### 3a. Run as systemd service (auto-start on boot)
 
 ```ini
 # /etc/systemd/system/epm-gateway.service
 [Unit]
-Description=EPM Gateway
-After=network.target
+Description=EPM Predictive Maintenance Gateway
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/user/edgeai/mic_tools/recv_verify.py \
-    --no-plot --factory-name "Plant A" --auth admin:yourpassword
-WorkingDirectory=/home/user/edgeai/mic_tools
+Type=simple
+User=arduino
+WorkingDirectory=/home/arduino/edgeai-predictive-monitor-satellite/mic_tools
+ExecStart=/home/arduino/edgeai-predictive-monitor-satellite/mic_tools/venv/bin/python3 \
+    recv_verify.py \
+    --no-plot \
+    --factory-name "Plant A" \
+    --auth admin:yourpassword
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
 
 ```bash
+sudo systemctl daemon-reload
 sudo systemctl enable epm-gateway
 sudo systemctl start epm-gateway
+sudo systemctl status epm-gateway    # verify it started
+journalctl -u epm-gateway -f         # live log output
 ```
 
-### 4. Open the dashboard
+### 3b. Run via Docker (alternative — cleanest deployment)
+
+The Uno Q ships with Docker pre-installed. Use this for isolated, reproducible deployment:
+
+```bash
+cd mic_tools
+
+# Build the image once
+docker build -t epm-gateway .
+
+# Run (--network host gives the container direct access to the LAN)
+docker run -d --name epm \
+    --network host \
+    --restart unless-stopped \
+    -v $(pwd)/logs:/app/logs \
+    -v $(pwd)/model:/app/model \
+    -e FACTORY_NAME="Plant A — Line 3" \
+    -e AUTH="admin:yourpassword" \
+    -e NOTIFY_WEBHOOK="https://hooks.slack.com/services/..." \
+    epm-gateway
+
+# View live gateway output
+docker logs -f epm
+
+# Stop
+docker stop epm
+```
+
+Logs and ML models are stored on the host machine (mounted volumes) so they survive container restarts.
+
+### 4. Find the Uno Q's IP address
+
+```bash
+# On the Uno Q terminal
+ip a show wlan0       # if connected via WiFi
+ip a show eth0        # if connected via Ethernet (USB-C adapter)
+hostname -I           # shows all IPs
+```
+
+### 5. Open the dashboard
 
 ```
 http://<uno-q-ip>:8080/
 ```
+
+Open from any phone, tablet, or laptop on the same WiFi network.
+On Android: tap browser menu → **Add to Home Screen** to install as a PWA app icon.
 
 Open from any phone, tablet, or laptop on the same WiFi network.
 No software to install on the viewing device — it's just a browser.
@@ -355,32 +442,41 @@ python3 recv_verify.py --shaft-rpm 1500 --bearing 6205
 
 ## ML Training Pipeline
 
+The Arduino Uno Q 4GB (quad-core A53 @ 2.0 GHz, 4 GB LPDDR4) has more than enough
+compute to run all training steps directly on-device. No laptop needed after initial setup.
+
 ### 1. Collect training data
 
-Run the gateway with real or simulated equipment for at least 30 minutes of
-healthy operation.  Each satellite logs to `mic_tools/logs/epm_<name>_<YYYYMMDD>.csv`.
+Run the gateway for at least 30 minutes of normal healthy motor operation.
+Each satellite logs to `logs/epm_<name>_<YYYYMMDD>.csv` automatically.
 
-### 2. Train the model (on a PC — copy logs from Uno Q)
+### 2. Train directly on the Uno Q
 
 ```bash
-cd mic_tools
-python3 ml_trainer.py                          # all satellites
-python3 ml_trainer.py --satellite SAT-A3B4     # one satellite only
+# SSH into the Uno Q, activate venv
+source ~/edgeai-predictive-monitor-satellite/mic_tools/venv/bin/activate
+cd ~/edgeai-predictive-monitor-satellite/mic_tools
+
+python3 ml_trainer.py                           # train on all satellites
+python3 ml_trainer.py --satellite SAT-A3B4      # one satellite only
 python3 ml_trainer.py --contamination 0.03 --n-estimators 300
 ```
 
 Writes `model/epm_model_iso.joblib` and `model/epm_model_meta.json`.
+Training on typical log sizes (100K+ rows) completes in under 30 seconds on the Uno Q.
 
-### 3. Deploy back to Uno Q
-
-Copy the `model/` directory to the Uno Q, then:
+### 3. Activate the model
 
 ```bash
+# If using systemd, edit the service ExecStart to add --model, then:
+sudo systemctl restart epm-gateway
+
+# Or restart manually:
 python3 recv_verify.py --no-plot --model model/epm_model
 ```
 
-The ML model runs alongside the threshold detector — the more severe alert wins.
-Inference activates only after each satellite's 30-frame baseline.
+The ML model runs alongside the statistical detector — the more severe alert wins.
+Inference activates only after each satellite's 30-frame baseline is established.
 
 ### 4. Offline analysis
 
