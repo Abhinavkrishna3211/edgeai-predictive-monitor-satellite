@@ -57,14 +57,42 @@ def _gen_mic_fft(mode):
     return fft
 
 
-def _gen_imu_fft(mode):
-    """1024-bin IMU FFT in dBFS with a 50 Hz shaft tone."""
+def _gen_imu_fft(mode, axis='x'):
+    """
+    1024-bin IMU FFT in dBFS with axis-realistic signals.
+    Matches the stub signals in imu_task.c:
+      X radial A: 50 Hz imbalance tone
+      Y radial B: 50 Hz + 150 Hz (3× harmonic)
+      Z axial:    100 Hz (2× shaft — mild misalignment)
+    12.5 Hz / bin at IMU_FS_HZ=25600, FFT_IMU_N=2048
+    """
+    BIN_HZ = 25600 / (IMU_BINS * 2)   # 12.5 Hz/bin
     fft = [-97.0 + random.gauss(0, 2.0) for _ in range(IMU_BINS)]
-    fft[0] = -120.0
-    fft[4] = -58.0 + random.gauss(0, 1.0)   # 50 Hz shaft (bin 4 at 12.5 Hz/bin)
+    fft[0] = -120.0   # DC bin zeroed
+
+    b50  = round(50  / BIN_HZ)   # bin 4
+    b100 = round(100 / BIN_HZ)   # bin 8
+    b150 = round(150 / BIN_HZ)   # bin 12
+
+    # Axis-specific base tones (match imu_task.c stub)
+    if axis == 'x':
+        fft[b50]  = -58.0 + random.gauss(0, 1.0)   # 50 Hz radial A
+    elif axis == 'y':
+        fft[b50]  = -59.0 + random.gauss(0, 1.0)   # 50 Hz radial B
+        fft[b150] = -65.0 + random.gauss(0, 1.2)   # 150 Hz 3×
+    elif axis == 'z':
+        fft[b100] = -62.0 + random.gauss(0, 1.0)   # 100 Hz axial 2× shaft
+
+    # Fault/warn excitations: elevated energy at bearing resonance frequencies
     if mode == 'fault':
-        fft[8]  = -62.0  # 100 Hz 2× harmonic
-        fft[12] = -65.0  # 150 Hz 3× harmonic
+        # Wideband impact at BPFI region (~280-400 Hz, bins 22-32)
+        for b in range(22, 33):
+            fft[b] = max(fft[b], -60.0 + random.gauss(0, 3.0))
+        fft[b100] = max(fft[b100], -55.0)   # 100 Hz prominent on all axes
+    elif mode == 'warn':
+        for b in range(22, 30):
+            fft[b] = max(fft[b], -72.0 + random.gauss(0, 2.0))
+
     return fft
 
 
@@ -98,9 +126,11 @@ def _make_frame(frame_id, mode):
                       imu_rms, imu_crest, 0.0, 0, 3)
 
     mic_bytes = struct.pack(f'<{MIC_BINS}f', *_gen_mic_fft(mode))
-    imu_bytes = struct.pack(f'<{IMU_BINS}f', *_gen_imu_fft(mode))
+    imu_x     = struct.pack(f'<{IMU_BINS}f', *_gen_imu_fft(mode, 'x'))
+    imu_y     = struct.pack(f'<{IMU_BINS}f', *_gen_imu_fft(mode, 'y'))
+    imu_z     = struct.pack(f'<{IMU_BINS}f', *_gen_imu_fft(mode, 'z'))
 
-    payload = hdr + mic_bytes + imu_bytes * 3  # 3 identical axes (X, Y, Z)
+    payload = hdr + mic_bytes + imu_x + imu_y + imu_z
     return struct.pack('<I', len(payload)) + payload
 
 

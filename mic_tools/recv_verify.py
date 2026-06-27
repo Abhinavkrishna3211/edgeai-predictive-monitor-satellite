@@ -41,8 +41,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 # Optional: bearing fault frequency analysis (bearing_math.py in same directory)
+MARKER_COLORS: dict = {}   # populated below if bearing_math is importable
 try:
-    from bearing_math import BearingFreqs, parse_bearing_arg, MARKER_COLORS
+    from bearing_math import BearingFreqs, parse_bearing_arg
+    from bearing_math import MARKER_COLORS as MARKER_COLORS  # re-bind module-level name
     _BEARING_AVAILABLE = True
 except ImportError:
     _BEARING_AVAILABLE = False
@@ -654,10 +656,9 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
         # Bearing fault frequency markers (colored vertical lines + labels)
         if bearing_freqs:
             _DFLT_C = '#aaaaaa'
-            _CLR = globals().get('MARKER_COLORS', {})
             for label, freq in bearing_freqs.items():
                 if 0 < freq < fs / 2:
-                    c = _CLR.get(label, _DFLT_C)
+                    c = MARKER_COLORS.get(label, _DFLT_C)
                     ax.axvline(freq, color=c, alpha=0.55, lw=0.9, ls='-.')
                     ax.text(freq + fs / 2 * 0.005, 5, label,
                             color=c, fontsize=5, rotation=90,
