@@ -1,0 +1,48 @@
+# EPM project sdkconfig overrides.
+# These values are merged with the board defaults on every `idf.py menuconfig`
+# or PlatformIO build.  Only include settings that differ from IDF defaults.
+
+# ── System ──────────────────────────────────────────────────────────────────
+
+# app_main calls esp_wifi_init + phy_init chain which uses ~4 KB of stack.
+# Default 3584 overflows → corrupted TCB on vTaskDelete.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Legacy SMP FreeRTOS arms TG1WDT (CPU1 tick monitor) during early boot before
+# FreeRTOS starts CPU1.  WiFi RF init (phy_enable, ~140 ms) disrupts the
+# IPC-based CPU1 tick ISR feed.  Total gap from boot arm → first CPU1 tick
+# after WiFi init exceeds the default 2×300 ms = 600 ms window → TG1WDT_SYS_RST.
+# 1200 ms gives 2×600 ms = 1200 ms headroom, covering all of WiFi startup.
+CONFIG_ESP_INT_WDT_TIMEOUT_MS=1200
+
+# ── Compiler optimisation ────────────────────────────────────────────────────
+
+# Use -O2 (performance) instead of -Og (debug).
+# DSP pipeline benefits significantly: kurtosis inner loop, FFT windowing,
+# cosf phase accumulators.  The IDF WiFi blobs are pre-compiled — they are
+# not affected by this setting.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# ── LWIP TCP tuning for 14 KB frames ────────────────────────────────────────
+
+# Default TCP send buffer is 5740 bytes.  Each EPM frame is ~14.3 KB.
+# Raising to 32 KB allows the TCP stack to buffer a full frame before
+# ACKing, reducing the number of send() calls that block waiting for
+# window space.
+CONFIG_LWIP_TCP_SND_BUF_DEFAULT=32768
+
+# TCP receive window: how much data the peer can send before waiting for ACK.
+# Larger window improves throughput on high-latency links (WiFi retransmits).
+CONFIG_LWIP_TCP_WND_DEFAULT=32768
+
+# TCP receive mailbox (pbuf queue depth per socket).  Default 6 is tight
+# for a 14 KB frame arriving as multiple 1460-byte segments.
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=16
+
+# ── WiFi ─────────────────────────────────────────────────────────────────────
+
+# Keep dynamic TX buffers at 32 (default) — avoids dropping frames when
+# WiFi retransmits.  Dynamic RX buffers raised to 32 to absorb bursts from
+# the gateway's alert byte and any DHCP/ARP traffic.
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=32
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
