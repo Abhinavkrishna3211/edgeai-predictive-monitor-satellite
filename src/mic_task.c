@@ -57,7 +57,7 @@ static void mic_task_fn(void *arg)
 {
     (void)arg;
     /* Local to this task — single owner, no cross-task access. */
-    static int avg_cnt = 0;
+    int avg_cnt = 0;
 
     /* Enable I2S DMA from CPU1 so the DMA interrupt is allocated here,
      * away from the WiFi driver task on CPU0. */
@@ -104,15 +104,19 @@ static void mic_task_fn(void *arg)
 
         /* --- 3b. Kurtosis on zero-mean signal ---
          * K = E[x^4] / (E[x^2])^2.  Gaussian noise → K≈3. Impulsive fault
-         * events → K>6.  This is the ISO 10816 bearing fault indicator. */
+         * events → K>6.  This is the ISO 10816 bearing fault indicator.
+         *
+         * Variance is computed directly from the DC-removed s_norm to avoid
+         * catastrophic cancellation in (rms² - dc²) when DC is large. */
         {
-            float var = last_rms * last_rms - last_dc * last_dc;
+            float sum2 = 0.0f, sum4 = 0.0f;
+            for (int i = 0; i < FFT_MIC_N; i++) {
+                float v2 = s_norm[i] * s_norm[i];
+                sum2 += v2;
+                sum4 += v2 * v2;
+            }
+            float var = sum2 / FFT_MIC_N;
             if (var > 1e-12f) {
-                float sum4 = 0.0f;
-                for (int i = 0; i < FFT_MIC_N; i++) {
-                    float v2 = s_norm[i] * s_norm[i];
-                    sum4 += v2 * v2;
-                }
                 last_kurtosis = (sum4 / FFT_MIC_N) / (var * var);
             }
         }
