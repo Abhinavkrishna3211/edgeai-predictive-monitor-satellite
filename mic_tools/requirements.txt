@@ -1,24 +1,47 @@
 # EPM gateway / tools dependencies
 # Install: pip3 install -r requirements.txt
 #
-# On Arduino Uno Q (Debian Linux):
+# On Arduino Uno Q (Ubuntu / aarch64):
 #   sudo apt update && sudo apt install python3-pip python3-venv -y
 #   python3 -m venv venv && source venv/bin/activate
 #   pip3 install -r requirements.txt
+#
+# Or with Docker (recommended — one command deploys everything):
+#   cd mic_tools && docker compose up -d
 
-# Core numerical / signal processing (recv_verify.py + satellite_sim.py)
-numpy>=1.24,<2.0    # <2.0: NumPy 2.x breaks several array APIs used here
-scipy>=1.11          # used by ML trainer for stats; optional in gateway
+# ── Core numerical / signal processing ───────────────────────────────────────
+numpy>=1.24,<2.0     # <2.0: NumPy 2.x changed array APIs used here
+scipy>=1.11
 
-# Live FFT plot (used with --plot flag on desktop; skip with --no-plot on Uno Q)
+# ── Live FFT plot (desktop only — skip with --no-plot on headless Uno Q) ─────
 matplotlib>=3.7
 
-# ML pipeline (ml_trainer.py + ml_infer.py)
-# Also enables --model argument in recv_verify.py for live ML-based alerting
-# All training can run directly on the Uno Q 4GB (4GB LPDDR4 + 16GB eMMC)
+# ── ML pipeline — IsolationForest fallback ───────────────────────────────────
 pandas>=2.0
 scikit-learn>=1.3
 joblib>=1.3
 
-# Optional: serial port access (legacy plot_mic.py tool — not needed normally)
+# ── Neural Autoencoder — Qualcomm NPU on Arduino Uno Q ───────────────────────
+# Training: tensorflow-cpu (or tensorflow on x86 dev machine)
+# Inference: tflite-runtime (lightweight — no training stack needed)
+#
+# Install ONE of:
+#   pip install tflite-runtime          # inference only (Uno Q deploy)
+#   pip install tensorflow-cpu          # training + inference (dev / Uno Q training)
+#   pip install tensorflow              # full GPU version (x86 dev machine)
+#
+# Both are tried automatically in autoencoder.NpuInferencer; neither is REQUIRED —
+# the system falls back to IsolationForest if neither is installed.
+tensorflow-cpu>=2.13,<2.16    # comment out if using full tensorflow
+# tflite-runtime>=2.13         # uncomment for inference-only deploys
+
+# ── Qualcomm NPU delegate (hardware acceleration on Uno Q) ───────────────────
+# libQnnHtp.so is NOT a pip package — it comes from the Qualcomm AI Engine
+# Direct SDK. Install on the Uno Q host OS:
+#   sudo apt install qnn-runtime   (if available in the contest SDK)
+# Or follow the QAISW SDK setup guide for QCS6490 / RB5.
+# autoencoder.NpuInferencer tries libQnnHtp.so automatically on startup.
+# No action needed — if the lib is present, NPU is used; otherwise CPU TFLite.
+
+# ── Optional: serial port (legacy plot_mic.py) ────────────────────────────────
 # pyserial>=3.5
