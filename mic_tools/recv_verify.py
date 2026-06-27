@@ -86,6 +86,7 @@ CLEAR_PERSIST = 3   # consecutive OK  frames required to clear alert
 HIGH_BAND_MIN  = 0.12   # 12% of total mic energy must be in 2-8kHz band
 
 MIC_FS_HZ = 16000
+IMU_FS_HZ = 25600   # KX134 ODR — must match FFT_IMU_N and epm_config.h
 
 _SERVER_START_T = time.time()   # used by dashboard uptime counter
 
@@ -1242,6 +1243,9 @@ def main():
                         help=f'Crest factor FAULT threshold (default {CREST_FAULT})')
     parser.add_argument('--dashboard-port', type=int, default=8080,
                         help='HTTP port for the web dashboard (default 8080)')
+    parser.add_argument('--no-plot', action='store_true',
+                        help='Skip the live matplotlib plot — for SSH / headless / '
+                             'Uno Q / server environments with no display')
     args = parser.parse_args()
 
     if args.crest_warn is not None:
@@ -1302,12 +1306,21 @@ def main():
         daemon=True,
     ).start()
 
-    try:
-        run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
-                 bearing_freqs_mic=bearing_freqs_mic,
-                 bearing_freqs_imu=bearing_freqs_imu)
-    except KeyboardInterrupt:
-        print("\nExiting.")
+    if args.no_plot:
+        print("[plot] --no-plot: running headless (TCP receiver + dashboard only)")
+        print("[plot] Dashboard: http://localhost:{}/".format(args.dashboard_port))
+        try:
+            while True:
+                time.sleep(60)
+        except KeyboardInterrupt:
+            print("\nExiting.")
+    else:
+        try:
+            run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
+                     bearing_freqs_mic=bearing_freqs_mic,
+                     bearing_freqs_imu=bearing_freqs_imu)
+        except KeyboardInterrupt:
+            print("\nExiting.")
 
 
 if __name__ == '__main__':

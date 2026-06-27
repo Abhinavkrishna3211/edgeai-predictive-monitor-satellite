@@ -176,7 +176,7 @@ def main():
     # ── Top anomalies ─────────────────────────────────────────────────────────
     top = df.nsmallest(args.top_anomalies, 'ml_score')
     print(f'\n  Top {args.top_anomalies} most anomalous frames:')
-    show = ['_source', 'timestamp', 'ml_score', 'ml_alert',
+    show = ['_source', 'wall_time', 'ml_score', 'ml_alert',
             'mic_kurtosis', 'mic_crest', 'z_score']
     show = [c for c in show if c in top.columns]
     pd.set_option('display.max_colwidth', 35)
