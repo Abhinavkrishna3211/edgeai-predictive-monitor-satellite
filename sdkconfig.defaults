@@ -46,3 +46,17 @@ CONFIG_LWIP_TCP_RECVMBOX_SIZE=16
 # the gateway's alert byte and any DHCP/ARP traffic.
 CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=32
 CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
+
+# ── Power management ─────────────────────────────────────────────────────────
+#
+# wifi_task.c calls esp_wifi_set_ps(WIFI_PS_NONE) — modem sleep disabled.
+# This gives maximum TCP throughput for 14.3 KB/frame at ~2.2 fps.
+#
+# For LiPo / battery-powered deployment change that call to:
+#   esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+# Saves ~30% WiFi power with up to 100 ms extra frame latency.
+#
+# For deep tickless idle between burst sends, also add:
+# CONFIG_PM_ENABLE=y
+# CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+# (requires rework of wifi_task to sleep between frame bursts)
