@@ -291,8 +291,10 @@ static bool send_frame(int sock, const epm_header_t *hdr)
 }
 
 /* Read the 1-byte alert code sent by the gateway after each frame.
- * Returns false only when the gateway closes the connection (caller reconnects).
- * A recv() timeout (EAGAIN) is normal — alert stays at EPM_ALERT_OK. */
+ * Returns false when the caller must drop the connection and reconnect.
+ * On timeout (EAGAIN), returns true without modifying *alert_out so the
+ * caller keeps the previous alert level — the LED must not flicker to OK
+ * just because the gateway was slow to respond for one frame. */
 static bool read_gateway_alert(int sock, uint8_t *alert_out)
 {
     int n = recv(sock, alert_out, 1, 0);
@@ -309,9 +311,13 @@ static bool read_gateway_alert(int sock, uint8_t *alert_out)
         return false;
     }
 
-    /* n < 0: EAGAIN/EWOULDBLOCK = recv timeout — keep previous alert */
-    *alert_out = EPM_ALERT_OK;
-    return true;
+    /* n < 0: distinguish timeout from a real socket error */
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        /* Normal recv timeout — *alert_out unchanged, caller keeps previous level */
+        return true;
+    }
+    ESP_LOGW(TAG, "recv() error: errno %d — reconnecting", errno);
+    return false;
 }
 
 static void update_led(uint8_t alert, uint32_t cal_frames)
@@ -350,6 +356,7 @@ static void wifi_task_fn(void *arg)
 
     uint32_t frame_id   = 0;
     uint32_t cal_frames = 0;
+    uint8_t  last_alert = EPM_ALERT_OK;  /* persists across frames; resets on reconnect */
     int sock = -1;
 
     wait_for_wifi();
@@ -362,6 +369,7 @@ static void wifi_task_fn(void *arg)
                 continue;
             }
             cal_frames = 0;
+            last_alert = EPM_ALERT_OK;
         }
 
         if (!recv_mic_and_imu(mic_q, imu_q)) {
@@ -379,16 +387,19 @@ static void wifi_task_fn(void *arg)
             continue;
         }
 
-        uint8_t alert = EPM_ALERT_OK;
+        /* read_gateway_alert leaves last_alert unchanged on timeout so the LED
+         * never flickers back to OK just because the gateway was slow to reply */
+        uint8_t alert = last_alert;
         if (!read_gateway_alert(sock, &alert)) {
             drop_connection(&sock);
             continue;
         }
+        last_alert = alert;
 
-        update_led(alert, ++cal_frames);
+        update_led(last_alert, ++cal_frames);
 
         ESP_LOGD(TAG, "frame %lu: mic_rms=%.4f imu_crest=%.2f alert=0x%02x",
-                 (unsigned long)(frame_id - 1), s_mic.rms, hdr.imu_crest, alert);
+                 (unsigned long)(frame_id - 1), s_mic.rms, hdr.imu_crest, last_alert);
     }
 }
 

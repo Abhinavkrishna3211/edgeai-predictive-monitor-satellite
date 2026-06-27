@@ -179,7 +179,7 @@ static void imu_task_fn(void *arg)
     float ph_z1 = 0.0f, ph_z2 = 0.0f;
 
     /* Local to this task — single owner, no cross-task access. */
-    static int avg_cnt = 0;
+    int avg_cnt = 0;
 
     /* Per-axis stats from the final block of the averaging window */
     axis_stats_t st_x = {0}, st_y = {0}, st_z = {0};
