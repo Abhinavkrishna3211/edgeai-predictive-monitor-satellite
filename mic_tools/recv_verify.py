@@ -149,6 +149,7 @@ class SatelliteState:
         self.fault_frames = 0
         self.last_fault_t = None          # epoch of most recent FAULT frame
         self.last_z       = 0.0
+        self.last_hb      = 0.0           # most recent high-band energy ratio
         self.fault_type   = "Normal"   # spectral fault classification label
         self.history_alerts   = collections.deque([0]   * HISTORY_LEN, maxlen=HISTORY_LEN)
         self.history_kurtosis = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
@@ -294,67 +295,66 @@ def parse_frame(raw, exp_mic_bins, exp_imu_bins):
                 errors=errs)
 
 
-def _high_band_ratio(mic_fft_db):
-    """Fraction of mic FFT power in the 2-8 kHz band (bearing resonance zone).
-    mic_fft_db: 512-element dBFS array, bins 0..8kHz at 15.625 Hz/bin."""
-    power   = 10.0 ** (mic_fft_db / 10.0)
+def _band_ratios(mic_fft_db):
+    """Compute spectral band energy fractions from a dBFS FFT array.
+
+    Returns (hi_r, lo_r, mid_r) — fractions of total power (DC bin excluded):
+      lo  — 0–500 Hz    (mechanical/imbalance/floor noise)
+      mid — 500–2000 Hz (resonance, shaft harmonics, misalignment)
+      hi  — 2000 Hz–Nyquist (bearing fault resonance region)
+
+    Computed once per frame and shared across _classify_fault_type and
+    the alert engine to avoid duplicate 10**() conversions.
+    """
+    if len(mic_fft_db) < 2:
+        return 0.0, 0.0, 0.0
+    power   = 10.0 ** (np.clip(mic_fft_db, -140.0, 0.0) / 10.0)
     n       = len(power)
-    hz_per  = MIC_FS_HZ / 2.0 / n          # 15.625 Hz/bin
-    lo_bin  = max(1, int(2000 / hz_per))    # 2 kHz
-    total   = power[1:].sum() + 1e-10       # skip DC
-    high    = power[lo_bin:].sum()
-    return float(high / total)
+    hz_per  = MIC_FS_HZ / 2.0 / n
+    lo_end  = max(1, int(500  / hz_per))
+    mid_end = max(lo_end + 1, int(2000 / hz_per))
+    total   = power[1:].sum() + 1e-10
+    lo_r    = power[1:lo_end].sum()       / total
+    mid_r   = power[lo_end:mid_end].sum() / total
+    hi_r    = power[mid_end:].sum()       / total
+    return hi_r, lo_r, mid_r
 
 
-def _classify_fault_type(mic_fft_db, mic_kurtosis, mic_crest, imu_crest, high_band_ratio):
+def _high_band_ratio(mic_fft_db):
+    """Fraction of mic FFT power in the bearing resonance band (2 kHz–Nyquist)."""
+    hi_r, _, _ = _band_ratios(mic_fft_db)
+    return hi_r
+
+
+def _classify_fault_type(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
     """Spectral pattern analysis — classify the likely fault mechanism.
 
-    Uses heuristics on kurtosis magnitude, crest factor, and spectral band
-    energy distribution to distinguish bearing impacts, imbalance, looseness,
-    and misalignment without requiring shaft-speed or bearing-geometry input.
+    Accepts pre-computed band energy fractions from _band_ratios() so the
+    dBFS→power conversion is not repeated for every frame.
 
     Returns a short label string suitable for display in dashboards and reports.
     """
-    if len(mic_fft_db) < 2:
-        return "Normal"
-
-    # --- nothing significant → normal ---
     if mic_kurtosis < K_WARN and mic_crest < CREST_WARN and imu_crest < CREST_WARN:
         return "Normal"
 
-    power = 10.0 ** (np.clip(mic_fft_db, -140.0, 0.0) / 10.0)
-    n     = len(power)
-    # Frequency bands (at 15.625 Hz/bin, Fs=16 kHz, N=512)
-    lo_end  = max(1, int(500  / (MIC_FS_HZ / 2.0 / n)))   # < 500 Hz
-    mid_end = max(lo_end + 1, int(2000 / (MIC_FS_HZ / 2.0 / n)))   # 500 Hz – 2 kHz
-    hi_end  = max(mid_end + 1, int(8000 / (MIC_FS_HZ / 2.0 / n)))   # 2 kHz – 8 kHz
-
-    total = power[1:].sum() + 1e-10
-    lo_r  = power[1:lo_end].sum()  / total   # low-frequency energy fraction
-    mid_r = power[lo_end:mid_end].sum() / total
-    hi_r  = power[mid_end:hi_end].sum()  / total
-
-    # --- Bearing impact fault ---
-    # High kurtosis (impulsive) + energy in 2-8 kHz resonance band
-    if high_band_ratio > 0.40 and mic_kurtosis >= K_WARN:
+    # --- Bearing impact fault: impulsive + high-frequency resonance ---
+    if hi_r > 0.40 and mic_kurtosis >= K_WARN:
         if mic_kurtosis >= K_FAULT:
             return "Bearing Fault — Advanced"
         return "Bearing Fault — Early"
 
-    # --- Imbalance (sinusoidal, low-frequency dominant) ---
-    # High crest without correspondingly high kurtosis = sinusoidal overload
+    # --- Imbalance: sinusoidal, low-frequency dominant, moderate crest ---
     if mic_crest >= CREST_WARN and mic_kurtosis < K_WARN * 1.4 and lo_r > 0.45:
         return "Mechanical Imbalance"
 
-    # --- Misalignment (2× shaft energy dominant, appears in mid band) ---
+    # --- Misalignment: 2× shaft tone in mid band, elevated IMU crest ---
     if imu_crest >= CREST_WARN and mid_r > 0.35 and mic_kurtosis < K_FAULT:
         return "Shaft Misalignment"
 
-    # --- Mechanical looseness (broadband harmonics — energy spread across bands) ---
+    # --- Looseness: broadband harmonics spread across all bands ---
     if mic_kurtosis >= K_WARN and hi_r < 0.30 and lo_r < 0.55 and mid_r > 0.20:
         return "Mechanical Looseness"
 
-    # --- High kurtosis not fitting above patterns ---
     if mic_kurtosis >= K_FAULT:
         return "Severe Anomaly — Inspect"
     if mic_kurtosis >= K_WARN:
@@ -378,21 +378,23 @@ def _sat_update_baseline(sat, mic_rms, mic_kurtosis):
               f"kurt_std={sat.bl_std[1]:.2f}")
 
 
-def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert):
+def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb):
     """Compute per-frame alert level and z-score.
+
+    hb is the pre-computed high-band energy ratio from _band_ratios(), passed
+    in to avoid a duplicate dBFS→power conversion (the caller already has it).
 
     Streak counters are passed in and returned so this function has no
     side-effects on sat.  All sat mutations happen in satellite_thread under
     _sat_lock, eliminating data races with the dashboard HTTP reader thread.
 
-    Returns (alert_byte, z_score, high_band_ratio,
-             new_warn_streak, new_ok_streak, new_sent_alert).
+    Returns (alert_byte, z_score, new_warn_streak, new_ok_streak).
+    The caller is responsible for updating sent_alert = returned alert_byte.
     """
     mic_kurtosis = frame['mic_kurtosis']
     mic_crest    = frame['mic_crest']
     imu_crest    = frame['imu_crest']
     mic_rms      = frame['mic_rms']
-    mic_fft      = frame['mic_fft']
 
     _sat_update_baseline(sat, mic_rms, mic_kurtosis)
 
@@ -402,9 +404,6 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert):
         features = np.array([mic_rms, mic_kurtosis], dtype=np.float32)
         z_scores = np.abs(features - sat.bl_mean) / sat.bl_std
         z_score  = float(z_scores.max())
-
-    # ── High-band energy ratio (computed once, reused for filter + logging) ──
-    hb = _high_band_ratio(mic_fft)
 
     # ── Raw alert level (before noise filter + persistence) ──────────────────
     raw = EPM_ALERT_OK
@@ -455,7 +454,7 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert):
         if ml_alert is not None and ml_alert > final:
             final = ml_alert   # escalate if ML is more confident
 
-    return final, z_score, hb, warn_streak, ok_streak, final
+    return final, z_score, warn_streak, ok_streak
 
 
 # ─── Per-satellite connection thread ─────────────────────────────────────────
@@ -528,9 +527,13 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             now   = time.time()
             fps   = sat.rolling_fps(now)
 
+            # Compute band ratios once — shared by alert engine and fault classifier
+            hb, lo_r, mid_r = _band_ratios(frame['mic_fft'])
+
             prev_alert = sent_alert   # alert from the PREVIOUS frame
-            alert, z_score, hb, warn_streak, ok_streak, sent_alert = \
-                compute_alert(sat, frame, warn_streak, ok_streak, sent_alert)
+            alert, z_score, warn_streak, ok_streak = \
+                compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb)
+            sent_alert = alert
 
             # Detect state transitions → audit trail + phone notifications
             if alert != prev_alert:
@@ -558,12 +561,10 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 break
 
             fault_type = _classify_fault_type(
-                frame.get('mic_fft', np.array([])),
-                frame.get('mic_kurtosis', 0.0),
-                frame.get('mic_crest', 0.0),
-                frame.get('imu_crest', 0.0),
-                hb,
+                frame['mic_kurtosis'], frame['mic_crest'], frame['imu_crest'],
+                hb, lo_r, mid_r,
             )
+            frame['high_band_ratio'] = hb   # carry into display state / plot loop
 
             with _sat_lock:
                 sat.frame_count  += 1
@@ -576,7 +577,8 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 sat.sent_alert    = sent_alert
                 sat.fault_type    = fault_type
                 # Dashboard history
-                sat.last_z = z_score
+                sat.last_z  = z_score
+                sat.last_hb = hb
                 sat.history_alerts.append(int(alert))
                 sat.history_kurtosis.append(float(frame['mic_kurtosis']))
                 sat.history_crest.append(float(frame['mic_crest']))
@@ -887,7 +889,7 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
 
         n_conn = _sat_count()
         status = 'OK' if not frame['errors'] else 'WARN:' + ';'.join(frame['errors'])
-        hb = _high_band_ratio(frame['mic_fft'])
+        hb = frame.get('high_band_ratio', 0.0)
         title_t.set_text(
             f"EPM  [{satname}]  frame={frame['frame_id']}  "
             f"rms={frame['mic_rms']:.5f}  "
@@ -1842,7 +1844,7 @@ def _build_status_json():
                 'mic_crest':        round(float(s.last_frame.get('mic_crest', 0)), 2),
                 'imu_rms':          round(float(s.last_frame.get('imu_rms',  0)), 5),
                 'imu_crest':        round(float(s.last_frame.get('imu_crest', 0)), 2),
-                'high_band_ratio':  round(_high_band_ratio(s.last_frame.get('mic_fft', [])), 3),
+                'high_band_ratio':  round(s.last_hb, 3),
             }
         with _MAINT_LOG_LOCK:
             maint_rec = dict(_MAINT_LOG.get(s.mac_hex, {}))

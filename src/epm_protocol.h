@@ -106,8 +106,8 @@ _Static_assert(sizeof(epm_hello_t) == 24, "epm_hello_t must be 24 bytes");
 
 /* 1-byte alert code sent by gateway → satellite after each data frame */
 #define EPM_ALERT_OK     0x00   /* normal */
-#define EPM_ALERT_WARN   0x01   /* crest factor above warn threshold */
-#define EPM_ALERT_FAULT  0x02   /* crest factor above fault threshold */
+#define EPM_ALERT_WARN   0x01   /* kurtosis or crest factor above WARN threshold */
+#define EPM_ALERT_FAULT  0x02   /* kurtosis or crest factor above FAULT threshold */
 
 #ifdef __cplusplus
 }

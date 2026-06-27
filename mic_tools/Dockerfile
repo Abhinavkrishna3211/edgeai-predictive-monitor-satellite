@@ -42,13 +42,16 @@ RUN pip install --no-cache-dir \
 # Copy gateway source
 COPY recv_verify.py .
 COPY bearing_math.py .
+COPY docker_start.py .
 
 # Satellite TCP port
 EXPOSE 5100
 # Dashboard HTTP port
 EXPOSE 8080
 
-# Use environment variables for runtime config so the image stays generic
+# Use environment variables for runtime config so the image stays generic.
+# docker_start.py reads these and passes them as Python list args — safe with
+# spaces in FACTORY_NAME or passwords (no shell word-splitting).
 ENV FACTORY_NAME="EPM Factory"
 ENV AUTH=""
 ENV NOTIFY_WEBHOOK=""
@@ -56,12 +59,4 @@ ENV NOTIFY_EMAIL=""
 ENV GATEWAY_PORT=5100
 ENV DASHBOARD_PORT=8080
 
-ENTRYPOINT ["sh", "-c", \
-  "python3 recv_verify.py \
-    --no-plot \
-    --factory-name \"$FACTORY_NAME\" \
-    $([ -n \"$AUTH\" ] && echo \"--auth $AUTH\") \
-    $([ -n \"$NOTIFY_WEBHOOK\" ] && echo \"--notify-webhook $NOTIFY_WEBHOOK\") \
-    $([ -n \"$NOTIFY_EMAIL\" ] && echo \"--notify-email $NOTIFY_EMAIL\") \
-    --port $GATEWAY_PORT \
-    --dashboard-port $DASHBOARD_PORT"]
+ENTRYPOINT ["python3", "docker_start.py"]
