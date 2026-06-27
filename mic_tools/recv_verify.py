@@ -1089,6 +1089,13 @@ tr:hover td{background:rgba(255,255,255,.015)}
 /* MODAL */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:20px}
 .modal-bg.open{display:flex}
+/* QR MODAL */
+#qr-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:600;backdrop-filter:blur(5px);align-items:center;justify-content:center}
+#qr-modal.open{display:flex}
+.qr-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.8)}
+.qr-box h3{font-size:.88rem;margin-bottom:6px}
+.qr-box p{font-size:.72rem;color:var(--muted);margin-bottom:14px}
+.qr-close{margin-top:14px;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:6px 20px;border-radius:6px;cursor:pointer;font-size:.78rem}
 .modal{background:var(--card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:450px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)}
 .modal-hd{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--border)}
 .modal-title{font-size:.88rem;font-weight:700}
@@ -1479,7 +1486,9 @@ document.querySelectorAll('.tab').forEach(t=>{
 /* --- main 2s refresh --- */
 async function refresh(){
   try{
-    const r=await fetch('/api/status');if(!r.ok)return;
+    const r=await fetch('/api/status');
+    if(!r.ok){const gs=$('gstatus');if(gs){gs.textContent='⚠ Server error '+r.status;gs.className='chip chip-fault';}return;}
+
     const d=await r.json();STATUS=d;TH=d.thresholds||TH;
     const sats=d.satellites;
     const ok_n=sats.filter(s=>s.alert==='OK').length;
@@ -2405,8 +2414,9 @@ class _DashHandler(BaseHTTPRequestHandler):
                     'thresholds': {'k_warn': K_WARN, 'k_fault': K_FAULT,
                                    'cf_warn': CREST_WARN, 'cf_fault': CREST_FAULT},
                 })
-                self._send(500, 'application/json', fallback)
-                print(f'[dash] /api/status error: {exc}')
+                self._send(200, 'application/json', fallback)
+                import traceback
+                print(f'[dash] /api/status error: {exc}\n{traceback.format_exc()}')
 
         elif path == '/api/alerts':
             n = int(qs.get('n', ['200'])[0])
