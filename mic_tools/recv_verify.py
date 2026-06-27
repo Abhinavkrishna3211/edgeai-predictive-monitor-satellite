@@ -23,17 +23,22 @@ Usage:
 """
 
 import argparse
+import base64
 import collections
 import csv
 import datetime
+import glob
 import json
 import os
+import smtplib
 import socket
 import struct
 import sys
 import threading
 import time
 import urllib.parse
+import urllib.request as _urllib_req
+from email.mime.text import MIMEText
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import numpy as np
@@ -51,6 +56,28 @@ except ImportError:
 
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
 _ML_MODEL = None   # populated by _load_ml_model() if --model is given
+
+# ─── Alert history (for compliance audit trail) ───────────────────────────────
+_ALERT_HISTORY      = collections.deque(maxlen=1000)
+_ALERT_HISTORY_LOCK = threading.Lock()
+
+# ─── Maintenance log (persisted to logs/maintenance_log.json) ─────────────────
+_MAINT_LOG          = {}     # mac_hex → maintenance record dict
+_MAINT_LOG_LOCK     = threading.Lock()
+_MAINT_LOG_PATH     = None   # set at startup
+
+# ─── Notifications ────────────────────────────────────────────────────────────
+_NOTIFY_WEBHOOK     = None   # set by --notify-webhook
+_NOTIFY_EMAIL_CFG   = None   # set by --notify-email
+_NOTIFY_COOLDOWN    = {}     # mac_hex → epoch of last notification sent
+_NOTIFY_COOLDOWN_S  = 300    # 5 min minimum between alerts per satellite
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+_AUTH_USER          = None   # set by --auth user:pass
+_AUTH_PASS          = None
+
+# ─── Branding ─────────────────────────────────────────────────────────────────
+_FACTORY_NAME       = 'EPM Industrial Monitor'  # set by --factory-name
 
 # ─── Protocol constants ───────────────────────────────────────────────────────
 
@@ -443,8 +470,18 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             now   = time.time()
             fps   = sat.rolling_fps(now)
 
+            prev_alert = sent_alert   # alert from the PREVIOUS frame
             alert, z_score, hb, warn_streak, ok_streak, sent_alert = \
                 compute_alert(sat, frame, warn_streak, ok_streak, sent_alert)
+
+            # Detect state transitions → audit trail + phone notifications
+            if alert != prev_alert:
+                _log_alert_event(sat.name, mac_hex, alert, prev_alert,
+                                 frame['mic_kurtosis'], frame['mic_crest'], z_score)
+                if alert > prev_alert:   # notify on escalation only, not recovery
+                    _fire_notification(sat.name, mac_hex,
+                                       ['OK', 'WARN', 'FAULT'][min(alert, 2)],
+                                       frame['mic_kurtosis'], frame['mic_crest'], z_score)
 
             # ── CSV row ───────────────────────────────────────────────────────
             csv_w.writerow([
@@ -804,272 +841,834 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EPM · Predictive Monitor</title>
+<title>EPM &middot; Industrial Monitor</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-:root{--bg:#0d1117;--card:#161b22;--card2:#1c2128;--border:#30363d;--text:#e6edf3;--muted:#8b949e;--ok:#3fb950;--warn:#d29922;--fault:#f85149;--blue:#58a6ff}
+:root{
+  --bg:#07111e;--card:#0d1a27;--card2:#122031;--border:#1a2f44;
+  --text:#dde6f0;--muted:#5b7a96;--dim:#2d4d66;
+  --ok:#22c55e;--warn:#f59e0b;--fault:#ef4444;--blue:#3b82f6;--acc:#8b5cf6;
+  --ok-d:rgba(34,197,94,.13);--warn-d:rgba(245,158,11,.13);--fault-d:rgba(239,68,68,.13);
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh}
-header{display:flex;align-items:center;justify-content:space-between;padding:12px 22px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:99;gap:12px}
-.logo{font-size:1.1rem;font-weight:700}
-.logo em{color:var(--blue);font-style:normal}
-.logo small{display:block;font-weight:400;color:var(--muted);font-size:.7rem;margin-top:2px}
-.hdr-r{display:flex;gap:18px;align-items:center;font-size:.78rem;color:var(--muted);flex-wrap:wrap}
-.hdr-r strong{color:var(--text)}
-.live{display:inline-flex;align-items:center;gap:5px}
-.ldot{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:bok 2s infinite}
-@keyframes bok  {0%,100%{opacity:1}50%{opacity:.2}}
-@keyframes bwarn{0%,100%{opacity:1}30%,70%{opacity:.1}}
-@keyframes bflt {0%,10%,20%,30%,40%,50%,60%,70%,80%,90%,100%{opacity:1}5%,15%,25%,35%,45%,55%,65%,75%,85%,95%{opacity:.05}}
-.banner{display:none;padding:9px 22px;text-align:center;font-size:.83rem;font-weight:600}
-.banner.fault{display:block;background:rgba(248,81,73,.12);color:var(--fault);border-bottom:2px solid rgba(248,81,73,.4)}
-.banner.warn {display:block;background:rgba(210,153,34,.1); color:var(--warn); border-bottom:2px solid rgba(210,153,34,.35)}
-.sum{display:flex;flex-wrap:wrap;gap:10px;padding:14px 22px}
-.st{flex:1;min-width:110px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 15px}
-.stl{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.stv{font-size:1.7rem;font-weight:700;margin-top:3px;line-height:1}
-#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding:0 22px 30px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:box-shadow .15s,transform .15s}
-.card:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(0,0,0,.4)}
-.card.ok   {border-color:rgba(63,185,80,.3)}
-.card.warn {border-color:rgba(210,153,34,.6);box-shadow:0 0 0 1px rgba(210,153,34,.15)}
-.card.fault{border-color:rgba(248,81,73,.75);box-shadow:0 0 0 2px rgba(248,81,73,.18),0 0 22px rgba(248,81,73,.09)}
-.card.offline{opacity:.45}
-.ch{display:flex;align-items:flex-start;justify-content:space-between;padding:13px 16px 10px;border-bottom:1px solid var(--border)}
-.cn{font-size:1.05rem;font-weight:700}
-.cm{font-size:.67rem;color:var(--muted);font-family:monospace;margin-top:2px}
-.csr{display:flex;align-items:center;gap:7px}
-.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-.sdot.ok   {background:var(--ok);  animation:bok 2s infinite}
-.sdot.warn {background:var(--warn);animation:bwarn 1s infinite}
-.sdot.fault{background:var(--fault);animation:bflt .35s infinite}
-.badge{padding:3px 9px;border-radius:10px;font-size:.7rem;font-weight:700;letter-spacing:.03em}
-.badge.ok   {background:rgba(63,185,80,.12); color:var(--ok)}
-.badge.warn {background:rgba(210,153,34,.12);color:var(--warn)}
-.badge.fault{background:rgba(248,81,73,.12); color:var(--fault)}
-.mg{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}
-.met{background:var(--card);padding:8px 12px}
-.ml{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-.mv{font-size:1rem;font-weight:600;font-family:monospace;margin-top:2px}
-.hr{display:flex;align-items:center;gap:12px;padding:10px 16px}
-.hbw{flex:1}
-.hbl{font-size:.65rem;color:var(--muted);margin-bottom:4px}
-.hb{height:5px;border-radius:3px;background:var(--border);overflow:hidden}
-.hf{height:100%;border-radius:3px;transition:width .6s,background .6s}
-.hsc{font-size:1.25rem;font-weight:700;min-width:48px;text-align:right}
-.mnt{margin:0 15px 10px;padding:9px 12px;border-radius:7px;font-size:.77rem}
-.mnt.ok   {background:rgba(63,185,80,.07); border:1px solid rgba(63,185,80,.2)}
-.mnt.warn {background:rgba(210,153,34,.07);border:1px solid rgba(210,153,34,.25)}
-.mnt.fault{background:rgba(248,81,73,.07); border:1px solid rgba(248,81,73,.35)}
-.mntt{font-weight:700;margin-bottom:3px}
-.mnts{color:var(--muted);font-size:.69rem;margin-top:3px;line-height:1.45}
-.cwrap{padding:2px 14px 11px}
-.cf{display:flex;justify-content:space-between;padding:7px 15px;background:var(--card2);border-top:1px solid var(--border);font-size:.67rem;color:var(--muted)}
-.nosats{text-align:center;padding:70px 20px;color:var(--muted)}
-.nosats h2{font-size:1rem;margin-bottom:8px;color:var(--text)}
-footer{text-align:center;padding:12px;color:var(--muted);font-size:.7rem;border-top:1px solid var(--border)}
-@media(max-width:480px){.hdr-r span{display:none}.hdr-r .live{display:inline-flex}}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;min-height:100vh}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* HEADER */
+header{display:flex;align-items:center;padding:0 22px;height:56px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;gap:14px;box-shadow:0 2px 20px rgba(0,0,0,.5)}
+.logo{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:7px;display:grid;place-items:center;font-size:1rem;flex-shrink:0}
+.logo-name{font-size:.88rem;font-weight:700;letter-spacing:.02em;line-height:1.1}
+.logo-sub{font-size:.55rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.hdr-sep{width:1px;height:26px;background:var(--border);flex-shrink:0}
+#factory-lbl{font-size:.78rem;font-weight:600;color:var(--blue)}
+.hdr-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.63rem;font-weight:600;white-space:nowrap}
+.chip-ok{background:var(--ok-d);color:var(--ok)}
+.chip-warn{background:var(--warn-d);color:var(--warn)}
+.chip-fault{background:var(--fault-d);color:var(--fault)}
+.chip-blue{background:rgba(59,130,246,.1);color:var(--blue)}
+.chip-muted{background:rgba(91,122,150,.08);color:var(--muted)}
+.ldot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ldot.ok{background:var(--ok);animation:pok 2s infinite}
+.ldot.warn{background:var(--warn);animation:pwarn 1s infinite}
+.ldot.fault{background:var(--fault);animation:pfault .4s infinite}
+@keyframes pok{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)}70%{box-shadow:0 0 0 5px rgba(34,197,94,0)}}
+@keyframes pwarn{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(245,158,11,.5)}70%{box-shadow:0 0 0 5px rgba(245,158,11,0)}}
+@keyframes pfault{0%,20%,40%,60%,80%,100%{opacity:1}10%,30%,50%,70%,90%{opacity:.1}}
+.hdr-uptime{font-size:.62rem;color:var(--muted);font-variant-numeric:tabular-nums}
+@media(max-width:680px){.hdr-sep,#factory-lbl,.hdr-uptime,.chip-muted{display:none}}
+
+/* BANNER */
+#banner{display:none;align-items:center;justify-content:center;gap:8px;padding:9px 22px;font-size:.8rem;font-weight:700;letter-spacing:.02em}
+#banner.fault{display:flex;background:rgba(239,68,68,.07);color:var(--fault);border-bottom:2px solid rgba(239,68,68,.4);animation:bfl 1.5s infinite}
+#banner.warn{display:flex;background:rgba(245,158,11,.06);color:var(--warn);border-bottom:2px solid rgba(245,158,11,.3)}
+@keyframes bfl{0%,100%{border-bottom-color:rgba(239,68,68,.4)}50%{border-bottom-color:rgba(239,68,68,.8)}}
+.bpulse{display:inline-block;animation:shake .55s infinite}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-9deg)}75%{transform:rotate(9deg)}}
+
+/* SUMMARY */
+.summary{display:flex;flex-wrap:wrap;gap:9px;padding:14px 22px 0}
+.tile{flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:12px 14px}
+.tile-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.tile-val{font-size:1.85rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.tile-sub{font-size:.6rem;color:var(--dim);margin-top:3px}
+
+/* TABS */
+.tabs-bar{padding:13px 22px 0}
+.tabs{display:inline-flex;gap:1px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:3px}
+.tab{padding:6px 15px;border-radius:6px;font-size:.74rem;font-weight:500;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.tab.active{background:var(--card2);color:var(--text);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.tbadge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:8px;background:var(--fault);color:#fff;font-size:.55rem;font-weight:700;padding:0 4px;margin-left:4px;vertical-align:middle}
+.pane{display:none;padding:13px 22px 48px}
+.pane.active{display:block}
+
+/* MACHINE CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(336px,1fr));gap:13px}
+.no-sats{text-align:center;padding:80px 0;color:var(--muted)}
+.no-sats h2{color:var(--text);font-size:.92rem;margin-bottom:7px}
+.no-sats p{font-size:.76rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:11px;overflow:hidden;transition:transform .18s,box-shadow .18s,border-color .2s}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.card.ok{border-color:rgba(34,197,94,.2)}
+.card.warn{border-color:rgba(245,158,11,.55);box-shadow:0 0 0 1px rgba(245,158,11,.1)}
+.card.fault{border-color:rgba(239,68,68,.7);box-shadow:0 0 0 2px rgba(239,68,68,.12),0 0 26px rgba(239,68,68,.07)}
+.card.offline{opacity:.38;filter:grayscale(.5)}
+.c-head{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 14px 9px;border-bottom:1px solid var(--border)}
+.c-name{font-size:1rem;font-weight:700}
+.c-mac{font-size:.6rem;color:var(--muted);font-family:monospace;margin-top:2px}
+.c-fw{font-size:.57rem;color:var(--dim);margin-top:1px}
+.c-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.sdot{width:9px;height:9px;border-radius:50%}
+.sdot.ok{background:var(--ok);animation:pok 2s infinite}
+.sdot.warn{background:var(--warn);animation:pwarn 1s infinite}
+.sdot.fault{background:var(--fault);animation:pfault .4s infinite}
+.badge{padding:2px 8px;border-radius:8px;font-size:.64rem;font-weight:800;letter-spacing:.04em}
+.badge.ok{background:var(--ok-d);color:var(--ok)}
+.badge.warn{background:var(--warn-d);color:var(--warn)}
+.badge.fault{background:var(--fault-d);color:var(--fault)}
+.c-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}
+.met{background:var(--card);padding:8px 11px}
+.met.sp3{grid-column:span 3}
+.ml{font-size:.56rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.mv{font-size:.93rem;font-weight:600;font-family:monospace;margin-top:2px}
+.c-health{display:flex;align-items:center;gap:10px;padding:9px 14px}
+.c-hbar-wrap{flex:1}
+.c-hbar-top{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted);margin-bottom:4px}
+.c-hbar{height:5px;border-radius:3px;background:var(--border);overflow:hidden}
+.c-hfill{height:100%;border-radius:3px;transition:width .7s,background .5s}
+.c-hpct{font-size:1.15rem;font-weight:700;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
+.c-rec{margin:0 12px 9px;padding:8px 11px;border-radius:7px;font-size:.72rem}
+.c-rec.ok{background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.17)}
+.c-rec.warn{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.22)}
+.c-rec.fault{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.3)}
+.c-rec-t{font-weight:700;margin-bottom:2px}
+.c-rec-s{color:var(--muted);font-size:.64rem;line-height:1.5;margin-top:2px}
+.c-chart{padding:2px 12px 8px}
+.c-maint-row{display:flex;align-items:center;justify-content:space-between;padding:5px 14px;background:rgba(7,17,30,.45);border-top:1px solid var(--border);font-size:.63rem;color:var(--muted);gap:6px;flex-wrap:wrap}
+.c-maint-val{color:var(--text);font-weight:600}
+.c-actions{display:flex;gap:6px;padding:8px 12px;background:var(--card2);border-top:1px solid var(--border)}
+.btn{padding:5px 11px;border-radius:6px;font-size:.68rem;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.btn-blue{background:rgba(59,130,246,.14);color:var(--blue);border-color:rgba(59,130,246,.28)}
+.btn-blue:hover{background:rgba(59,130,246,.24)}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border)}
+.btn-ghost:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.c-foot{display:flex;justify-content:space-between;padding:6px 14px;background:rgba(7,17,30,.55);border-top:1px solid var(--border);font-size:.6rem;color:var(--muted);flex-wrap:wrap;gap:3px}
+
+/* TABLE (alert log) */
+.pane-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap}
+.pane-title{font-size:.86rem;font-weight:700}
+.pane-note{font-size:.63rem;color:var(--muted);margin-top:3px}
+.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:9px;overflow:hidden;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.72rem;min-width:580px}
+thead tr{background:var(--card2)}
+th{padding:8px 12px;text-align:left;font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid rgba(26,47,68,.5);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.015)}
+.trans{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:.66rem;font-weight:700}
+.trans.esc{background:var(--fault-d);color:var(--fault)}
+.trans.rec{background:var(--ok-d);color:var(--ok)}
+.trans.war{background:var(--warn-d);color:var(--warn)}
+.empty-cell{text-align:center;color:var(--muted);padding:32px!important;font-size:.76rem}
+
+/* MAINTENANCE CARDS */
+.maint-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:11px}
+.mc{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:14px}
+.mc-name{font-size:.86rem;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.mc-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(26,47,68,.45);font-size:.72rem;gap:8px}
+.mc-row:last-of-type{border-bottom:none}
+.mc-lbl{color:var(--muted);font-size:.63rem;flex-shrink:0}
+.mc-val{font-weight:600;text-align:right;font-size:.72rem}
+.mc-empty{color:var(--muted);font-size:.72rem;text-align:center;padding:16px 0}
+.mc-foot{margin-top:11px;padding-top:9px;border-top:1px solid var(--border)}
+
+/* REPORTS */
+.rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.rep-card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:16px}
+.rep-card h3{font-size:.78rem;font-weight:700;margin-bottom:11px;display:flex;align-items:center;gap:6px}
+.rep-row{display:flex;justify-content:space-between;padding:5px 0;font-size:.71rem;border-bottom:1px solid rgba(26,47,68,.4)}
+.rep-row:last-child{border-bottom:none}
+.rep-key{color:var(--muted)}
+.rep-val{font-weight:600;font-family:monospace;font-size:.68rem;text-align:right}
+.chk-list{list-style:none}
+.chk-li{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid rgba(26,47,68,.35);font-size:.71rem}
+.chk-li:last-child{border-bottom:none}
+.chk-icon{width:15px;text-align:center;font-size:.78rem;flex-shrink:0}
+.exp-col{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.exp-btn{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:7px;background:var(--card2);border:1px solid var(--border);color:var(--text);font-size:.71rem;cursor:pointer;text-decoration:none;transition:all .15s;font-family:inherit;width:100%;text-align:left}
+.exp-btn:hover{border-color:var(--blue);background:rgba(59,130,246,.06)}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:450px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:.88rem;font-weight:700}
+.modal-x{width:25px;height:25px;border-radius:6px;border:none;background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;font-size:.85rem;display:grid;place-items:center;transition:background .15s}
+.modal-x:hover{background:rgba(255,255,255,.12)}
+.modal-bd{padding:16px 18px}
+.modal-info{font-size:.66rem;color:var(--muted);padding:6px 9px;background:rgba(7,17,30,.6);border-radius:6px;margin-bottom:13px;font-family:monospace}
+.fg{margin-bottom:12px}
+.fg label{display:block;font-size:.64rem;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.fi{width:100%;background:rgba(7,17,30,.8);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 9px;font-size:.76rem;font-family:inherit;transition:border-color .15s}
+.fi:focus{outline:none;border-color:var(--blue)}
+.fi::placeholder{color:var(--dim)}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-ft{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--border)}
+.btn-sm{padding:6px 14px;border-radius:6px;font-size:.71rem;font-weight:600;cursor:pointer;border:1px solid var(--border);transition:all .15s}
+.btn-sm-ok{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-sm-ok:hover{background:#2563eb}
+.btn-sm-cancel{background:transparent;color:var(--muted)}
+.btn-sm-cancel:hover{color:var(--text);background:rgba(255,255,255,.04)}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:8px;font-size:.74rem;font-weight:700;z-index:9999;transform:translateY(50px);opacity:0;transition:all .25s;pointer-events:none;max-width:300px}
+#toast.in{transform:translateY(0);opacity:1}
+#toast.ok-t{background:#15803d;color:#fff}
+#toast.err-t{background:#b91c1c;color:#fff}
+
+footer{text-align:center;padding:11px;color:var(--dim);font-size:.6rem;border-top:1px solid var(--border)}
 </style>
 </head>
 <body>
 
 <header>
   <div class="logo">
-    <em>⚙ EPM</em> Predictive Monitor
-    <small>EdgeAI Industrial Bearing Fault Detection System</small>
+    <div class="logo-icon">&#9881;</div>
+    <div>
+      <div class="logo-name">EPM Monitor</div>
+      <div class="logo-sub">EdgeAI Predictive Maintenance</div>
+    </div>
   </div>
-  <div class="hdr-r">
-    <span>Uptime&nbsp;<strong id="up">—</strong></span>
-    <span><strong id="sc" style="color:var(--blue)">0</strong>&nbsp;satellites</span>
-    <span class="live"><span class="ldot"></span><span id="ts">—</span></span>
+  <div class="hdr-sep"></div>
+  <span id="factory-lbl">Factory</span>
+  <div class="hdr-right">
+    <span class="chip chip-muted" id="gstatus">&#9679; LOADING</span>
+    <span class="chip chip-muted" id="notif-chip">&#128276; Notify OFF</span>
+    <span class="chip chip-blue" id="auth-chip" style="display:none">&#128274; Secured</span>
+    <div style="display:flex;align-items:center;gap:5px">
+      <div class="ldot ok" id="live-dot"></div>
+      <span class="hdr-uptime" id="hdr-clock">&#8212;</span>
+    </div>
+    <span class="hdr-uptime">UP <strong id="hdr-up">&#8212;</strong></span>
   </div>
 </header>
 
-<div id="banner" class="banner"></div>
+<div id="banner"></div>
 
-<div class="sum">
-  <div class="st"><div class="stl">Connected</div><div class="stv" id="Ss" style="color:var(--blue)">0</div></div>
-  <div class="st"><div class="stl">Healthy</div><div class="stv" id="So" style="color:var(--ok)">0</div></div>
-  <div class="st"><div class="stl">Warning</div><div class="stv" id="Sw" style="color:var(--warn)">0</div></div>
-  <div class="st"><div class="stl">Fault</div><div class="stv" id="Sf" style="color:var(--fault)">0</div></div>
-  <div class="st"><div class="stl">Fault Events</div><div class="stv" id="Se" style="color:var(--fault)">0</div></div>
-  <div class="st"><div class="stl">Avg Health</div><div class="stv" id="Sh">—</div></div>
+<div class="summary">
+  <div class="tile"><div class="tile-lbl">Connected</div><div class="tile-val" id="s-conn" style="color:var(--blue)">0</div><div class="tile-sub">satellites online</div></div>
+  <div class="tile"><div class="tile-lbl">Healthy</div><div class="tile-val" id="s-ok" style="color:var(--ok)">0</div><div class="tile-sub">running OK</div></div>
+  <div class="tile"><div class="tile-lbl">Warning</div><div class="tile-val" id="s-warn" style="color:var(--warn)">0</div><div class="tile-sub">elevated vibration</div></div>
+  <div class="tile"><div class="tile-lbl">Fault</div><div class="tile-val" id="s-fault" style="color:var(--fault)">0</div><div class="tile-sub">needs attention</div></div>
+  <div class="tile"><div class="tile-lbl">Fault Events</div><div class="tile-val" id="s-fevt" style="color:var(--fault)">0</div><div class="tile-sub">this session</div></div>
+  <div class="tile"><div class="tile-lbl">Avg Health</div><div class="tile-val" id="s-health">&#8212;</div><div class="tile-sub" id="s-fstate" style="color:var(--muted)">&#8212;</div></div>
 </div>
 
-<div id="grid"><div class="nosats"><h2>Waiting for satellites…</h2><p>Start firmware on XIAO ESP32-S3 or run satellite_sim.py</p></div></div>
+<div class="tabs-bar">
+  <div class="tabs">
+    <button class="tab active" data-tab="machines">&#9881; Machines</button>
+    <button class="tab" data-tab="alerts">&#128203; Alert Log <span class="tbadge" id="alert-badge" style="display:none">0</span></button>
+    <button class="tab" data-tab="maintenance">&#128295; Maintenance</button>
+    <button class="tab" data-tab="reports">&#128202; Reports</button>
+  </div>
+</div>
 
-<footer id="foot">EPM Dashboard · Auto-refreshes every 2 s</footer>
+<!-- MACHINES -->
+<div class="pane active" id="pane-machines">
+  <div class="cards-grid" id="grid">
+    <div class="no-sats"><h2>Waiting for satellites&hellip;</h2><p>Power on XIAO ESP32-S3 nodes or run <code>satellite_sim.py</code></p></div>
+  </div>
+</div>
+
+<!-- ALERT LOG -->
+<div class="pane" id="pane-alerts">
+  <div class="pane-head">
+    <div>
+      <div class="pane-title">Alert History &mdash; Audit Trail</div>
+      <div class="pane-note">&#128274; Compliance-ready log of all machine state transitions. Every OK&rarr;WARN&rarr;FAULT transition is timestamped and recorded.</div>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-ghost" onclick="loadAlerts()">&#8635; Refresh</button>
+      <button class="btn btn-blue" onclick="exportAlerts()">&#8595; Export JSON</button>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Time</th><th>Machine</th><th>Transition</th><th>Kurtosis</th><th>Crest</th><th>Z-Score</th><th>MAC</th></tr></thead>
+      <tbody id="alert-tbody"><tr><td class="empty-cell" colspan="7">Switch to this tab to load alert history.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MAINTENANCE -->
+<div class="pane" id="pane-maintenance">
+  <div class="pane-head">
+    <div>
+      <div class="pane-title">Maintenance Records</div>
+      <div class="pane-note">Persisted to <code>logs/maintenance_log.json</code> &mdash; survives gateway restarts. Keyed by hardware MAC address.</div>
+    </div>
+    <button class="btn btn-ghost" onclick="loadMaintenance()">&#8635; Refresh</button>
+  </div>
+  <div class="maint-grid" id="maint-grid"><p style="color:var(--muted);font-size:.76rem">Loading&hellip;</p></div>
+</div>
+
+<!-- REPORTS -->
+<div class="pane" id="pane-reports">
+  <div class="pane-head"><div class="pane-title">Reports &amp; System Info</div></div>
+  <div class="rep-grid">
+
+    <div class="rep-card">
+      <h3><span>&#128187;</span> System Status</h3>
+      <div class="rep-row"><span class="rep-key">Factory / Site</span><span class="rep-val" id="r-factory">&#8212;</span></div>
+      <div class="rep-row"><span class="rep-key">Gateway Uptime</span><span class="rep-val" id="r-uptime">&#8212;</span></div>
+      <div class="rep-row"><span class="rep-key">Satellites</span><span class="rep-val" id="r-sats">&#8212;</span></div>
+      <div class="rep-row"><span class="rep-key">K Warn / Fault</span><span class="rep-val" id="r-kth">&#8212;</span></div>
+      <div class="rep-row"><span class="rep-key">CF Warn / Fault</span><span class="rep-val" id="r-cfth">&#8212;</span></div>
+      <div class="rep-row"><span class="rep-key">Notifications</span><span class="rep-val" id="r-notif">&#8212;</span></div>
+    </div>
+
+    <div class="rep-card">
+      <h3><span>&#9989;</span> Compliance Checklist</h3>
+      <ul class="chk-list">
+        <li class="chk-li"><span class="chk-icon" id="chk-conn">&#9744;</span>All machines connected</li>
+        <li class="chk-li"><span class="chk-icon" id="chk-health">&#9744;</span>No active FAULT conditions</li>
+        <li class="chk-li"><span class="chk-icon" id="chk-maint">&#9744;</span>Maintenance records up to date</li>
+        <li class="chk-li"><span class="chk-icon" id="chk-auth">&#9744;</span>Dashboard access secured (--auth)</li>
+        <li class="chk-li"><span class="chk-icon" id="chk-notif">&#9744;</span>Alert notifications configured</li>
+        <li class="chk-li"><span class="chk-icon" id="chk-cal">&#9744;</span>All sensors calibrated</li>
+        <li class="chk-li"><span class="chk-icon" id="chk-log">&#10003;</span>Audit trail active (in-memory, 1000 events)</li>
+      </ul>
+    </div>
+
+    <div class="rep-card">
+      <h3><span>&#8595;</span> Export Data</h3>
+      <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;line-height:1.6">Download sensor logs and audit records for compliance reports, insurance claims, or offline ML analysis.</p>
+      <div class="exp-col" id="export-sat-list"><span style="font-size:.7rem;color:var(--muted)">Connect a satellite to enable CSV exports.</span></div>
+      <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border)">
+        <button class="exp-btn" onclick="exportAlerts()">&#128203; Export Full Alert Log (JSON)</button>
+      </div>
+    </div>
+
+    <div class="rep-card">
+      <h3><span>&#128267;</span> Power &amp; Battery</h3>
+      <div class="rep-row"><span class="rep-key">Power Source</span><span class="rep-val">USB / External 5V</span></div>
+      <div class="rep-row"><span class="rep-key">Battery %</span><span class="rep-val">N/A (USB powered)</span></div>
+      <div class="rep-row"><span class="rep-key">WiFi Power Mode</span><span class="rep-val">WIFI_PS_NONE</span></div>
+      <p style="margin-top:9px;font-size:.66rem;color:var(--muted);line-height:1.65">
+        For LiPo: set <code>esp_wifi_set_ps(WIFI_PS_MIN_MODEM)</code> in wifi_task.c and add
+        <code>CONFIG_PM_ENABLE=y</code> to sdkconfig.defaults (~30% power saving).
+        Battery % requires ADC on a free GPIO &mdash; not yet wired.
+      </p>
+    </div>
+
+    <div class="rep-card">
+      <h3><span>&#128242;</span> Alert Notifications</h3>
+      <p style="font-size:.7rem;color:var(--muted);margin-bottom:9px;line-height:1.6">Sends emergency alerts to phone/Slack/Discord/email on FAULT detection. 5-min rate limit prevents spam.</p>
+      <div class="rep-row"><span class="rep-key">Webhook Active</span><span class="rep-val" id="r-wh">Not configured</span></div>
+      <div class="rep-row"><span class="rep-key">Email Active</span><span class="rep-val" id="r-email">Not configured</span></div>
+      <p style="margin-top:9px;font-size:.65rem;color:var(--dim);line-height:1.65">
+        Enable: <code>--notify-webhook URL</code> (Discord/Slack/Teams)<br>
+        or: <code>--notify-email from:to:host[:port[:user:pass]]</code>
+      </p>
+    </div>
+
+    <div class="rep-card">
+      <h3><span>&#127963;</span> For Auditors &amp; Inspectors</h3>
+      <p style="font-size:.7rem;color:var(--muted);line-height:1.65;margin-bottom:8px">
+        Complete digital record of machine health, fault events, and maintenance history.
+        All data is timestamped (epoch) and keyed by hardware MAC address &mdash; impossible to spoof without physical device access.
+      </p>
+      <ul class="chk-list">
+        <li class="chk-li"><span class="chk-icon">&#128203;</span>Alert Log tab: every state-change since startup</li>
+        <li class="chk-li"><span class="chk-icon">&#128295;</span>Maintenance tab: technician + service records</li>
+        <li class="chk-li"><span class="chk-icon">&#128196;</span>CSV files: per-machine daily sensor data</li>
+        <li class="chk-li"><span class="chk-icon">&#128274;</span>HTTP Basic Auth: user-level access control</li>
+        <li class="chk-li"><span class="chk-icon">&#128268;</span>Hardware MAC: unique ID per sensor node</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- MAINTENANCE MODAL -->
+<div class="modal-bg" id="maint-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title">&#128295; Log Maintenance</span>
+      <button class="modal-x" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="modal-bd">
+      <div class="modal-info" id="modal-info">&#8212;</div>
+      <input type="hidden" id="modal-mac">
+      <div class="fg-row">
+        <div class="fg"><label>Last Service Date *</label><input class="fi" type="date" id="f-last"></div>
+        <div class="fg"><label>Next Scheduled</label><input class="fi" type="date" id="f-next"></div>
+      </div>
+      <div class="fg"><label>Technician / Team *</label><input class="fi" type="text" id="f-tech" placeholder="e.g. John Smith / Maintenance Team A"></div>
+      <div class="fg">
+        <label>Service Type</label>
+        <select class="fi" id="f-type">
+          <option>Routine Inspection</option>
+          <option>Bearing Replacement</option>
+          <option>Lubrication Service</option>
+          <option>Alignment Check</option>
+          <option>Vibration Analysis</option>
+          <option>Full Overhaul</option>
+          <option>Emergency Repair</option>
+          <option>Sensor Calibration</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fg"><label>Notes / Observations</label><textarea class="fi" id="f-notes" rows="3" placeholder="Parts replaced, readings taken, observations&hellip;" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sm btn-sm-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-sm btn-sm-ok" onclick="submitMaint()">Save Record</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<footer id="footer">EPM Dashboard &mdash; Auto-refreshes every 2 s</footer>
 
 <script>
-const CH = {};
-let TH = {k_warn:6,k_fault:12,cf_warn:5,cf_fault:10};
-let lastKey = '';
+const CH={};let TH={k_warn:6,k_fault:12,cf_warn:5,cf_fault:10};let lastKey='';let STATUS=null;
+let alertsLoaded=false;
 
-const HC  = s => s>=75?'#3fb950':s>=50?'#d29922':'#f85149';
-const MC  = d => d===0?'fault':d<=30?'warn':'ok';
-const rulColor = d => d===null?'var(--ok)':d>90?'var(--ok)':d>30?'var(--warn)':d>7?'#ff8800':'var(--fault)';
-function fmtRul(d){
-  if(d===null||d===undefined) return '✓ Stable (no rising trend)';
-  if(d<0.04) return '⚠ Fault threshold reached';
-  if(d<1)    return '⚠ <1 day remaining';
-  if(d<7)    return `⚠ ~${Math.round(d)} day${Math.round(d)!==1?'s':''} remaining`;
-  if(d<90)   return `~${Math.round(d)} days remaining`;
-  return `~${Math.round(d)} days remaining (stable)`;
-}
+const $=id=>document.getElementById(id);
+function fmtUp(s){if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m '+String(s%60).padStart(2,'0')+'s';return Math.floor(s/3600)+'h '+String(Math.floor((s%3600)/60)).padStart(2,'0')+'m';}
+function fmtDt(ts){return ts?new Date(ts*1000).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}):'never';}
+function fmtFuture(days){if(!days&&days!==0)return '';const d=new Date(Date.now()+days*864e5);return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}
+function kCol(k){return k>TH.k_fault?'var(--fault)':k>TH.k_warn?'var(--warn)':'var(--ok)';}
+function hCol(h){return h>=75?'var(--ok)':h>=50?'var(--warn)':'var(--fault)';}
+function mCls(d){return d===0?'fault':d<=30?'warn':'ok';}
+function rulCol(d){return d===null?'var(--ok)':d>90?'var(--ok)':d>30?'var(--warn)':d>7?'#ff9500':'var(--fault)';}
+function fmtRul(d){if(d===null||d===undefined)return '✓ Stable';if(d<0.05)return '⚠ Threshold reached';if(d<1)return '⚠ <1 day';if(d<7)return '⚠ ~'+Math.round(d)+' day'+(Math.round(d)!==1?'s':'');return '~'+Math.round(d)+' days';}
+function transCls(from,to){const r={OK:0,WARN:1,FAULT:2};return (r[to]||0)>(r[from]||0)?'esc':(r[to]||0)<(r[from]||0)?'rec':'war';}
 
-function fmtUp(s){
-  if(s<60) return s+'s';
-  if(s<3600) return Math.floor(s/60)+'m '+(s%60)+'s';
-  return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
-}
-function fmtDt(ts){ return ts?new Date(ts*1000).toLocaleString():'never'; }
-function fmtFuture(days){
-  if(!days) return '';
-  return new Date(Date.now()+days*864e5).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-}
-function kColor(k){ return k>TH.k_fault?'#f85149':k>TH.k_warn?'#d29922':'#3fb950'; }
+function toast(msg,ok=true){const t=$('toast');t.textContent=msg;t.className='in '+(ok?'ok-t':'err-t');setTimeout(()=>{t.className='';},3200);}
 
+/* --- card HTML --- */
 function cardHTML(s){
-  const al=s.alert.toLowerCase(), m=s.metrics||{};
-  const hc=HC(s.health_score), mc=MC(s.maintenance_days);
-  const fd=fmtFuture(s.maintenance_days);
-  const due=fd?` · Due: <strong>${fd}</strong>`:'';
-  return `<div class="card ${al}${s.connected?'':' offline'}" id="C_${s.name}">
-<div class="ch">
-  <div><div class="cn">${s.name}</div><div class="cm">${s.mac} · FW ${s.fw}</div></div>
-  <div class="csr"><div class="sdot ${al}"></div><span class="badge ${al}">${s.alert}</span></div>
-</div>
-<div class="mg">
-  <div class="met"><div class="ml">Kurtosis</div><div class="mv" style="color:${kColor(m.mic_kurtosis||0)}" id="K_${s.name}">${(m.mic_kurtosis||0).toFixed(2)}</div></div>
-  <div class="met"><div class="ml">Crest Factor</div><div class="mv" id="CF_${s.name}">${(m.mic_crest||0).toFixed(2)}</div></div>
-  <div class="met"><div class="ml">High-Band %</div><div class="mv" id="HB_${s.name}">${((m.high_band_ratio||0)*100).toFixed(1)}%</div></div>
-  <div class="met"><div class="ml">Mic RMS</div><div class="mv" id="RMS_${s.name}">${(m.mic_rms||0).toFixed(5)}</div></div>
-  <div class="met"><div class="ml">Z-Score</div><div class="mv" style="color:${s.z_score>3?'#f85149':s.z_score>1.5?'#d29922':'inherit'}" id="Z_${s.name}">${s.z_score.toFixed(1)}</div></div>
-  <div class="met"><div class="ml">Frame Rate</div><div class="mv" id="FPS_${s.name}">${s.fps.toFixed(1)} fps</div></div>
-  <div class="met" style="grid-column:span 3"><div class="ml">Est. Remaining Life</div><div class="mv" id="RUL_${s.name}" style="color:${rulColor(s.rul_days)};font-size:.85rem">${fmtRul(s.rul_days)}</div></div>
-</div>
-<div class="hr">
-  <div class="hbw"><div class="hbl">Machine Health Score</div><div class="hb"><div class="hf" id="HF_${s.name}" style="width:${s.health_score}%;background:${hc}"></div></div></div>
-  <div class="hsc" id="HS_${s.name}" style="color:${hc}">${s.health_score}%</div>
-</div>
-<div class="mnt ${mc}" id="MNT_${s.name}">
-  <div class="mntt">🔧 ${s.maintenance}${due}</div>
-  <div class="mnts">Warn events: ${s.warn_frames} · Fault events: ${s.fault_frames}${s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):''}</div>
-</div>
-<div class="cwrap"><canvas id="CH_${s.name}" height="70"></canvas></div>
-<div class="cf">
-  <span>Frames: ${s.frame_count.toLocaleString()}</span>
-  <span>${s.calibrated?'✓ Calibrated':'⏳ Calibrating…'}</span>
-  <span>Up ${fmtUp(s.uptime_s)}</span>
-  <span>${s.connected?'🟢 Online':'🔴 Offline'}</span>
-</div>
-</div>`;
+  const al=s.alert.toLowerCase(),m=s.metrics||{},ml=s.maint_log||{};
+  const hc=hCol(s.health_score),mc=mCls(s.maintenance_days);
+  const fd=fmtFuture(s.maintenance_days),due=fd?' · Due: <strong>'+fd+'</strong>':'';
+  const lm=ml.last_date||'—',tech=ml.technician?'· '+ml.technician:'';
+  return '<div class="card '+al+(s.connected?'':' offline')+'" id="C_'+s.name+'">'
+    +'<div class="c-head"><div><div class="c-name">'+s.name+'</div><div class="c-mac">'+s.mac+'</div>'
+    +'<div class="c-fw">FW '+s.fw+(s.calibrated?' · ✓ Calibrated':' · ⧖ Calibrating')+'</div></div>'
+    +'<div class="c-right"><div class="sdot '+al+'"></div><span class="badge '+al+'">'+s.alert+'</span></div></div>'
+    +'<div class="c-metrics">'
+    +'<div class="met"><div class="ml">Kurtosis</div><div class="mv" style="color:'+kCol(m.mic_kurtosis||0)+'" id="K_'+s.name+'">'+(m.mic_kurtosis||0).toFixed(2)+'</div></div>'
+    +'<div class="met"><div class="ml">Crest Factor</div><div class="mv" id="CF_'+s.name+'">'+(m.mic_crest||0).toFixed(2)+'</div></div>'
+    +'<div class="met"><div class="ml">High-Band %</div><div class="mv" id="HB_'+s.name+'">'+(((m.high_band_ratio||0)*100).toFixed(1))+'%</div></div>'
+    +'<div class="met"><div class="ml">Mic RMS</div><div class="mv" id="RMS_'+s.name+'">'+(m.mic_rms||0).toFixed(5)+'</div></div>'
+    +'<div class="met"><div class="ml">Z-Score</div><div class="mv" style="color:'+(s.z_score>3?'var(--fault)':s.z_score>1.5?'var(--warn)':'inherit')+'" id="Z_'+s.name+'">'+s.z_score.toFixed(1)+'</div></div>'
+    +'<div class="met"><div class="ml">Frame Rate</div><div class="mv" id="FPS_'+s.name+'">'+s.fps.toFixed(1)+' fps</div></div>'
+    +'<div class="met sp3"><div class="ml">Est. Remaining Useful Life</div>'
+    +'<div class="mv" id="RUL_'+s.name+'" style="color:'+rulCol(s.rul_days)+';font-size:.8rem">'+fmtRul(s.rul_days)+'</div></div>'
+    +'</div>'
+    +'<div class="c-health"><div class="c-hbar-wrap">'
+    +'<div class="c-hbar-top"><span>Machine Health</span><span id="HS_'+s.name+'" style="color:'+hc+'">'+s.health_score+'%</span></div>'
+    +'<div class="c-hbar"><div class="c-hfill" id="HF_'+s.name+'" style="width:'+s.health_score+'%;background:'+hc+'"></div></div>'
+    +'</div></div>'
+    +'<div class="c-rec '+mc+'" id="MNT_'+s.name+'">'
+    +'<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
+    +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>'
+    +'</div>'
+    +'<div class="c-chart"><canvas id="CH_'+s.name+'" height="62"></canvas></div>'
+    +'<div class="c-maint-row"><span>🔧 Last maint: <span class="c-maint-val" id="LM_'+s.name+'">'+lm+'</span>'+tech+'</span>'
+    +(ml.next_date?'<span>Next: <strong>'+ml.next_date+'</strong></span>':'')
+    +'</div>'
+    +'<div class="c-actions">'
+    +'<button class="btn btn-blue" onclick="openModal(\''+s.mac+'\',\''+s.name+'\')">&#128221; Log Maintenance</button>'
+    +'<a class="btn btn-ghost" href="/api/export?name='+encodeURIComponent(s.name)+'" download>&#8595; Export CSV</a>'
+    +'</div>'
+    +'<div class="c-foot">'
+    +'<span id="CF2_'+s.name+'">Frames: '+s.frame_count.toLocaleString()+'</span>'
+    +'<span id="CF3_'+s.name+'">Up '+fmtUp(s.uptime_s)+'</span>'
+    +'<span id="CF4_'+s.name+'">'+(s.connected?'🟢 Online':'🔴 Offline')+'</span>'
+    +'</div></div>';
 }
 
+/* --- build/update sparkline chart --- */
 function buildChart(s){
-  const el=document.getElementById('CH_'+s.name); if(!el) return;
-  const h=s.history||{kurtosis:[],crest:[]};
-  const n=h.kurtosis.length;
-  const wl=Array(n).fill(TH.k_warn), fl=Array(n).fill(TH.k_fault);
-  if(CH[s.name]){
-    const c=CH[s.name];
-    c.data.datasets[0].data=h.kurtosis;
-    c.data.datasets[1].data=h.crest;
-    c.data.datasets[2].data=wl;
-    c.data.datasets[3].data=fl;
-    c.update('none'); return;
-  }
+  const el=$('CH_'+s.name);if(!el)return;
+  const h=s.history||{kurtosis:[],crest:[]},n=h.kurtosis.length;
+  const wl=Array(n).fill(TH.k_warn),fl=Array(n).fill(TH.k_fault);
+  if(CH[s.name]){const c=CH[s.name];c.data.datasets[0].data=h.kurtosis;c.data.datasets[1].data=h.crest;c.data.datasets[2].data=wl;c.data.datasets[3].data=fl;c.update('none');return;}
   CH[s.name]=new Chart(el,{type:'line',data:{labels:Array.from({length:n},(_,i)=>i),datasets:[
-    {label:'Kurtosis', data:h.kurtosis,borderColor:'rgba(88,166,255,.9)',  backgroundColor:'rgba(88,166,255,.08)',borderWidth:1.5,pointRadius:0,tension:.3,fill:true},
-    {label:'Crest CF', data:h.crest,   borderColor:'rgba(255,127,14,.85)', backgroundColor:'rgba(255,127,14,.05)',borderWidth:1.5,pointRadius:0,tension:.3},
-    {label:'Warn',     data:wl,         borderColor:'rgba(210,153,34,.55)',borderWidth:1,  pointRadius:0,borderDash:[5,4]},
-    {label:'Fault',    data:fl,         borderColor:'rgba(248,81,73,.55)', borderWidth:1,  pointRadius:0,borderDash:[5,4]},
-  ]},options:{responsive:true,animation:false,plugins:{
-    legend:{display:true,position:'top',labels:{color:'#8b949e',font:{size:9},boxWidth:10,padding:7}}
-  },scales:{
+    {label:'Kurtosis',data:h.kurtosis,borderColor:'rgba(59,130,246,.9)',backgroundColor:'rgba(59,130,246,.07)',borderWidth:1.5,pointRadius:0,tension:.3,fill:true},
+    {label:'Crest',data:h.crest,borderColor:'rgba(245,158,11,.8)',backgroundColor:'rgba(245,158,11,.04)',borderWidth:1.5,pointRadius:0,tension:.3},
+    {label:'Warn',data:wl,borderColor:'rgba(245,158,11,.4)',borderWidth:1,pointRadius:0,borderDash:[4,4]},
+    {label:'Fault',data:fl,borderColor:'rgba(239,68,68,.4)',borderWidth:1,pointRadius:0,borderDash:[4,4]},
+  ]},options:{responsive:true,animation:false,plugins:{legend:{display:true,position:'top',labels:{color:'#5b7a96',font:{size:8},boxWidth:9,padding:6}}},scales:{
     x:{display:false},
-    y:{min:0,max:Math.max(TH.k_fault+3,16),ticks:{color:'#8b949e',font:{size:8}},grid:{color:'rgba(255,255,255,.05)'},border:{color:'#30363d'}}
+    y:{min:0,max:Math.max(TH.k_fault+3,14),ticks:{color:'#2d4d66',font:{size:8}},grid:{color:'rgba(255,255,255,.03)'},border:{color:'#1a2f44'}}
   }}});
 }
 
+/* --- update card in-place (no full re-render) --- */
 function upCard(s){
-  const card=document.getElementById('C_'+s.name); if(!card) return;
-  const al=s.alert.toLowerCase(), m=s.metrics||{};
-  const hc=HC(s.health_score), mc=MC(s.maintenance_days);
-  const fd=fmtFuture(s.maintenance_days), due=fd?` · Due: <strong>${fd}</strong>`:'';
+  const card=$('C_'+s.name);if(!card)return;
+  const al=s.alert.toLowerCase(),m=s.metrics||{},ml=s.maint_log||{};
+  const hc=hCol(s.health_score),mc=mCls(s.maintenance_days);
+  const fd=fmtFuture(s.maintenance_days),due=fd?' · Due: <strong>'+fd+'</strong>':'';
   card.className='card '+al+(s.connected?'':' offline');
   card.querySelector('.sdot').className='sdot '+al;
-  const b=card.querySelector('.badge'); b.className='badge '+al; b.textContent=s.alert;
-  const g=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  const gs=(id,p,v)=>{const e=document.getElementById(id);if(e)e.style[p]=v;};
-  g(`K_${s.name}`,(m.mic_kurtosis||0).toFixed(2));    gs(`K_${s.name}`,'color',kColor(m.mic_kurtosis||0));
-  g(`CF_${s.name}`,(m.mic_crest||0).toFixed(2));
-  g(`HB_${s.name}`,((m.high_band_ratio||0)*100).toFixed(1)+'%');
-  g(`RMS_${s.name}`,(m.mic_rms||0).toFixed(5));
-  g(`Z_${s.name}`,s.z_score.toFixed(1));              gs(`Z_${s.name}`,'color',s.z_score>3?'#f85149':s.z_score>1.5?'#d29922':'');
-  g(`FPS_${s.name}`,s.fps.toFixed(1)+' fps');
-  const rul_el=document.getElementById(`RUL_${s.name}`);
-  if(rul_el){rul_el.textContent=fmtRul(s.rul_days);rul_el.style.color=rulColor(s.rul_days);}
-  const hf=document.getElementById(`HF_${s.name}`); if(hf){hf.style.width=s.health_score+'%';hf.style.background=hc;}
-  g(`HS_${s.name}`,s.health_score+'%'); gs(`HS_${s.name}`,'color',hc);
-  const mnt=document.getElementById(`MNT_${s.name}`);
-  if(mnt){mnt.className='mnt '+mc;mnt.innerHTML=`<div class="mntt">🔧 ${s.maintenance}${due}</div><div class="mnts">Warn events: ${s.warn_frames} · Fault events: ${s.fault_frames}${s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):''}</div>`;}
-  const f=card.querySelector('.cf').children;
-  if(f[0])f[0].textContent='Frames: '+s.frame_count.toLocaleString();
-  if(f[1])f[1].textContent=s.calibrated?'✓ Calibrated':'⏳ Calibrating…';
-  if(f[2])f[2].textContent='Up '+fmtUp(s.uptime_s);
-  if(f[3])f[3].textContent=s.connected?'🟢 Online':'🔴 Offline';
+  const b=card.querySelector('.badge');b.className='badge '+al;b.textContent=s.alert;
+  const g=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
+  const gs=(id,p,v)=>{const e=$(id);if(e)e.style[p]=v;};
+  g('K_'+s.name,(m.mic_kurtosis||0).toFixed(2));gs('K_'+s.name,'color',kCol(m.mic_kurtosis||0));
+  g('CF_'+s.name,(m.mic_crest||0).toFixed(2));
+  g('HB_'+s.name,((m.high_band_ratio||0)*100).toFixed(1)+'%');
+  g('RMS_'+s.name,(m.mic_rms||0).toFixed(5));
+  g('Z_'+s.name,s.z_score.toFixed(1));gs('Z_'+s.name,'color',s.z_score>3?'var(--fault)':s.z_score>1.5?'var(--warn)':'');
+  g('FPS_'+s.name,s.fps.toFixed(1)+' fps');
+  const rul=$('RUL_'+s.name);if(rul){rul.textContent=fmtRul(s.rul_days);rul.style.color=rulCol(s.rul_days);}
+  const hf=$('HF_'+s.name);if(hf){hf.style.width=s.health_score+'%';hf.style.background=hc;}
+  gs('HS_'+s.name,'color',hc);g('HS_'+s.name,s.health_score+'%');
+  const mnt=$('MNT_'+s.name);
+  if(mnt){mnt.className='c-rec '+mc;mnt.innerHTML='<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
+    +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>';}
+  g('LM_'+s.name,ml.last_date||'—');
+  g('CF2_'+s.name,'Frames: '+s.frame_count.toLocaleString());
+  g('CF3_'+s.name,'Up '+fmtUp(s.uptime_s));
+  g('CF4_'+s.name,s.connected?'🟢 Online':'🔴 Offline');
 }
 
+/* --- tab switching --- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    $('pane-'+t.dataset.tab).classList.add('active');
+    const tab=t.dataset.tab;
+    if(tab==='alerts'&&!alertsLoaded){loadAlerts();alertsLoaded=true;}
+    if(tab==='maintenance')loadMaintenance();
+    if(tab==='reports'&&STATUS)updateReports(STATUS);
+  });
+});
+
+/* --- main 2s refresh --- */
 async function refresh(){
   try{
-    const r=await fetch('/api/status'); if(!r.ok) return;
-    const d=await r.json();
-    TH=d.thresholds||TH;
-
-    document.getElementById('up').textContent=fmtUp(d.server_uptime_s);
-    document.getElementById('sc').textContent=d.satellite_count;
-    document.getElementById('ts').textContent=new Date().toLocaleTimeString();
-    document.getElementById('foot').textContent=
-      `EPM Gateway · Auto-refreshes every 2 s · Thresholds: K≥${TH.k_warn} WARN / K≥${TH.k_fault} FAULT · CF≥${TH.cf_warn} WARN / CF≥${TH.cf_fault} FAULT`;
-
+    const r=await fetch('/api/status');if(!r.ok)return;
+    const d=await r.json();STATUS=d;TH=d.thresholds||TH;
     const sats=d.satellites;
     const ok_n=sats.filter(s=>s.alert==='OK').length;
     const wn_n=sats.filter(s=>s.alert==='WARN').length;
     const ft_n=sats.filter(s=>s.alert==='FAULT').length;
     const avg=sats.length?Math.round(sats.reduce((a,s)=>a+s.health_score,0)/sats.length):null;
-    document.getElementById('Ss').textContent=d.satellite_count;
-    document.getElementById('So').textContent=ok_n;
-    document.getElementById('Sw').textContent=wn_n;
-    document.getElementById('Sf').textContent=ft_n;
-    document.getElementById('Se').textContent=d.total_faults_today;
-    const sh=document.getElementById('Sh');
-    sh.textContent=avg!==null?avg+'%':'—';
-    sh.style.color=avg>=75?'var(--ok)':avg>=50?'var(--warn)':'var(--fault)';
 
-    const bn=document.getElementById('banner');
-    if(ft_n>0){bn.className='banner fault';bn.textContent='⚠ FAULT — '+sats.filter(s=>s.alert==='FAULT').map(s=>s.name).join(', ')+' — Immediate inspection required';}
-    else if(wn_n>0){bn.className='banner warn';bn.textContent='⚡ WARNING — '+sats.filter(s=>s.alert==='WARN').map(s=>s.name).join(', ')+' — Elevated vibration detected';}
-    else bn.className='banner';
+    // header
+    $('factory-lbl').textContent=d.factory_name||'Factory';
+    document.title='EPM · '+(d.factory_name||'Monitor');
+    $('hdr-up').textContent=fmtUp(d.server_uptime_s);
+    $('hdr-clock').textContent=new Date().toLocaleTimeString();
+    const nc=$('notif-chip');
+    if(d.notify_active){nc.textContent='🔔 Notify ON';nc.className='chip chip-ok';}
+    else{nc.textContent='🔔 Notify OFF';nc.className='chip chip-muted';}
+    const gs=$('gstatus');
+    if(ft_n>0){gs.textContent='● FAULT';gs.className='chip chip-fault';}
+    else if(wn_n>0){gs.textContent='● WARNING';gs.className='chip chip-warn';}
+    else if(sats.length){gs.textContent='● ALL OK';gs.className='chip chip-ok';}
+    else{gs.textContent='● STANDBY';gs.className='chip chip-muted';}
+    const ld=$('live-dot');
+    ld.className='ldot '+(ft_n>0?'fault':wn_n>0?'warn':'ok');
 
+    // banner
+    const bn=$('banner');
+    if(ft_n>0){bn.className='fault';bn.innerHTML='<span class="bpulse">🚨</span> FAULT — '+sats.filter(s=>s.alert==='FAULT').map(s=>s.name).join(', ')+' — Immediate inspection required';}
+    else if(wn_n>0){bn.className='warn';bn.innerHTML='⚡ WARNING — '+sats.filter(s=>s.alert==='WARN').map(s=>s.name).join(', ')+' — Elevated vibration detected';}
+    else bn.className='';
+
+    // summary tiles
+    $('s-conn').textContent=d.satellite_count;
+    $('s-ok').textContent=ok_n;
+    $('s-warn').textContent=wn_n;
+    $('s-fault').textContent=ft_n;
+    $('s-fevt').textContent=d.total_faults_today;
+    const sh=$('s-health');sh.textContent=avg!==null?avg+'%':'—';sh.style.color=avg!==null?hCol(avg):'';
+    const sf=$('s-fstate');
+    sf.textContent=ft_n>0?'⚠ Factory alert':wn_n>0?'Factory warning':sats.length?'Factory healthy':'No satellites';
+    sf.style.color=ft_n>0?'var(--fault)':wn_n>0?'var(--warn)':'var(--ok)';
+
+    // alert badge on tab
+    const ab=$('alert-badge');
+    if(ft_n>0){ab.style.display='inline-flex';ab.textContent=ft_n;}else{ab.style.display='none';}
+
+    // cards
     const key=sats.map(s=>s.name).sort().join(',');
-    const grid=document.getElementById('grid');
+    const grid=$('grid');
     if(key!==lastKey){
-      Object.values(CH).forEach(c=>c.destroy()); for(const k in CH) delete CH[k];
-      grid.innerHTML=sats.length?sats.map(cardHTML).join(''):'<div class="nosats"><h2>Waiting for satellites…</h2><p>Start firmware or satellite_sim.py</p></div>';
+      Object.values(CH).forEach(c=>c.destroy());
+      for(const k in CH)delete CH[k];
+      grid.innerHTML=sats.length?sats.map(cardHTML).join(''):'<div class="no-sats"><h2>Waiting for satellites…</h2><p>Power on XIAO ESP32-S3 or run satellite_sim.py</p></div>';
       lastKey=key;
-    } else {
+    }else{
       sats.forEach(upCard);
     }
     sats.forEach(buildChart);
-  } catch(e){console.warn(e);}
+
+    // export list + live report tab
+    updateExportList(sats);
+    if($('pane-reports').classList.contains('active'))updateReports(d);
+    if($('pane-maintenance').classList.contains('active'))renderMaintGrid(sats);
+
+    $('footer').textContent='EPM Gateway · '+(d.factory_name||'EPM')+' · Auto-refresh 2 s · K≥'+TH.k_warn+' WARN / K≥'+TH.k_fault+' FAULT · CF≥'+TH.cf_warn+' WARN / CF≥'+TH.cf_fault+' FAULT';
+  }catch(e){console.warn('[refresh]',e);}
+}
+
+/* --- reports tab --- */
+function updateReports(d){
+  const sats=d.satellites||[];
+  const ft_n=sats.filter(s=>s.alert==='FAULT').length;
+  const wn_n=sats.filter(s=>s.alert==='WARN').length;
+  $('r-factory').textContent=d.factory_name||'—';
+  $('r-uptime').textContent=fmtUp(d.server_uptime_s);
+  $('r-sats').textContent=sats.length;
+  $('r-kth').textContent=TH.k_warn+' / '+TH.k_fault;
+  $('r-cfth').textContent=TH.cf_warn+' / '+TH.cf_fault;
+  $('r-notif').textContent=d.notify_active?'Active':'Not configured';
+  $('r-wh').textContent=d.notify_active?'Configured':'Not configured';
+  $('r-email').textContent=d.notify_active?'Check gateway log':'Not configured';
+  const ck=(id,ok)=>{$(id).textContent=ok?'✅':'❌';};
+  ck('chk-conn',sats.length>0&&sats.every(s=>s.connected));
+  ck('chk-health',ft_n===0&&wn_n===0);
+  ck('chk-maint',sats.length>0&&sats.every(s=>s.maint_log&&s.maint_log.last_date));
+  ck('chk-auth',false); // can't detect from client side; user must use --auth
+  ck('chk-notif',d.notify_active);
+  ck('chk-cal',sats.length>0&&sats.every(s=>s.calibrated));
+}
+
+function updateExportList(sats){
+  const el=$('export-sat-list');
+  if(!sats||!sats.length){el.innerHTML='<span style="font-size:.7rem;color:var(--muted)">Connect a satellite to enable CSV exports.</span>';return;}
+  el.innerHTML=sats.map(s=>'<a class="exp-btn" href="/api/export?name='+encodeURIComponent(s.name)+'" download>📄 '+s.name+' — latest CSV</a>').join('');
+}
+
+/* --- alert log --- */
+async function loadAlerts(){
+  const tbody=$('alert-tbody');
+  tbody.innerHTML='<tr><td class="empty-cell" colspan="7">Loading…</td></tr>';
+  try{
+    const r=await fetch('/api/alerts?n=500');const data=await r.json();
+    if(!data.length){tbody.innerHTML='<tr><td class="empty-cell" colspan="7">No alert transitions recorded yet. State changes appear here in real time.</td></tr>';return;}
+    tbody.innerHTML=data.map(ev=>{
+      const tc=transCls(ev.prev,ev.alert);
+      const dt=new Date(ev.time*1000);
+      const dts=dt.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' '+dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      return '<tr>'
+        +'<td style="font-size:.65rem;color:var(--muted);font-family:monospace;white-space:nowrap">'+dts+'</td>'
+        +'<td style="font-weight:700">'+ev.satellite+'</td>'
+        +'<td><span class="trans '+tc+'">'+ev.prev+' → '+ev.alert+'</span></td>'
+        +'<td style="font-family:monospace;color:'+(ev.kurtosis>TH.k_fault?'var(--fault)':ev.kurtosis>TH.k_warn?'var(--warn)':'')+'">'+ev.kurtosis.toFixed(2)+'</td>'
+        +'<td style="font-family:monospace">'+ev.crest.toFixed(2)+'</td>'
+        +'<td style="font-family:monospace;color:'+(ev.z_score>3?'var(--fault)':ev.z_score>1.5?'var(--warn)':'')+'">'+ev.z_score.toFixed(1)+'</td>'
+        +'<td style="font-size:.6rem;color:var(--muted);font-family:monospace">'+(ev.mac||'—')+'</td>'
+        +'</tr>';
+    }).join('');
+    alertsLoaded=true;
+  }catch(e){tbody.innerHTML='<tr><td class="empty-cell" colspan="7">Error: '+e.message+'</td></tr>';}
+}
+
+async function exportAlerts(){
+  try{
+    const r=await fetch('/api/alerts?n=1000');const data=await r.json();
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='epm_alert_log_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+    toast('Alert log exported ✓');
+  }catch(e){toast('Export failed: '+e.message,false);}
+}
+
+/* --- maintenance tab --- */
+async function loadMaintenance(){
+  try{
+    const r=await fetch('/api/maintenance');const data=await r.json();
+    if(STATUS)renderMaintGrid(STATUS.satellites,data);
+  }catch(e){console.warn('[maint]',e);}
+}
+
+function renderMaintGrid(sats,maintData){
+  const mg=$('maint-grid');
+  if(!sats||!sats.length){mg.innerHTML='<p style="color:var(--muted);font-size:.76rem">No satellites connected.</p>';return;}
+  mg.className='maint-grid';
+  mg.innerHTML=sats.map(s=>{
+    const ml=(maintData&&maintData[s.mac])||s.maint_log||{};
+    const has=ml&&ml.last_date;
+    return '<div class="mc">'
+      +'<div class="mc-name">'+s.name+'<span class="badge '+s.alert.toLowerCase()+'">'+s.alert+'</span></div>'
+      +(has
+        ?'<div class="mc-row"><span class="mc-lbl">Last Service</span><span class="mc-val">'+ml.last_date+'</span></div>'
+         +'<div class="mc-row"><span class="mc-lbl">Technician</span><span class="mc-val">'+(ml.technician||'—')+'</span></div>'
+         +'<div class="mc-row"><span class="mc-lbl">Type</span><span class="mc-val">'+(ml.maint_type||'—')+'</span></div>'
+         +'<div class="mc-row"><span class="mc-lbl">Next Scheduled</span><span class="mc-val">'+(ml.next_date||'—')+'</span></div>'
+         +(ml.notes?'<div class="mc-row" style="flex-direction:column;gap:3px"><span class="mc-lbl">Notes</span><span style="font-size:.68rem;color:var(--muted);margin-top:2px">'+ml.notes+'</span></div>':'')
+         +'<div class="mc-row"><span class="mc-lbl">Updated</span><span class="mc-val" style="font-size:.62rem;color:var(--muted)">'+fmtDt(ml.updated_at)+'</span></div>'
+        :'<div class="mc-empty">No maintenance record yet.</div>')
+      +'<div class="mc-foot"><button class="btn btn-blue" style="width:100%" onclick="openModal(\''+s.mac+'\',\''+s.name+'\')">&#128221; Log Maintenance</button></div>'
+      +'</div>';
+  }).join('');
+}
+
+/* --- modal --- */
+function openModal(mac,name){
+  $('modal-mac').value=mac;
+  $('modal-info').textContent=name+' · '+mac;
+  if(STATUS){
+    const s=STATUS.satellites.find(x=>x.mac===mac);
+    const ml=(s&&s.maint_log)||{};
+    $('f-last').value=ml.last_date||new Date().toISOString().slice(0,10);
+    $('f-next').value=ml.next_date||'';
+    $('f-tech').value=ml.technician||'';
+    $('f-type').value=ml.maint_type||'Routine Inspection';
+    $('f-notes').value=ml.notes||'';
+  }
+  $('maint-modal').classList.add('open');
+  setTimeout(()=>$('f-tech').focus(),50);
+}
+function closeModal(){$('maint-modal').classList.remove('open');}
+$('maint-modal').addEventListener('click',e=>{if(e.target===$('maint-modal'))closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+async function submitMaint(){
+  const mac=$('modal-mac').value;
+  const lastDate=$('f-last').value,tech=$('f-tech').value.trim();
+  if(!mac||!lastDate||!tech){toast('Last date and technician are required.',false);return;}
+  try{
+    const r=await fetch('/api/maintenance',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mac,last_date:lastDate,technician:tech,maint_type:$('f-type').value,notes:$('f-notes').value.trim(),next_date:$('f-next').value})});
+    const d=await r.json();
+    if(d.ok){toast('Maintenance record saved ✓');closeModal();loadMaintenance();refresh();}
+    else toast('Save failed: '+(d.error||'unknown'),false);
+  }catch(e){toast('Error: '+e.message,false);}
 }
 
 refresh();
 setInterval(refresh,2000);
+setInterval(()=>{if($('pane-alerts').classList.contains('active'))loadAlerts();},12000);
 </script>
 </body>
+</html>
 </html>"""
+
+
+# ─── Alert history ────────────────────────────────────────────────────────────
+
+def _log_alert_event(sat_name, mac_hex, new_alert, prev_alert, kurtosis, crest, z_score):
+    """Append a state-change event to the in-memory audit trail."""
+    labels = ['OK', 'WARN', 'FAULT']
+    event = {
+        'time':      time.time(),
+        'satellite': sat_name,
+        'mac':       mac_hex,
+        'alert':     labels[min(new_alert, 2)],
+        'prev':      labels[min(prev_alert, 2)],
+        'kurtosis':  round(kurtosis, 2),
+        'crest':     round(crest, 2),
+        'z_score':   round(z_score, 1),
+    }
+    with _ALERT_HISTORY_LOCK:
+        _ALERT_HISTORY.appendleft(event)
+
+
+# ─── Maintenance log ──────────────────────────────────────────────────────────
+
+def _load_maint_log(path):
+    global _MAINT_LOG, _MAINT_LOG_PATH
+    _MAINT_LOG_PATH = path
+    if os.path.exists(path):
+        try:
+            with open(path) as f:
+                _MAINT_LOG = json.load(f)
+            print(f'[maint] Loaded {len(_MAINT_LOG)} maintenance record(s)')
+        except Exception as e:
+            print(f'[maint] WARNING: could not read {path}: {e}')
+            _MAINT_LOG = {}
+
+
+def _save_maint_log():
+    if _MAINT_LOG_PATH:
+        try:
+            with open(_MAINT_LOG_PATH, 'w') as f:
+                json.dump(_MAINT_LOG, f, indent=2)
+        except Exception as e:
+            print(f'[maint] WARNING: save failed: {e}')
+
+
+# ─── Notifications ────────────────────────────────────────────────────────────
+
+def _fire_notification(sat_name, mac_hex, alert_str, kurtosis, crest, z_score):
+    """Rate-limited: max 1 notification per satellite per 5 minutes."""
+    now = time.time()
+    if now - _NOTIFY_COOLDOWN.get(mac_hex, 0) < _NOTIFY_COOLDOWN_S:
+        return
+    _NOTIFY_COOLDOWN[mac_hex] = now
+    ts  = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    msg = (f'EPM ALERT [{alert_str}] — {sat_name}\n'
+           f'Kurtosis: {kurtosis:.2f}  Crest Factor: {crest:.2f}  Z-Score: {z_score:.1f}\n'
+           f'Time: {ts}\nGateway: {_FACTORY_NAME}')
+    if _NOTIFY_WEBHOOK:
+        threading.Thread(target=_send_webhook,
+                         args=(msg, sat_name, alert_str), daemon=True).start()
+    if _NOTIFY_EMAIL_CFG:
+        threading.Thread(target=_send_email,
+                         args=(msg, sat_name, alert_str), daemon=True).start()
+
+
+def _send_webhook(msg, sat_name, alert_str):
+    url   = _NOTIFY_WEBHOOK
+    emoji = '\U0001f6a8' if alert_str == 'FAULT' else '⚠️'
+    color = 0xef4444 if alert_str == 'FAULT' else 0xf59e0b
+    if 'discord.com/api/webhooks' in url:
+        payload = json.dumps({
+            'username': 'EPM Monitor',
+            'embeds': [{'title': f'{emoji} {alert_str} — {sat_name}',
+                        'description': msg, 'color': color,
+                        'timestamp': datetime.datetime.utcnow().isoformat()}],
+        }).encode()
+    elif 'hooks.slack.com' in url or 'slack.com/services' in url:
+        payload = json.dumps({
+            'text': f'{emoji} *{alert_str}* — {sat_name}',
+            'blocks': [{'type': 'section',
+                        'text': {'type': 'mrkdwn', 'text': f'```{msg}```'}}],
+        }).encode()
+    else:
+        payload = json.dumps({'alert': alert_str, 'satellite': sat_name,
+                               'message': msg, 'timestamp': time.time()}).encode()
+    try:
+        req = _urllib_req.Request(url, data=payload,
+                                   headers={'Content-Type': 'application/json'})
+        with _urllib_req.urlopen(req, timeout=10) as resp:
+            print(f'[notify] Webhook → HTTP {resp.status}  ({alert_str} / {sat_name})')
+    except Exception as e:
+        print(f'[notify] Webhook failed: {e}')
+
+
+def _send_email(msg, sat_name, alert_str):
+    cfg = _NOTIFY_EMAIL_CFG
+    m   = MIMEText(msg)
+    m['Subject'] = f'EPM {alert_str}: {sat_name} — {_FACTORY_NAME}'
+    m['From']    = cfg['from']
+    m['To']      = cfg['to']
+    try:
+        with smtplib.SMTP(cfg['host'], cfg.get('port', 587), timeout=15) as s:
+            s.ehlo()
+            s.starttls()
+            if cfg.get('user'):
+                s.login(cfg['user'], cfg['pass'])
+            s.send_message(m)
+        print(f'[notify] Email sent ({alert_str} / {sat_name})')
+    except Exception as e:
+        print(f'[notify] Email failed: {e}')
 
 
 def _sat_health(sat):
@@ -1134,39 +1733,44 @@ def _build_status_json():
                 'imu_crest':        round(float(s.last_frame.get('imu_crest', 0)), 2),
                 'high_band_ratio':  round(_high_band_ratio(s.last_frame.get('mic_fft', [])), 3),
             }
+        with _MAINT_LOG_LOCK:
+            maint_rec = dict(_MAINT_LOG.get(s.mac_hex, {}))
         sat_list.append({
-            'name':           s.name,
-            'mac':            s.mac_hex,
-            'fw':             f"{s.fw_major}.{s.fw_minor}",
-            'alert':          ['OK', 'WARN', 'FAULT'][min(int(s.sent_alert), 2)],
-            'connected':      s.connected,
-            'uptime_s':       int(now - s.connect_t),
-            'frame_count':    s.frame_count,
-            'fps':            round(s.fps, 1),
-            'calibrated':     s.calibrated,
-            'health_score':   health,
-            'maintenance':    maint,
+            'name':             s.name,
+            'mac':              s.mac_hex,
+            'fw':               f"{s.fw_major}.{s.fw_minor}",
+            'alert':            ['OK', 'WARN', 'FAULT'][min(int(s.sent_alert), 2)],
+            'connected':        s.connected,
+            'uptime_s':         int(now - s.connect_t),
+            'frame_count':      s.frame_count,
+            'fps':              round(s.fps, 1),
+            'calibrated':       s.calibrated,
+            'health_score':     health,
+            'maintenance':      maint,
             'maintenance_days': maint_days,
-            'rul_days':       rul_days,
-            'warn_frames':    s.warn_frames,
-            'fault_frames':   s.fault_frames,
-            'last_fault_t':   s.last_fault_t,
-            'z_score':        round(s.last_z, 2),
-            'metrics':        m,
+            'rul_days':         rul_days,
+            'warn_frames':      s.warn_frames,
+            'fault_frames':     s.fault_frames,
+            'last_fault_t':     s.last_fault_t,
+            'z_score':          round(s.last_z, 2),
+            'metrics':          m,
+            'maint_log':        maint_rec,
             'history': {
-                'alerts':    list(s.history_alerts),
-                'kurtosis':  [round(v, 2) for v in s.history_kurtosis],
-                'crest':     [round(v, 2) for v in s.history_crest],
+                'alerts':   list(s.history_alerts),
+                'kurtosis': [round(v, 2) for v in s.history_kurtosis],
+                'crest':    [round(v, 2) for v in s.history_crest],
             },
         })
 
     return json.dumps({
+        'factory_name':       _FACTORY_NAME,
         'server_uptime_s':    int(now - _SERVER_START_T),
         'timestamp':          now,
         'satellite_count':    sum(1 for s in sat_list if s['connected']),
         'total_faults_today': sum(s['fault_frames'] for s in sat_list),
+        'notify_active':      bool(_NOTIFY_WEBHOOK or _NOTIFY_EMAIL_CFG),
         'thresholds': {
-            'k_warn':  K_WARN,  'k_fault':  K_FAULT,
+            'k_warn':  K_WARN, 'k_fault': K_FAULT,
             'cf_warn': CREST_WARN, 'cf_fault': CREST_FAULT,
         },
         'satellites': sat_list,
@@ -1175,8 +1779,31 @@ def _build_status_json():
 
 class _DashHandler(BaseHTTPRequestHandler):
     def log_message(self, *_):
-        pass   # suppress per-request log noise
+        pass
 
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    def _auth_ok(self):
+        if _AUTH_PASS is None:
+            return True
+        auth = self.headers.get('Authorization', '')
+        if not auth.startswith('Basic '):
+            return False
+        try:
+            user, pw = base64.b64decode(auth[6:]).decode().split(':', 1)
+            return user == (_AUTH_USER or 'admin') and pw == _AUTH_PASS
+        except Exception:
+            return False
+
+    def _require_auth(self):
+        if self._auth_ok():
+            return True
+        self.send_response(401)
+        self.send_header('WWW-Authenticate', 'Basic realm="EPM Dashboard"')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+        return False
+
+    # ── Response helpers ──────────────────────────────────────────────────────
     def _send(self, code, ctype, body):
         if isinstance(body, str):
             body = body.encode()
@@ -1187,12 +1814,86 @@ class _DashHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_file(self, path, ctype, download_name=None):
+        with open(path, 'rb') as f:
+            data = f.read()
+        self.send_response(200)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Access-Control-Allow-Origin', '*')
+        if download_name:
+            self.send_header('Content-Disposition',
+                             f'attachment; filename="{download_name}"')
+        self.end_headers()
+        self.wfile.write(data)
+
+    # ── GET ───────────────────────────────────────────────────────────────────
     def do_GET(self):
-        path = urllib.parse.urlparse(self.path).path
+        if not self._require_auth():
+            return
+        parsed = urllib.parse.urlparse(self.path)
+        path   = parsed.path
+        qs     = urllib.parse.parse_qs(parsed.query)
+
         if path in ('/', '/index.html'):
             self._send(200, 'text/html; charset=utf-8', _DASHBOARD_HTML)
+
         elif path == '/api/status':
             self._send(200, 'application/json', _build_status_json())
+
+        elif path == '/api/alerts':
+            n = int(qs.get('n', ['200'])[0])
+            with _ALERT_HISTORY_LOCK:
+                data = list(_ALERT_HISTORY)[:n]
+            self._send(200, 'application/json', json.dumps(data))
+
+        elif path == '/api/maintenance':
+            with _MAINT_LOG_LOCK:
+                self._send(200, 'application/json', json.dumps(_MAINT_LOG))
+
+        elif path == '/api/export':
+            name    = qs.get('name', [''])[0]
+            log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+            pattern = f'epm_{name}_*.csv' if name else 'epm_*.csv'
+            files   = sorted(glob.glob(os.path.join(log_dir, pattern)), reverse=True)
+            if files:
+                self._send_file(files[0], 'text/csv', os.path.basename(files[0]))
+            else:
+                self._send(404, 'text/plain', 'No CSV data found for this satellite')
+
+        else:
+            self._send(404, 'text/plain', 'Not found')
+
+    # ── POST ──────────────────────────────────────────────────────────────────
+    def do_POST(self):
+        if not self._require_auth():
+            return
+        path   = urllib.parse.urlparse(self.path).path
+        length = int(self.headers.get('Content-Length', 0))
+        body   = self.rfile.read(length)
+
+        if path == '/api/maintenance':
+            try:
+                data = json.loads(body)
+                mac  = data.get('mac', '').strip()
+                if not mac:
+                    self._send(400, 'application/json', '{"error":"mac required"}')
+                    return
+                record = {
+                    'last_date':  data.get('last_date', ''),
+                    'technician': data.get('technician', ''),
+                    'maint_type': data.get('maint_type', 'Routine Inspection'),
+                    'notes':      data.get('notes', ''),
+                    'next_date':  data.get('next_date', ''),
+                    'updated_at': time.time(),
+                }
+                with _MAINT_LOG_LOCK:
+                    _MAINT_LOG[mac] = record
+                _save_maint_log()
+                print(f'[maint] Record updated: {mac}  by {record["technician"]}')
+                self._send(200, 'application/json', '{"ok":true}')
+            except Exception as e:
+                self._send(400, 'application/json', json.dumps({'error': str(e)}))
         else:
             self._send(404, 'text/plain', 'Not found')
 
@@ -1200,7 +1901,6 @@ class _DashHandler(BaseHTTPRequestHandler):
 def start_dashboard(port=8080):
     srv = HTTPServer(('0.0.0.0', port), _DashHandler)
     threading.Thread(target=srv.serve_forever, daemon=True, name='dashboard').start()
-    # Determine a human-friendly LAN address to show the user
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80))
@@ -1208,9 +1908,15 @@ def start_dashboard(port=8080):
         s.close()
     except OSError:
         lan_ip = 'localhost'
-    print(f"[dashboard] http://localhost:{port}/  ← open on this machine")
-    print(f"[dashboard] http://{lan_ip}:{port}/  ← open on phone / any LAN device")
-    print(f"[dashboard] Firewall rule (run once in elevated PowerShell):")
+    auth_note = f'  auth: {_AUTH_USER or "admin"} / [password]' if _AUTH_PASS else '  (no auth — set --auth user:pass)'
+    notify_note = f'  notifications: webhook active' if _NOTIFY_WEBHOOK else (
+                  f'  notifications: email active' if _NOTIFY_EMAIL_CFG else
+                  f'  notifications: OFF (use --notify-webhook or --notify-email)')
+    print(f"[dashboard] http://localhost:{port}/  ← this machine")
+    print(f"[dashboard] http://{lan_ip}:{port}/  ← phone / LAN")
+    print(f"[dashboard]{auth_note}")
+    print(f"[dashboard]{notify_note}")
+    print(f"[dashboard] Firewall (elevated PowerShell, run once):")
     print(f"            New-NetFirewallRule -DisplayName EPM-Dash -Direction Inbound "
           f"-Protocol TCP -LocalPort {port} -Action Allow")
 
@@ -1218,7 +1924,8 @@ def start_dashboard(port=8080):
 # ─── Entry point ─────────────────────────────────────────────────────────────
 
 def main():
-    global CREST_WARN, CREST_FAULT
+    global CREST_WARN, CREST_FAULT, _NOTIFY_WEBHOOK, _NOTIFY_EMAIL_CFG
+    global _AUTH_USER, _AUTH_PASS, _FACTORY_NAME
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1246,12 +1953,52 @@ def main():
     parser.add_argument('--no-plot', action='store_true',
                         help='Skip the live matplotlib plot — for SSH / headless / '
                              'Uno Q / server environments with no display')
+    parser.add_argument('--auth', type=str, default=None, metavar='USER:PASS',
+                        help='Protect dashboard with HTTP Basic Auth (e.g. admin:secret). '
+                             'Required for production deployments.')
+    parser.add_argument('--notify-webhook', type=str, default=None, metavar='URL',
+                        help='Webhook URL for FAULT alerts — supports Discord, Slack, Teams, '
+                             'or any generic JSON endpoint.')
+    parser.add_argument('--notify-email', type=str, default=None,
+                        metavar='FROM:TO:HOST[:PORT[:USER:PASS]]',
+                        help='SMTP config for email FAULT alerts (colon-separated). '
+                             'Example: alerts@co.com:ops@co.com:smtp.co.com:587:user:pass')
+    parser.add_argument('--factory-name', type=str, default=None,
+                        help='Site/factory name shown in the dashboard header '
+                             '(default: "EPM Industrial Monitor")')
     args = parser.parse_args()
 
     if args.crest_warn is not None:
         CREST_WARN = args.crest_warn
     if args.crest_fault is not None:
         CREST_FAULT = args.crest_fault
+
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    if args.auth:
+        if ':' not in args.auth:
+            sys.exit('--auth must be USER:PASS (e.g. admin:secret)')
+        _AUTH_USER, _AUTH_PASS = args.auth.split(':', 1)
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+    if args.notify_webhook:
+        _NOTIFY_WEBHOOK = args.notify_webhook
+
+    if args.notify_email:
+        parts = args.notify_email.split(':')
+        if len(parts) < 3:
+            sys.exit('--notify-email must be FROM:TO:HOST[:PORT[:USER:PASS]]')
+        _NOTIFY_EMAIL_CFG = {
+            'from': parts[0],
+            'to':   parts[1],
+            'host': parts[2],
+            'port': int(parts[3]) if len(parts) > 3 else 587,
+            'user': parts[4] if len(parts) > 4 else None,
+            'pass': parts[5] if len(parts) > 5 else None,
+        }
+
+    # ── Factory name ──────────────────────────────────────────────────────────
+    if args.factory_name:
+        _FACTORY_NAME = args.factory_name
 
     for n, name in ((args.fft_mic_n, 'fft-mic-n'), (args.fft_imu_n, 'fft-imu-n')):
         if n <= 0 or (n & (n - 1)):
@@ -1285,7 +2032,13 @@ def main():
     if args.model:
         _load_ml_model(args.model)
 
+    # ── Load maintenance log from disk ────────────────────────────────────────
+    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    _load_maint_log(os.path.join(log_dir, 'maintenance_log.json'))
+
     print("EPM gateway — multi-satellite predictive maintenance receiver")
+    print(f"Factory: {_FACTORY_NAME}")
     print(f"Expecting: mic={args.fft_mic_n}-pt  imu={args.fft_imu_n}-pt × 3 axes")
     if shaft_hz:
         print(f"Shaft: {shaft_hz:.3f} Hz  ({shaft_hz*60:.0f} RPM)")
