@@ -31,6 +31,9 @@ venv/
 mic_tools/logs/
 mic_tools/model/
 
+# ── Local development directories (per-machine, not part of source) ──────────
+.claude/
+
 # ── Backup and temp files ─────────────────────────────────────────────────────
 *.bak
 *.orig

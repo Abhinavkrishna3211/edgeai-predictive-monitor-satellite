@@ -57,8 +57,7 @@ static float s_pwr_x[IMU_HALF] __attribute__((aligned(16)));
 static float s_pwr_y[IMU_HALF] __attribute__((aligned(16)));
 static float s_pwr_z[IMU_HALF] __attribute__((aligned(16)));
 
-static QueueHandle_t s_queue   = NULL;
-static int           s_avg_cnt = 0;
+static QueueHandle_t s_queue = NULL;
 static imu_frame_t   s_frame;          /* 12 KB — too large for task stack */
 
 /* ─── Stub signal generator ───────────────────────────────────────────────── */
@@ -179,6 +178,9 @@ static void imu_task_fn(void *arg)
     float ph_y1 = 0.0f, ph_y2 = 0.0f;
     float ph_z1 = 0.0f, ph_z2 = 0.0f;
 
+    /* Local to this task — single owner, no cross-task access. */
+    static int avg_cnt = 0;
+
     /* Per-axis stats from the final block of the averaging window */
     axis_stats_t st_x = {0}, st_y = {0}, st_z = {0};
 
@@ -203,9 +205,9 @@ static void imu_task_fn(void *arg)
         st_z = compute_axis_stats();
         fft_axis_accumulate(s_pwr_z);
 
-        s_avg_cnt++;
+        avg_cnt++;
 
-        if (s_avg_cnt < SPEC_AVG_N) continue;
+        if (avg_cnt < SPEC_AVG_N) continue;
 
         /* ── Build frame after SPEC_AVG_N blocks ── */
         pwr_to_db(s_pwr_x, s_frame.fft_x);
@@ -221,7 +223,7 @@ static void imu_task_fn(void *arg)
         s_frame.clip         = st_x.clip | st_y.clip | st_z.clip;
         s_frame.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
-        s_avg_cnt = 0;
+        avg_cnt = 0;
         xQueueOverwrite(s_queue, &s_frame);
     }
 }
