@@ -149,6 +149,7 @@ class SatelliteState:
         self.fault_frames = 0
         self.last_fault_t = None          # epoch of most recent FAULT frame
         self.last_z       = 0.0
+        self.fault_type   = "Normal"   # spectral fault classification label
         self.history_alerts   = collections.deque([0]   * HISTORY_LEN, maxlen=HISTORY_LEN)
         self.history_kurtosis = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
         self.history_crest    = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
@@ -303,6 +304,63 @@ def _high_band_ratio(mic_fft_db):
     total   = power[1:].sum() + 1e-10       # skip DC
     high    = power[lo_bin:].sum()
     return float(high / total)
+
+
+def _classify_fault_type(mic_fft_db, mic_kurtosis, mic_crest, imu_crest, high_band_ratio):
+    """Spectral pattern analysis — classify the likely fault mechanism.
+
+    Uses heuristics on kurtosis magnitude, crest factor, and spectral band
+    energy distribution to distinguish bearing impacts, imbalance, looseness,
+    and misalignment without requiring shaft-speed or bearing-geometry input.
+
+    Returns a short label string suitable for display in dashboards and reports.
+    """
+    if len(mic_fft_db) < 2:
+        return "Normal"
+
+    # --- nothing significant → normal ---
+    if mic_kurtosis < K_WARN and mic_crest < CREST_WARN and imu_crest < CREST_WARN:
+        return "Normal"
+
+    power = 10.0 ** (np.clip(mic_fft_db, -140.0, 0.0) / 10.0)
+    n     = len(power)
+    # Frequency bands (at 15.625 Hz/bin, Fs=16 kHz, N=512)
+    lo_end  = max(1, int(500  / (MIC_FS_HZ / 2.0 / n)))   # < 500 Hz
+    mid_end = max(lo_end + 1, int(2000 / (MIC_FS_HZ / 2.0 / n)))   # 500 Hz – 2 kHz
+    hi_end  = max(mid_end + 1, int(8000 / (MIC_FS_HZ / 2.0 / n)))   # 2 kHz – 8 kHz
+
+    total = power[1:].sum() + 1e-10
+    lo_r  = power[1:lo_end].sum()  / total   # low-frequency energy fraction
+    mid_r = power[lo_end:mid_end].sum() / total
+    hi_r  = power[mid_end:hi_end].sum()  / total
+
+    # --- Bearing impact fault ---
+    # High kurtosis (impulsive) + energy in 2-8 kHz resonance band
+    if high_band_ratio > 0.40 and mic_kurtosis >= K_WARN:
+        if mic_kurtosis >= K_FAULT:
+            return "Bearing Fault — Advanced"
+        return "Bearing Fault — Early"
+
+    # --- Imbalance (sinusoidal, low-frequency dominant) ---
+    # High crest without correspondingly high kurtosis = sinusoidal overload
+    if mic_crest >= CREST_WARN and mic_kurtosis < K_WARN * 1.4 and lo_r > 0.45:
+        return "Mechanical Imbalance"
+
+    # --- Misalignment (2× shaft energy dominant, appears in mid band) ---
+    if imu_crest >= CREST_WARN and mid_r > 0.35 and mic_kurtosis < K_FAULT:
+        return "Shaft Misalignment"
+
+    # --- Mechanical looseness (broadband harmonics — energy spread across bands) ---
+    if mic_kurtosis >= K_WARN and hi_r < 0.30 and lo_r < 0.55 and mid_r > 0.20:
+        return "Mechanical Looseness"
+
+    # --- High kurtosis not fitting above patterns ---
+    if mic_kurtosis >= K_FAULT:
+        return "Severe Anomaly — Inspect"
+    if mic_kurtosis >= K_WARN:
+        return "Elevated Vibration"
+
+    return "Anomalous Vibration"
 
 
 def _sat_update_baseline(sat, mic_rms, mic_kurtosis):
@@ -499,6 +557,14 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             except OSError:
                 break
 
+            fault_type = _classify_fault_type(
+                frame.get('mic_fft', np.array([])),
+                frame.get('mic_kurtosis', 0.0),
+                frame.get('mic_crest', 0.0),
+                frame.get('imu_crest', 0.0),
+                hb,
+            )
+
             with _sat_lock:
                 sat.frame_count  += 1
                 sat.fps           = fps
@@ -508,6 +574,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 sat.warn_streak   = warn_streak
                 sat.ok_streak     = ok_streak
                 sat.sent_alert    = sent_alert
+                sat.fault_type    = fault_type
                 # Dashboard history
                 sat.last_z = z_score
                 sat.history_alerts.append(int(alert))
@@ -841,8 +908,14 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EPM Monitor">
+<link rel="manifest" href="/manifest.json">
 <title>EPM &middot; Industrial Monitor</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root{
   --bg:#07111e;--card:#0d1a27;--card2:#122031;--border:#1a2f44;
@@ -1234,6 +1307,16 @@ footer{text-align:center;padding:11px;color:var(--dim);font-size:.6rem;border-to
   </div>
 </div>
 
+<!-- QR CODE MODAL -->
+<div id="qr-modal" onclick="if(event.target===this)closeQR()">
+  <div class="qr-box">
+    <h3 class="qr-name"></h3>
+    <p>Scan to open the live inspection report on any device</p>
+    <canvas id="qr-canvas"></canvas>
+    <button class="qr-close" onclick="closeQR()">Close</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 <footer id="footer">EPM Dashboard &mdash; Auto-refreshes every 2 s</footer>
 
@@ -1253,6 +1336,27 @@ function fmtRul(d){if(d===null||d===undefined)return '✓ Stable';if(d<0.05)retu
 function transCls(from,to){const r={OK:0,WARN:1,FAULT:2};return (r[to]||0)>(r[from]||0)?'esc':(r[to]||0)<(r[from]||0)?'rec':'war';}
 
 function toast(msg,ok=true){const t=$('toast');t.textContent=msg;t.className='in '+(ok?'ok-t':'err-t');setTimeout(()=>{t.className='';},3200);}
+
+/* --- fault type helpers --- */
+function ftCls(ft){
+  if(!ft||ft==='Normal')return 'ok';
+  if(ft.includes('Fault')||ft.includes('Severe')||ft.includes('Advanced'))return 'fault';
+  if(ft.includes('Looseness')||ft.includes('Misalign')||ft.includes('Anomal')||ft.includes('Elevated'))return 'warn';
+  return 'info';
+}
+function showQR(name){
+  const m=$('qr-modal');
+  m.querySelector('.qr-name').textContent=name;
+  const url=location.origin+'/api/report?name='+encodeURIComponent(name);
+  const canvas=m.querySelector('#qr-canvas');
+  canvas.width=0;canvas.height=0;
+  if(typeof QRCode!=='undefined'){
+    QRCode.toCanvas(canvas,url,{width:220,margin:2,color:{dark:'#111111',light:'#ffffff'}},function(err){if(err)console.error(err);});
+  }
+  m.className='open';
+}
+function closeQR(){$('qr-modal').className='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();});
 
 /* --- card HTML --- */
 function cardHTML(s){
@@ -1287,6 +1391,7 @@ function cardHTML(s){
     +(ml.next_date?'<span>Next: <strong>'+ml.next_date+'</strong></span>':'')
     +'</div>'
     +'<div class="c-actions">'
+    +'<button class="btn btn-ghost" onclick="showQR(\''+s.name+'\',\''+s.mac+'\')">&#128247; QR</button>'
     +'<button class="btn btn-blue" onclick="openModal(\''+s.mac+'\',\''+s.name+'\')">&#128221; Log Maintenance</button>'
     +'<a class="btn btn-ghost" href="/api/report?name='+encodeURIComponent(s.name)+'" target="_blank">&#128202; Report</a>'
     +'<a class="btn btn-ghost" href="/api/export?name='+encodeURIComponent(s.name)+'" download>&#8595; CSV</a>'
@@ -1338,6 +1443,7 @@ function upCard(s){
   const mnt=$('MNT_'+s.name);
   if(mnt){mnt.className='c-rec '+mc;mnt.innerHTML='<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
     +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>';}
+  const ftEl=$('FT_'+s.name);if(ftEl){ftEl.textContent=s.fault_type||'Normal';ftEl.className='ft-badge ft-'+ftCls(s.fault_type||'Normal');}
   g('LM_'+s.name,ml.last_date||'—');
   g('CF2_'+s.name,'Frames: '+s.frame_count.toLocaleString());
   g('CF3_'+s.name,'Up '+fmtUp(s.uptime_s));
@@ -1758,6 +1864,7 @@ def _build_status_json():
             'fault_frames':     s.fault_frames,
             'last_fault_t':     s.last_fault_t,
             'z_score':          round(s.last_z, 2),
+            'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
             'history': {
@@ -2037,8 +2144,14 @@ tr:nth-child(even) td{{background:#f9fafb}}
           f'<span style="font-size:.78rem;color:#6b7280">{esc(r["maint_str"])}</span></div>')
 
         # Condition box
+        ft = s.fault_type or 'Normal'
+        ft_color = ('#dc2626' if 'Fault' in ft or 'Severe' in ft
+                    else '#d97706' if ft != 'Normal'
+                    else '#16a34a')
         W(f'<div class="rec {mc}">')
         W(f'<strong>Condition:</strong> {esc(r["maint_str"])}')
+        W(f'<br><strong>Fault Analysis:</strong> '
+          f'<span style="color:{ft_color};font-weight:700">{esc(ft)}</span>')
         if r['rul_days'] is not None:
             W(f'<br><strong>Estimated RUL:</strong> {fmt_rul(r["rul_days"])}')
         W('</div>')
@@ -2284,6 +2397,22 @@ class _DashHandler(BaseHTTPRequestHandler):
             report_html = _generate_report_html(sat_name)
             self._send(200, 'text/html; charset=utf-8', report_html)
 
+        elif path == '/manifest.json':
+            manifest = json.dumps({
+                'name': f'EPM Monitor — {_FACTORY_NAME}',
+                'short_name': 'EPM',
+                'description': 'EdgeAI Predictive Maintenance Dashboard',
+                'start_url': '/',
+                'display': 'standalone',
+                'background_color': '#07111e',
+                'theme_color': '#07111e',
+                'icons': [
+                    {'src': 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚙</text></svg>',
+                     'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any maskable'}
+                ],
+            })
+            self._send(200, 'application/manifest+json', manifest)
+
         else:
             self._send(404, 'text/plain', 'Not found')
 
@@ -2313,6 +2442,16 @@ class _DashHandler(BaseHTTPRequestHandler):
                 with _MAINT_LOG_LOCK:
                     _MAINT_LOG[mac] = record
                 _save_maint_log()
+                # Reset baseline so the satellite re-calibrates on known-good
+                # post-service data rather than pre-service degraded data.
+                with _sat_lock:
+                    sat = _satellites.get(mac)
+                    if sat:
+                        sat.calibrated = False
+                        sat._cal_buf   = []
+                        sat.bl_mean    = None
+                        sat.bl_std     = None
+                        sat.fault_type = "Normal"
                 print(f'[maint] Record updated: {mac}  by {record["technician"]}')
                 self._send(200, 'application/json', '{"ok":true}')
             except Exception as e:

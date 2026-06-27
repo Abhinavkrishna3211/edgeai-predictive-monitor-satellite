@@ -374,7 +374,7 @@ void wifi_rf_init(void)
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg));
-    esp_wifi_set_ps(WIFI_PS_NONE);   /* disable modem sleep before start — full TCP throughput */
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));   /* disable modem sleep before start */
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\", target: %s:%d",
