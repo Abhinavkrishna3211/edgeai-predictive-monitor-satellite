@@ -127,15 +127,19 @@ def _train_isolation_forest(X: np.ndarray, contamination: float,
 
 
 def _discover_satellites(log_dir: str) -> list[str]:
-    """Return unique satellite names found in CSV filenames (epm_<name>_*.csv)."""
+    """Return unique satellite names from CSV filenames (epm_<name>_YYYYMMDD.csv).
+
+    Uses a regex so names that contain underscores (e.g. MOTOR_1) are handled
+    correctly — the previous rsplit approach would silently drop such names.
+    """
+    import re
+    _DATE_RE = re.compile(r'^epm_(.+)_(\d{8})\.csv$')
     files = glob.glob(os.path.join(log_dir, 'epm_*.csv'))
     names = set()
     for f in files:
-        base = os.path.basename(f)
-        # filename format: epm_<name>_YYYYMMDD.csv
-        parts = base[4:].rsplit('_', 1)
-        if len(parts) == 2 and parts[1].replace('.csv', '').isdigit():
-            names.add(parts[0])
+        m = _DATE_RE.match(os.path.basename(f))
+        if m:
+            names.add(m.group(1))
     return sorted(names)
 
 

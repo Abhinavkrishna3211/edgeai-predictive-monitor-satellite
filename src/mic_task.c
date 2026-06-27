@@ -57,7 +57,8 @@ static void mic_task_fn(void *arg)
 {
     (void)arg;
     /* Local to this task — single owner, no cross-task access. */
-    int avg_cnt = 0;
+    int avg_cnt  = 0;
+    int fail_cnt = 0;   /* consecutive mic_capture_read_block failures */
 
     /* Enable I2S DMA from CPU1 so the DMA interrupt is allocated here,
      * away from the WiFi driver task on CPU0. */
@@ -74,9 +75,18 @@ static void mic_task_fn(void *arg)
     while (1) {
         /* --- 1. Capture one DMA block --- */
         if (mic_capture_read_block(NULL, s_norm, FFT_MIC_N) != ESP_OK) {
-            ESP_LOGW(TAG, "mic_capture_read_block failed — retrying");
+            fail_cnt++;
+            if (fail_cnt >= MIC_FAIL_MAX) {
+                ESP_LOGE(TAG, "mic_capture_read_block: %d consecutive failures — "
+                         "check I2S wiring / clock", fail_cnt);
+            } else {
+                ESP_LOGW(TAG, "mic_capture_read_block failed (%d/%d) — retrying",
+                         fail_cnt, MIC_FAIL_MAX);
+            }
+            vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
+        fail_cnt = 0;
 
         /* --- 2. Time-domain stats --- */
         mic_block_stats_t st;

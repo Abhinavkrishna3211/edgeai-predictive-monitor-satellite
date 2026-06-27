@@ -158,8 +158,10 @@ static int tcp_send_all(int sock, const void *buf, size_t len)
 
     while (remaining > 0) {
         int sent = send(sock, ptr, remaining, 0);
-        if (sent < 0) {
-            ESP_LOGE(TAG, "send() failed: errno %d", errno);
+        if (sent <= 0) {
+            /* sent == 0 means gateway closed connection; sent < 0 is a real error */
+            ESP_LOGE(TAG, "send() %s: errno %d",
+                     sent == 0 ? "connection closed" : "failed", errno);
             return -1;
         }
         ptr       += sent;
@@ -268,7 +270,7 @@ static void build_header(epm_header_t *hdr, uint32_t frame_id)
     hdr->mic_clip     = s_mic.clip;
     hdr->imu_rms      = fmaxf(s_imu.rms_x, fmaxf(s_imu.rms_y, s_imu.rms_z));
     hdr->imu_crest    = fmaxf(s_imu.crest_x, fmaxf(s_imu.crest_y, s_imu.crest_z));
-    hdr->imu_dc       = 0.0f;
+    hdr->imu_dc       = s_imu.dc_x;  /* X-axis DC offset — gravity/tilt component */
     hdr->imu_clip     = s_imu.clip;
 }
 

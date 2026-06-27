@@ -220,6 +220,7 @@ static void imu_task_fn(void *arg)
         s_frame.crest_x = (st_x.rms > 1e-8f) ? st_x.peak / st_x.rms : 0.0f;
         s_frame.crest_y = (st_y.rms > 1e-8f) ? st_y.peak / st_y.rms : 0.0f;
         s_frame.crest_z = (st_z.rms > 1e-8f) ? st_z.peak / st_z.rms : 0.0f;
+        s_frame.dc_x         = st_x.dc;   /* X-axis gravity/tilt component — useful for mounting angle detection */
         s_frame.clip         = st_x.clip | st_y.clip | st_z.clip;
         s_frame.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
