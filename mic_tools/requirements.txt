@@ -1,12 +1,21 @@
 # EPM gateway / tools dependencies
-# Install: pip install -r requirements.txt
+# Install: pip3 install -r requirements.txt
+#
+# On Arduino Uno Q (Debian Linux):
+#   sudo apt update && sudo apt install python3-pip python3-venv -y
+#   python3 -m venv venv && source venv/bin/activate
+#   pip3 install -r requirements.txt
 
-# Core numerical / plotting (recv_verify.py + satellite_sim.py)
+# Core numerical / signal processing (recv_verify.py + satellite_sim.py)
 numpy>=1.24,<2.0    # <2.0: NumPy 2.x breaks several array APIs used here
+scipy>=1.11          # used by ML trainer for stats; optional in gateway
+
+# Live FFT plot (used with --plot flag on desktop; skip with --no-plot on Uno Q)
 matplotlib>=3.7
 
 # ML pipeline (ml_trainer.py + ml_infer.py)
 # Also enables --model argument in recv_verify.py for live ML-based alerting
+# All training can run directly on the Uno Q 4GB (4GB LPDDR4 + 16GB eMMC)
 pandas>=2.0
 scikit-learn>=1.3
 joblib>=1.3

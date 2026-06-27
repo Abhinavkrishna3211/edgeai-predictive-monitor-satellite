@@ -101,8 +101,8 @@ CREST_FAULT = 10.0  # override with --crest-fault
 K_WARN      = 6.0   # kurtosis warn  (Gaussian=3, early fault=6-10)
 K_FAULT     = 12.0  # kurtosis fault (advanced fault=12+)
 CAL_FRAMES  = 30    # frames to collect for Z-score baseline
-HISTORY_LEN    = 60
-WATERFALL_ROWS = 80   # time rows in the mic FFT waterfall (~36 s at 2.2 fps)
+HISTORY_LEN    = 200   # ~90 s of history at 2.2 fps — Uno Q 4GB easily holds this per satellite
+WATERFALL_ROWS = 120   # time rows in the mic FFT waterfall (~55 s at 2.2 fps)
 
 # Alert persistence — prevents transient factory noise false positives
 WARN_PERSIST  = 2   # consecutive WARN frames required to raise alert
