@@ -72,7 +72,7 @@
 
 /* ── Single built-in LED (default) ──────────────────────────────────────────
  * GPIO21 = built-in user LED on XIAO ESP32-S3 (active-low: LOW = ON).
- * Driven by a 100 ms esp_timer — 7 rhythm-based blink patterns.          */
+ * Driven by a 100 ms esp_timer — 5 distinct patterns (see led_task.h).   */
 #define ALERT_LED_PIN   21
 
 /* ── External RGB LED upgrade ────────────────────────────────────────────────
@@ -87,9 +87,8 @@
  *   GPIO 3 (D2/A2) → 220 Ω → Blue  anode
  *   GND                   → Common cathode
  *
- * Colour map (same 7 states, full list in led_task.h):
- *   BOOT=White  WIFI=Blue  TCP=Cyan  CAL=Purple
- *   OK=Green    WARN=Yellow  FAULT=Red                                      */
+ * Colour map (5 states, full list in led_task.h):
+ *   BOOT=White  CONNECTING=Blue  OK=Green  WARN=Yellow  FAULT=Red          */
 #ifndef EPM_LED_RGB
 #define EPM_LED_RGB   0   /* 0 = single built-in LED,  1 = external RGB LED */
 #endif

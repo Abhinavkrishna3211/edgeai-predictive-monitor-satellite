@@ -7,7 +7,7 @@
  *   3. Open TCP connection to SERVER_IP:SERVER_PORT
  *   4. Each iteration:
  *        a. xQueueReceive mic_frame_t (2 s timeout)
- *        b. xQueueReceive imu_frame_t (500 ms timeout)
+ *        b. xQueueReceive imu_frame_t (1.5 s timeout)
  *        c. Build epm_header_t + length prefix
  *        d. send() length, header, mic FFT, imu FFT
  *        e. On any send failure: close socket, retry connect with 2 s delay
@@ -47,7 +47,7 @@
 static const char *TAG = "wifi_task";
 
 #define WIFI_CONNECTED_BIT  BIT0
-#define WIFI_MAX_RETRY      10      /* connection attempts before giving up */
+#define WIFI_MAX_RETRY      10
 
 /* ---------- module state ---------- */
 
@@ -59,66 +59,64 @@ static int                s_retry_cnt        = 0;
 static mic_frame_t s_mic;
 static imu_frame_t s_imu;
 
-/* ---------- WiFi event handler ---------- */
+/* ---------- WiFi event sub-handlers ---------- */
+
+static void on_wifi_sta_start(void)
+{
+    led_set_state(LED_CONNECTING);
+    ESP_LOGI(TAG, "STA started — connecting to \"%s\"...", WIFI_SSID);
+    esp_wifi_connect();
+}
+
+static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
+{
+    led_set_state(LED_CONNECTING);
+    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    s_retry_cnt++;
+    ESP_LOGW(TAG, "Disconnected reason=%d (attempt %d)"
+             " [15/203=wrong pw  200=SSID not found]",
+             d->reason, s_retry_cnt);
+    if (s_retry_cnt % WIFI_MAX_RETRY == 0) {
+        ESP_LOGE(TAG, "WiFi: %d consecutive failures — verify SSID/password "
+                 "in wifi_creds.h (reason %d)", s_retry_cnt, d->reason);
+    }
+    /* Do NOT vTaskDelay here — this runs in the system event loop.
+     * Blocking triggers the interrupt watchdog. */
+    esp_wifi_connect();
+}
+
+static void on_got_ip(ip_event_got_ip_t *ev)
+{
+    ESP_LOGI(TAG, "Got IP: " IPSTR " (after %d attempt(s))",
+             IP2STR(&ev->ip_info.ip), s_retry_cnt + 1);
+    s_retry_cnt = 0;
+    led_set_state(LED_CONNECTING);
+    xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+}
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        led_set_state(LED_WIFI_CONN);
-        ESP_LOGI(TAG, "STA started — connecting to \"%s\"...", WIFI_SSID);
-        esp_wifi_connect();
-
-    } else if (event_base == WIFI_EVENT &&
-               event_id == WIFI_EVENT_STA_DISCONNECTED) {
-
-        led_set_state(LED_WIFI_CONN);
-        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-
-        /* Log the reason code so we can diagnose failures:
-         *   15 / 203 = wrong password (4-way handshake timeout)
-         *   200       = AP not found  (SSID mismatch or hotspot off)
-         *   201       = auth rejected
-         *   2         = auth expired  (was connected, AP rebooted)
-         *
-         * IMPORTANT: do NOT call vTaskDelay here — this handler runs in
-         * the system event loop task.  Blocking it triggers the interrupt
-         * watchdog and crashes the ESP32.  Immediate retry is correct;
-         * the WiFi scan itself takes ~300 ms naturally. */
-        wifi_event_sta_disconnected_t *d =
-            (wifi_event_sta_disconnected_t *)event_data;
-        s_retry_cnt++;
-        ESP_LOGW(TAG, "Disconnected reason=%d (attempt %d) "
-                 "— retrying  [15/203=wrong pw  200=SSID not found]",
-                 d->reason, s_retry_cnt);
-        if (s_retry_cnt % WIFI_MAX_RETRY == 0) {
-            ESP_LOGE(TAG, "WiFi: %d consecutive failures — verify SSID/password "
-                     "in wifi_creds.h (reason %d)", s_retry_cnt, d->reason);
-        }
-        esp_wifi_connect();
-
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t *ev = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "Got IP: " IPSTR " (after %d attempt(s))",
-                 IP2STR(&ev->ip_info.ip), s_retry_cnt + 1);
-        s_retry_cnt = 0;
-        led_set_state(LED_TCP_CONN);
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        on_wifi_sta_start();
+        return;
+    }
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        on_wifi_disconnected((wifi_event_sta_disconnected_t *)event_data);
+        return;
+    }
+    if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        on_got_ip((ip_event_got_ip_t *)event_data);
     }
 }
 
 /* ---------- TCP helpers ---------- */
 
-/*
- * tcp_connect() — creates a TCP socket and connects to SERVER_IP:SERVER_PORT.
- * Sets SO_KEEPALIVE and TCP_NODELAY for low-latency streaming.
- * Returns the socket fd on success, -1 on failure.
- */
 static int tcp_connect(void)
 {
     struct sockaddr_in dest_addr = {
-        .sin_family      = AF_INET,
-        .sin_port        = htons(SERVER_PORT),
+        .sin_family = AF_INET,
+        .sin_port   = htons(SERVER_PORT),
     };
     if (inet_aton(SERVER_IP, &dest_addr.sin_addr) == 0) {
         ESP_LOGE(TAG, "Invalid SERVER_IP: %s", SERVER_IP);
@@ -131,13 +129,12 @@ static int tcp_connect(void)
         return -1;
     }
 
-    /* Low-latency options */
     int flag = 1;
     setsockopt(sock, SOL_SOCKET,  SO_KEEPALIVE, &flag, sizeof(flag));
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,  &flag, sizeof(flag));
 
-    /* 10-second connection timeout — prevents 75-second lwIP default block
-     * when the gateway is unreachable (e.g., hotspot off). */
+    /* 10-second send timeout — avoids the 75-second lwIP default block
+     * when the gateway is unreachable. */
     struct timeval sndto = {.tv_sec = 10, .tv_usec = 0};
     if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &sndto, sizeof(sndto)) != 0) {
         ESP_LOGW(TAG, "SO_SNDTIMEO setsockopt failed: errno %d", errno);
@@ -154,11 +151,6 @@ static int tcp_connect(void)
     return sock;
 }
 
-/*
- * tcp_send_all() — ensures all bytes are written even if send() returns
- * a short count (common on embedded TCP stacks).
- * Returns 0 on success, -1 on error.
- */
 static int tcp_send_all(int sock, const void *buf, size_t len)
 {
     const uint8_t *ptr = (const uint8_t *)buf;
@@ -176,167 +168,227 @@ static int tcp_send_all(int sock, const void *buf, size_t len)
     return 0;
 }
 
-/* ---------- main task function ---------- */
+/* ---------- Connection helpers ---------- */
+
+static bool send_hello(int sock)
+{
+    epm_hello_t hello = {0};
+    hello.magic    = EPM_HELLO_MAGIC;
+    hello.fw_major = 1;
+    hello.fw_minor = 0;
+    esp_wifi_get_mac(WIFI_IF_STA, hello.mac);
+    snprintf(hello.name, sizeof(hello.name), "SAT-%02X%02X",
+             hello.mac[4], hello.mac[5]);
+
+    if (tcp_send_all(sock, &hello, sizeof(hello)) != 0) {
+        ESP_LOGE(TAG, "Hello send failed");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Hello sent: name=%s  MAC=%02X:%02X:%02X:%02X:%02X:%02X",
+             hello.name,
+             hello.mac[0], hello.mac[1], hello.mac[2],
+             hello.mac[3], hello.mac[4], hello.mac[5]);
+    return true;
+}
+
+static void apply_recv_timeout(int sock)
+{
+    /* 100 ms timeout on recv() so the alert byte read never blocks the frame loop.
+     * Non-fatal if this fails; worst case alert recv blocks ~75 s per frame. */
+    struct timeval rcvto = {.tv_sec = 0, .tv_usec = 100000};
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &rcvto, sizeof(rcvto)) != 0) {
+        ESP_LOGW(TAG, "SO_RCVTIMEO setsockopt failed: errno %d", errno);
+    }
+}
+
+/* Wait up to 10 s for WiFi, open TCP, send hello, configure timeouts.
+ * Returns a ready socket or -1 on any failure. */
+static int connect_to_gateway(void)
+{
+    EventBits_t bits = xEventGroupWaitBits(
+        s_wifi_event_group, WIFI_CONNECTED_BIT,
+        pdFALSE, pdTRUE, pdMS_TO_TICKS(10000));
+
+    if (!(bits & WIFI_CONNECTED_BIT)) {
+        ESP_LOGW(TAG, "Still waiting for WiFi...");
+        return -1;
+    }
+
+    int sock = tcp_connect();
+    if (sock < 0) {
+        ESP_LOGW(TAG, "TCP connect failed — retrying in 2 s");
+        return -1;
+    }
+
+    if (!send_hello(sock)) {
+        close(sock);
+        return -1;
+    }
+
+    apply_recv_timeout(sock);
+    return sock;
+}
+
+static void drop_connection(int *sock)
+{
+    close(*sock);
+    *sock = -1;
+    led_set_state(LED_CONNECTING);
+}
+
+/* ---------- Frame helpers ---------- */
+
+static bool recv_mic_and_imu(QueueHandle_t mic_q, QueueHandle_t imu_q)
+{
+    if (xQueueReceive(mic_q, &s_mic, pdMS_TO_TICKS(2000)) != pdTRUE) {
+        ESP_LOGW(TAG, "mic_q timeout — no data from mic_task");
+        return false;
+    }
+    if (xQueueReceive(imu_q, &s_imu, pdMS_TO_TICKS(1500)) != pdTRUE) {
+        ESP_LOGW(TAG, "imu_q timeout — no data from imu_task");
+        return false;
+    }
+    return true;
+}
+
+static void build_header(epm_header_t *hdr, uint32_t frame_id)
+{
+    memset(hdr, 0, sizeof(*hdr));
+    hdr->magic        = (uint32_t)EPM_MAGIC;
+    hdr->frame_id     = frame_id;
+    hdr->timestamp_ms = s_mic.timestamp_ms;
+    hdr->mic_bins     = (uint16_t)(FFT_MIC_N / 2);
+    hdr->imu_bins     = (uint16_t)(FFT_IMU_N / 2);
+    hdr->imu_axes     = 3;
+    hdr->mic_rms      = s_mic.rms;
+    hdr->mic_crest    = s_mic.crest;
+    hdr->mic_dc       = s_mic.dc;
+    hdr->mic_kurtosis = s_mic.kurtosis;
+    hdr->mic_clip     = s_mic.clip;
+    hdr->imu_rms      = fmaxf(s_imu.rms_x, fmaxf(s_imu.rms_y, s_imu.rms_z));
+    hdr->imu_crest    = fmaxf(s_imu.crest_x, fmaxf(s_imu.crest_y, s_imu.crest_z));
+    hdr->imu_dc       = 0.0f;
+    hdr->imu_clip     = s_imu.clip;
+}
+
+/* Returns false on send failure — caller must drop connection and reconnect. */
+static bool send_frame(int sock, const epm_header_t *hdr)
+{
+    uint32_t payload_bytes =
+        (uint32_t)(sizeof(epm_header_t)
+                   + (FFT_MIC_N / 2) * sizeof(float)
+                   + (FFT_IMU_N / 2) * sizeof(float) * 3);
+
+    int err = tcp_send_all(sock, &payload_bytes, sizeof(payload_bytes));
+    if (!err) err = tcp_send_all(sock, hdr,          sizeof(*hdr));
+    if (!err) err = tcp_send_all(sock, s_mic.fft_db, (FFT_MIC_N / 2) * sizeof(float));
+    if (!err) err = tcp_send_all(sock, s_imu.fft_x,  (FFT_IMU_N / 2) * sizeof(float));
+    if (!err) err = tcp_send_all(sock, s_imu.fft_y,  (FFT_IMU_N / 2) * sizeof(float));
+    if (!err) err = tcp_send_all(sock, s_imu.fft_z,  (FFT_IMU_N / 2) * sizeof(float));
+
+    return err == 0;
+}
+
+/* Read the 1-byte alert code sent by the gateway after each frame.
+ * Returns false only when the gateway closes the connection (caller reconnects).
+ * A recv() timeout (EAGAIN) is normal — alert stays at EPM_ALERT_OK. */
+static bool read_gateway_alert(int sock, uint8_t *alert_out)
+{
+    int n = recv(sock, alert_out, 1, 0);
+
+    if (n == 1) {
+        if (*alert_out != EPM_ALERT_OK) {
+            ESP_LOGW(TAG, "Gateway alert: 0x%02x", *alert_out);
+        }
+        return true;
+    }
+
+    if (n == 0) {
+        ESP_LOGW(TAG, "Gateway closed connection — reconnecting");
+        return false;
+    }
+
+    /* n < 0: EAGAIN/EWOULDBLOCK = recv timeout — keep previous alert */
+    *alert_out = EPM_ALERT_OK;
+    return true;
+}
+
+static void update_led(uint8_t alert, uint32_t cal_frames)
+{
+    if (cal_frames < LED_CAL_FRAMES) {
+        led_set_state(LED_CONNECTING);
+        return;
+    }
+    if (alert == EPM_ALERT_FAULT) { led_set_state(LED_FAULT); return; }
+    if (alert == EPM_ALERT_WARN)  { led_set_state(LED_WARN);  return; }
+    led_set_state(LED_OK);
+}
+
+/* ---------- main task ---------- */
 
 typedef struct {
     QueueHandle_t mic_q;
     QueueHandle_t imu_q;
 } wifi_task_args_t;
 
-static wifi_task_args_t s_task_args; /* static — lives beyond xTaskCreate */
+static wifi_task_args_t s_task_args;
 
-static void wifi_task_fn(void *arg)
+static void wait_for_wifi(void)
 {
-    wifi_task_args_t *args = (wifi_task_args_t *)arg;
-    QueueHandle_t mic_q    = args->mic_q;
-    QueueHandle_t imu_q    = args->imu_q;
-
-    uint32_t frame_id  = 0;
-    uint32_t cal_frames = 0;  /* frames since last TCP connect — first LED_CAL_FRAMES show LED_CALIBRATING */
-
-    /* Wait until WiFi is up before attempting TCP */
     ESP_LOGI(TAG, "Waiting for WiFi...");
     xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT,
                         pdFALSE, pdTRUE, portMAX_DELAY);
     ESP_LOGI(TAG, "WiFi ready");
+}
 
+static void wifi_task_fn(void *arg)
+{
+    wifi_task_args_t *args = (wifi_task_args_t *)arg;
+    QueueHandle_t mic_q   = args->mic_q;
+    QueueHandle_t imu_q   = args->imu_q;
+
+    uint32_t frame_id   = 0;
+    uint32_t cal_frames = 0;
     int sock = -1;
 
+    wait_for_wifi();
+
     while (1) {
-        /* --- Ensure we have a live TCP connection --- */
         if (sock < 0) {
-            /* Wait for IP if we lost WiFi */
-            EventBits_t bits = xEventGroupWaitBits(
-                s_wifi_event_group, WIFI_CONNECTED_BIT,
-                pdFALSE, pdTRUE, pdMS_TO_TICKS(10000));
-
-            if (!(bits & WIFI_CONNECTED_BIT)) {
-                ESP_LOGW(TAG, "Still waiting for WiFi...");
-                continue;
-            }
-
-            sock = tcp_connect();
+            sock = connect_to_gateway();
             if (sock < 0) {
-                ESP_LOGW(TAG, "TCP connect failed — retrying in 2 s");
                 vTaskDelay(pdMS_TO_TICKS(2000));
                 continue;
             }
-
-            /* Send hello — gateway uses this to register and name the satellite */
-            epm_hello_t hello = {0};   /* zero-init: ensures name is null-padded */
-            hello.magic    = EPM_HELLO_MAGIC;
-            hello.fw_major = 1;
-            hello.fw_minor = 0;
-            esp_wifi_get_mac(WIFI_IF_STA, hello.mac);
-            snprintf(hello.name, sizeof(hello.name), "SAT-%02X%02X",
-                     hello.mac[4], hello.mac[5]);
-            if (tcp_send_all(sock, &hello, sizeof(hello)) != 0) {
-                ESP_LOGE(TAG, "Hello send failed — reconnecting");
-                led_set_state(LED_TCP_CONN);
-                close(sock); sock = -1; continue;
-            }
             cal_frames = 0;
-            led_set_state(LED_CALIBRATING);
-            ESP_LOGI(TAG, "Hello sent: name=%s MAC=%02X:%02X:%02X:%02X:%02X:%02X",
-                     hello.name,
-                     hello.mac[0], hello.mac[1], hello.mac[2],
-                     hello.mac[3], hello.mac[4], hello.mac[5]);
-
-            /* 100 ms recv timeout — used for the per-frame alert byte */
-            struct timeval rcvto = {.tv_sec = 0, .tv_usec = 100000};
-            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &rcvto, sizeof(rcvto)) != 0) {
-                ESP_LOGE(TAG, "SO_RCVTIMEO setsockopt failed: errno %d — "
-                         "alert recv may block indefinitely", errno);
-            }
         }
 
-        /* --- 1. Receive mic frame (wait up to 2 s) --- */
-        if (xQueueReceive(mic_q, &s_mic, pdMS_TO_TICKS(2000)) != pdTRUE) {
-            ESP_LOGW(TAG, "mic_q timeout — no data from mic_task");
+        if (!recv_mic_and_imu(mic_q, imu_q)) {
             continue;
         }
 
-        /* --- 2. Receive imu frame (wait up to 1500 ms) --- */
-        if (xQueueReceive(imu_q, &s_imu, pdMS_TO_TICKS(1500)) != pdTRUE) {
-            ESP_LOGW(TAG, "imu_q timeout — no data from imu_task");
-            continue;
-        }
-
-        /* --- 3. Build packet header --- */
         epm_header_t hdr;
-        memset(&hdr, 0, sizeof(hdr));
-        hdr.magic        = (uint32_t)EPM_MAGIC;
-        hdr.frame_id     = frame_id++;
-        hdr.timestamp_ms = s_mic.timestamp_ms;
-        hdr.mic_bins     = (uint16_t)(FFT_MIC_N / 2);
-        hdr.imu_bins     = (uint16_t)(FFT_IMU_N / 2);
-        hdr.imu_axes     = 3;  /* X, Y, Z */
-        hdr.mic_rms      = s_mic.rms;
-        hdr.mic_crest    = s_mic.crest;
-        hdr.mic_dc       = s_mic.dc;
-        hdr.mic_kurtosis = s_mic.kurtosis;
-        hdr.mic_clip     = s_mic.clip;
-        /* imu_rms / imu_crest carry the max across axes for easy thresholding */
-        hdr.imu_rms   = fmaxf(s_imu.rms_x, fmaxf(s_imu.rms_y, s_imu.rms_z));
-        hdr.imu_crest = fmaxf(s_imu.crest_x, fmaxf(s_imu.crest_y, s_imu.crest_z));
-        hdr.imu_dc    = 0.0f;  /* DC removed before FFT — always ≈ 0 */
-        hdr.imu_clip  = s_imu.clip;
+        build_header(&hdr, frame_id++);
 
-        /* --- 4. Compute total payload bytes and send --- */
-        uint32_t payload_bytes =
-            (uint32_t)(sizeof(epm_header_t)
-                       + (FFT_MIC_N / 2) * sizeof(float)
-                       + (FFT_IMU_N / 2) * sizeof(float) * 3);  /* 3 axes */
-
-        /* 4a–4d. Send length prefix → header → MIC FFT → IMU X/Y/Z.
-         * Short-circuit on first failure: no point continuing on a broken socket. */
-        int err = tcp_send_all(sock, &payload_bytes, sizeof(payload_bytes));
-        if (!err) err = tcp_send_all(sock, &hdr, sizeof(hdr));
-        if (!err) err = tcp_send_all(sock, s_mic.fft_db,
-                                     (FFT_MIC_N / 2) * sizeof(float));
-        if (!err) err = tcp_send_all(sock, s_imu.fft_x, (FFT_IMU_N / 2) * sizeof(float));
-        if (!err) err = tcp_send_all(sock, s_imu.fft_y, (FFT_IMU_N / 2) * sizeof(float));
-        if (!err) err = tcp_send_all(sock, s_imu.fft_z, (FFT_IMU_N / 2) * sizeof(float));
-
-        /* --- 5. Handle send failure --- */
-        if (err != 0) {
+        if (!send_frame(sock, &hdr)) {
             ESP_LOGE(TAG, "TCP send failed on frame %lu — reconnecting",
-                     (unsigned long)frame_id - 1);
-            led_set_state(LED_TCP_CONN);
-            close(sock);
-            sock = -1;
+                     (unsigned long)(frame_id - 1));
+            drop_connection(&sock);
             vTaskDelay(pdMS_TO_TICKS(2000));
             continue;
         }
 
-        /* --- 6. Read 1-byte alert from gateway (100 ms timeout from setsockopt) --- */
         uint8_t alert = EPM_ALERT_OK;
-        int n = recv(sock, &alert, 1, 0);
-        if (n == 1) {
-            if (alert != EPM_ALERT_OK) {
-                ESP_LOGW(TAG, "frame %lu: alert=0x%02x from gateway",
-                         (unsigned long)(frame_id - 1), alert);
-            }
-        }
-        /* n==0 → gateway closed; n<0 with errno EAGAIN/EWOULDBLOCK → timeout (OK) */
-        if (n == 0) {
-            ESP_LOGW(TAG, "Gateway closed connection — reconnecting");
-            led_set_state(LED_TCP_CONN);
-            close(sock); sock = -1; continue;
+        if (!read_gateway_alert(sock, &alert)) {
+            drop_connection(&sock);
+            continue;
         }
 
-        /* Update LED state: hold CALIBRATING for first LED_CAL_FRAMES frames,
-         * then switch to alert-driven state (OK / WARN / FAULT). */
-        cal_frames++;
-        if (cal_frames < LED_CAL_FRAMES) {
-            led_set_state(LED_CALIBRATING);
-        } else {
-            led_set_state(alert == EPM_ALERT_FAULT ? LED_FAULT :
-                          alert == EPM_ALERT_WARN  ? LED_WARN  : LED_OK);
-        }
+        update_led(alert, ++cal_frames);
 
-        ESP_LOGD(TAG, "frame %lu sent: mic_rms=%.4f imu_max_crest=%.2f",
-                 (unsigned long)(frame_id - 1), s_mic.rms, hdr.imu_crest);
+        ESP_LOGD(TAG, "frame %lu: mic_rms=%.4f imu_crest=%.2f alert=0x%02x",
+                 (unsigned long)(frame_id - 1), s_mic.rms, hdr.imu_crest, alert);
     }
 }
 
@@ -369,12 +421,12 @@ void wifi_rf_init(void)
         .sta = {
             .ssid     = WIFI_SSID,
             .password = WIFI_PASS,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,   /* WPA2 only — WPA (TKIP) is crackable */
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
             .pmf_cfg = { .capable = true, .required = false },
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg));
-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));   /* disable modem sleep before start */
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\", target: %s:%d",
@@ -396,7 +448,6 @@ void wifi_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q)
 {
     s_task_args.mic_q = mic_q;
     s_task_args.imu_q = imu_q;
-
     xTaskCreate(wifi_task_fn, "wifi_task", TASK_STACK_WIFI,
                 &s_task_args, TASK_PRIO_WIFI, NULL);
 }

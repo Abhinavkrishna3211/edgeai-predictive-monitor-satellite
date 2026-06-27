@@ -1,23 +1,16 @@
 /*
  * led_task.c — Timer-driven LED state machine (single LED or RGB LED).
  *
- * Tick = 100 ms.  All patterns are rhythm-based so each state is
- * distinguishable by counting taps and observing gaps — not by estimating
- * frequency (humans are bad at estimating Hz, good at counting 1-2-3).
+ * Tick = 100 ms.  LCM(20, 10, 30) = 60 — tick wraps at 60.
  *
- * Pattern table (tick wraps at LCM(10,20,30,2) = 60):
- *
- *  LED_BOOT          always ON
- *  LED_WIFI_CONN     ON at ticks 0,2,4  → OFF for ticks 5-9  (3 taps / 1 s)
- *  LED_TCP_CONN      ON for ticks  0-9  → OFF for ticks 10-19 (0.5 Hz)
- *  LED_CALIBRATING   ON at ticks 0,2    → OFF for ticks 3-19  (2 taps / 2 s)
- *  LED_OK            ON at tick   0     → OFF for ticks  1-29  (blip / 3 s)
- *  LED_WARN          ON for ticks 0-4   → OFF for ticks  5-9   (1 Hz)
- *  LED_FAULT         ON for even ticks                          (5 Hz strobe)
+ *  LED_BOOT       always ON
+ *  LED_FAULT      always ON   (solid = fault alarm — unmistakable)
+ *  LED_CONNECTING ON ticks 0–9  / OFF ticks 10–19  (0.5 Hz, 20-tick period)
+ *  LED_WARN       ON ticks 0–4 / OFF ticks 5–9     (1.0 Hz, 10-tick period)
+ *  LED_OK         ON tick 0 only                    (blip, 30-tick = 3 s)
  *
  * RGB upgrade: define EPM_LED_RGB=1 in epm_config.h and set LED_PIN_R/G/B.
- * The same tick patterns apply; each state drives a specific colour instead
- * of brightness.  The single-LED code path is unchanged.
+ * The same tick patterns apply; each state drives a specific colour.
  */
 
 #include "led_task.h"
@@ -50,7 +43,7 @@ static void _gpio_init_single(void)
         .intr_type     = GPIO_INTR_DISABLE,
     };
     gpio_config(&cfg);
-    LED_ON();   /* solid on during boot */
+    LED_ON();
 }
 
 static void _apply_single(int on)
@@ -60,16 +53,14 @@ static void _apply_single(int on)
 
 #else  /* EPM_LED_RGB — external common-cathode RGB LED ─────────────────── */
 
-/* Colour table indexed by led_state_t */
-static const uint8_t _rgb_table[7][3] = {
+/* Colour table indexed by led_state_t (5 states) */
+static const uint8_t _rgb_table[5][3] = {
     /* R,   G,   B */
-    {255, 255, 255},   /* BOOT          — white   */
-    {  0,   0, 255},   /* WIFI_CONN     — blue    */
-    {  0, 200, 255},   /* TCP_CONN      — cyan    */
-    {160,   0, 255},   /* CALIBRATING   — purple  */
-    {  0, 200,   0},   /* OK            — green   */
-    {255, 170,   0},   /* WARN          — yellow  */
-    {255,   0,   0},   /* FAULT         — red     */
+    {255, 255, 255},   /* BOOT        — white  */
+    {  0,   0, 255},   /* CONNECTING  — blue   */
+    {  0, 200,   0},   /* OK          — green  */
+    {255, 170,   0},   /* WARN        — yellow */
+    {255,   0,   0},   /* FAULT       — red    */
 };
 
 static void _gpio_init_rgb(void)
@@ -83,19 +74,13 @@ static void _gpio_init_rgb(void)
         .intr_type     = GPIO_INTR_DISABLE,
     };
     gpio_config(&cfg);
-    /* Boot = white */
     gpio_set_level((gpio_num_t)LED_PIN_R, 1);
     gpio_set_level((gpio_num_t)LED_PIN_G, 1);
     gpio_set_level((gpio_num_t)LED_PIN_B, 1);
 }
 
-/* Simple on/off drive for RGB (no PWM yet — brightness comes from the pattern
- * tick.  Add LEDC/PWM here later for smooth colour mixing if desired). */
-static led_state_t _rgb_cur_state = LED_BOOT;
-
 static void _apply_rgb(led_state_t state, int on)
 {
-    _rgb_cur_state = state;
     if (on) {
         const uint8_t *c = _rgb_table[state];
         gpio_set_level((gpio_num_t)LED_PIN_R, c[0] > 0 ? 1 : 0);
@@ -122,72 +107,14 @@ static void led_timer_cb(void *arg)
     led_state_t state = __atomic_load_n(&s_state, __ATOMIC_RELAXED);
 
     int on;
-    uint8_t t;
 
     switch (state) {
-
-        case LED_BOOT:
-            on = 1;
-            break;
-
-        case LED_WIFI_CONN:
-            /*
-             * 3 quick taps, then 700 ms dark — repeats every 1 s (10 ticks).
-             * Reads as "tap-tap-tap … pause … tap-tap-tap".
-             * Clearly different from TCP (slow blink) and FAULT (no pause).
-             */
-            t  = tick % 10;
-            on = (t == 0 || t == 2 || t == 4);
-            break;
-
-        case LED_TCP_CONN:
-            /*
-             * Slow 0.5 Hz equal blink: 1 s ON / 1 s OFF (20-tick period).
-             * Reads as "long-on … long-off".  Much slower than WARN (1 Hz),
-             * which makes them easy to tell apart.
-             */
-            on = (tick % 20) < 10;
-            break;
-
-        case LED_CALIBRATING:
-            /*
-             * 2 quick taps then 1.8 s dark — repeats every 2 s (20 ticks).
-             * Reads as "tap-tap … long pause".
-             * Different from WIFI (3 taps, 0.7 s pause) — you can count the taps.
-             */
-            t  = tick % 20;
-            on = (t == 0 || t == 2);
-            break;
-
-        case LED_OK:
-            /*
-             * Single 100 ms blip every 3 s — LED is almost always OFF.
-             * The rarity of the flash is the signal: "calm, healthy, don't worry".
-             */
-            on = (tick % 30) == 0;
-            break;
-
-        case LED_WARN:
-            /*
-             * Steady 1 Hz blink: 500 ms ON / 500 ms OFF (10-tick period).
-             * Reads like a car hazard light — "pay attention, something's up".
-             * Clearly faster than TCP (0.5 Hz) and clearly slower than FAULT (5 Hz).
-             */
-            on = (tick % 10) < 5;
-            break;
-
-        case LED_FAULT:
-            /*
-             * Continuous 5 Hz strobe: 100 ms ON / 100 ms OFF (2-tick period).
-             * You cannot count individual flashes — it reads as pure ALARM.
-             * Unmistakably different from every other state.
-             */
-            on = (tick % 2) == 0;
-            break;
-
-        default:
-            on = 0;
-            break;
+        case LED_BOOT:       on = 1;                 break;  /* solid ON — startup     */
+        case LED_FAULT:      on = 1;                 break;  /* solid ON — fault alarm */
+        case LED_CONNECTING: on = (tick % 20) < 10; break;  /* 0.5 Hz blink           */
+        case LED_WARN:       on = (tick % 10) < 5;  break;  /* 1.0 Hz blink           */
+        case LED_OK:         on = (tick % 30) == 0; break;  /* blip every 3 s         */
+        default:             on = 0;                 break;
     }
 
 #if EPM_LED_RGB
@@ -196,7 +123,6 @@ static void led_timer_cb(void *arg)
     _apply_single(on);
 #endif
 
-    /* LCM(10, 20, 20, 30, 10, 2) = 60 — all patterns stay phase-aligned */
     if (++tick >= 60) tick = 0;
 }
 
@@ -208,8 +134,8 @@ void led_set_state(led_state_t state)
     __atomic_store_n(&s_state, state, __ATOMIC_RELAXED);
 }
 
-/* Module-level timer handle — prevents a second call to led_task_start()
- * from creating a duplicate timer that doubles every pattern's flash rate. */
+/* Module-level handle — prevents a second led_task_start() from creating a
+ * duplicate timer that doubles every pattern's flash rate. */
 static esp_timer_handle_t s_led_timer = NULL;
 
 void led_task_start(void)
@@ -221,11 +147,11 @@ void led_task_start(void)
 
 #if EPM_LED_RGB
     _gpio_init_rgb();
-    ESP_LOGI(TAG, "LED task started (RGB GPIO R=%d G=%d B=%d, 7-state)",
+    ESP_LOGI(TAG, "LED task started (RGB GPIO R=%d G=%d B=%d, 5-state)",
              LED_PIN_R, LED_PIN_G, LED_PIN_B);
 #else
     _gpio_init_single();
-    ESP_LOGI(TAG, "LED task started (GPIO%d active-low, 7-state rhythm patterns)",
+    ESP_LOGI(TAG, "LED task started (GPIO%d active-low, 5-state)",
              ALERT_LED_PIN);
 #endif
 
