@@ -56,7 +56,10 @@ except ImportError:
     _BEARING_AVAILABLE = False
 
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
-_ML_MODEL = None   # populated by _load_ml_model() if --model is given
+_ML_MODEL = None   # populated by _load_ml_model() if --model is given (legacy global)
+_sat_models: dict = {}  # mac_hex → model dict; one per satellite (takes priority over global)
+
+N_TRAIN_FRAMES = 300  # OK frames to buffer before auto-training a per-satellite model
 
 # ─── Alert history (for compliance audit trail) ───────────────────────────────
 _ALERT_HISTORY      = collections.deque(maxlen=1000)
@@ -156,6 +159,11 @@ class SatelliteState:
         self.history_alerts   = collections.deque([0]   * HISTORY_LEN, maxlen=HISTORY_LEN)
         self.history_kurtosis = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
         self.history_crest    = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
+        # Per-satellite ML auto-training state
+        self.ml_buf        = []    # feature dicts (OK frames only) for auto-training
+        self.ml_trained    = False
+        self.ml_training   = False
+        self.ml_trained_at = None  # ISO string or float epoch after training
 
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
@@ -186,6 +194,7 @@ def _sat_register(mac_hex, name, fw_major, fw_minor, addr):
         else:
             sat = SatelliteState(mac_hex, name, fw_major, fw_minor, addr)
             _satellites[mac_hex] = sat
+    _try_load_sat_model(sat)
     return sat
 
 
@@ -441,18 +450,22 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb):
         final = sent_alert   # hold previous state during transition
 
     # ── Optional ML override: take the more severe of threshold vs ML ─────────
-    # Only applied after calibration so the model sees representative features.
-    if sat.calibrated and _ML_MODEL is not None:
+    # Per-satellite model takes priority; --model global flag is the fallback.
+    if sat.calibrated:
         ml_frame = {
-            'mic_rms':        frame['mic_rms'],
-            'mic_crest':      mic_crest,
-            'mic_kurtosis':   mic_kurtosis,
-            'imu_rms':        frame.get('imu_rms', 0.0),
-            'imu_crest':      imu_crest,
+            'mic_rms':         frame['mic_rms'],
+            'mic_crest':       mic_crest,
+            'mic_kurtosis':    mic_kurtosis,
+            'imu_rms':         frame.get('imu_rms', 0.0),
+            'imu_crest':       imu_crest,
             'high_band_ratio': hb,
-            'z_score':        z_score,
+            'z_score':         z_score,
         }
-        ml_alert = _ml_score(ml_frame)
+        sat_model = _sat_models.get(sat.mac_hex)
+        if sat_model is not None:
+            ml_alert = _ml_score_with(ml_frame, sat_model)
+        else:
+            ml_alert = _ml_score(ml_frame)   # falls back to global --model if set
         if ml_alert is not None and ml_alert > final:
             final = ml_alert   # escalate if ML is more confident
 
@@ -589,6 +602,26 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 elif alert == EPM_ALERT_FAULT:
                     sat.fault_frames += 1
                     sat.last_fault_t  = now
+                # Buffer healthy OK frames for per-satellite auto-training
+                if alert == EPM_ALERT_OK and sat.calibrated:
+                    _feat = {
+                        'mic_rms':         float(frame['mic_rms']),
+                        'mic_crest':       float(frame['mic_crest']),
+                        'mic_kurtosis':    float(frame['mic_kurtosis']),
+                        'imu_rms':         float(frame.get('imu_rms', 0.0)),
+                        'imu_crest':       float(frame.get('imu_crest', 0.0)),
+                        'high_band_ratio': float(hb),
+                        'z_score':         float(z_score),
+                    }
+                    sat.ml_buf.append(_feat)
+                    if len(sat.ml_buf) > N_TRAIN_FRAMES:
+                        sat.ml_buf = sat.ml_buf[-N_TRAIN_FRAMES:]
+                _need_train = (sat.calibrated and not sat.ml_training
+                               and not sat.ml_trained
+                               and len(sat.ml_buf) >= N_TRAIN_FRAMES)
+
+            if _need_train:
+                _trigger_sat_training(sat)
 
             _display.put(frame, name)
 
@@ -610,8 +643,14 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
         print(f"\n[-] {(sat.name if sat else mac_hex) or addr[0]} error: {e}")
     finally:
         if csv_f:
-            csv_f.close()
-        conn.close()
+            try:
+                csv_f.close()
+            except OSError:
+                pass
+        try:
+            conn.close()
+        except OSError:
+            pass
         if mac_hex:
             _sat_disconnect(mac_hex)
         print(f"    Satellites remaining: {_sat_count()}")
@@ -660,23 +699,159 @@ def _load_ml_model(model_prefix: str):
 
 def _ml_score(frame: dict) -> int | None:
     """
-    Run ML inference on one frame dict.
+    Run ML inference on one frame dict using the global --model (legacy).
     Returns EPM_ALERT_* (0/1/2) or None if no model is loaded.
     Frame dict keys match CSV columns produced by the satellite thread.
     """
     if _ML_MODEL is None:
         return None
+    return _ml_score_with(frame, _ML_MODEL)
+
+
+def _ml_score_with(frame: dict, model: dict) -> int | None:
+    """Run ML inference using an explicit model dict (per-satellite or global)."""
     try:
-        feat = [frame.get(c, 0.0) for c in _ML_MODEL['feat_cols']]
-        X_s  = _ML_MODEL['scaler'].transform([feat])
-        score = float(_ML_MODEL['model'].decision_function(X_s)[0])
-        if score <= _ML_MODEL['t_fault']:
+        feat  = [frame.get(c, 0.0) for c in model['feat_cols']]
+        X_s   = model['scaler'].transform([feat])
+        score = float(model['model'].decision_function(X_s)[0])
+        if score <= model['t_fault']:
             return EPM_ALERT_FAULT
-        if score <= _ML_MODEL['t_warn']:
+        if score <= model['t_warn']:
             return EPM_ALERT_WARN
         return EPM_ALERT_OK
     except Exception:
         return None
+
+
+# ─── Per-satellite ML helpers ─────────────────────────────────────────────────
+
+_TRAIN_FEATS = ['mic_rms', 'mic_crest', 'mic_kurtosis',
+                'imu_rms', 'imu_crest', 'high_band_ratio', 'z_score']
+
+
+def _try_load_sat_model(sat):
+    """Load a per-satellite model from disk into _sat_models (silent if missing)."""
+    try:
+        import joblib as _jl
+        model_dir = os.path.join(os.path.dirname(__file__), 'model')
+        mac_slug  = sat.mac_hex.replace(':', '')
+        for stem in (sat.name, mac_slug):
+            prefix = os.path.join(model_dir, stem)
+            meta_p = prefix + '_meta.json'
+            iso_p  = prefix + '_iso.joblib'
+            if not (os.path.exists(meta_p) and os.path.exists(iso_p)):
+                continue
+            with open(meta_p) as f:
+                meta = json.load(f)
+            bundle = _jl.load(iso_p)
+            _sat_models[sat.mac_hex] = {
+                'scaler':    bundle['scaler'],
+                'model':     bundle['model'],
+                'feat_cols': meta.get('feature_cols',
+                                      meta.get('base_features', _TRAIN_FEATS)),
+                't_warn':    meta['threshold_warn'],
+                't_fault':   meta['threshold_fault'],
+            }
+            sat.ml_trained    = True
+            sat.ml_trained_at = meta.get('trained_at')
+            print(f'[ml] [{sat.name}] Loaded model: '
+                  f'trained={str(meta.get("trained_at", "?"))[:10]}  '
+                  f'n={meta.get("n_samples", "?")}  '
+                  f'WARN≤{meta["threshold_warn"]:.4f}  '
+                  f'FAULT≤{meta["threshold_fault"]:.4f}')
+            return
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f'[ml] [{sat.name}] Warning: could not load model: {e}')
+
+
+def _trigger_sat_training(sat):
+    """Snapshot the OK-frame buffer and start background model training."""
+    with _sat_lock:
+        if sat.ml_training:
+            return
+        sat.ml_training = True
+        buf_copy = list(sat.ml_buf)
+    print(f'[ml] [{sat.name}] Auto-training on {len(buf_copy)} OK frames…')
+    threading.Thread(
+        target=_train_sat_model_bg,
+        args=(sat, buf_copy),
+        daemon=True,
+        name=f'train-{sat.name}',
+    ).start()
+
+
+def _train_sat_model_bg(sat, buf):
+    """Train IsolationForest for one satellite in a daemon thread."""
+    try:
+        import numpy as np
+        from sklearn.ensemble import IsolationForest
+        from sklearn.preprocessing import StandardScaler
+        import joblib as _jl
+
+        X_raw    = np.array([[f.get(k, 0.0) for k in _TRAIN_FEATS] for f in buf],
+                            dtype=np.float64)
+        log_kurt = np.log1p(np.clip(X_raw[:, 2], 0, None))
+        log_z    = np.log1p(np.clip(X_raw[:, 6], 0, None))
+        X        = np.column_stack([X_raw, log_kurt, log_z])
+        feat_cols = _TRAIN_FEATS + ['log_kurtosis', 'log_z']
+
+        scaler = StandardScaler()
+        X_s    = scaler.fit_transform(X)
+
+        iso = IsolationForest(
+            n_estimators=200, contamination=0.05,
+            max_samples=min(512, len(X_s)),
+            random_state=42, n_jobs=-1,
+        )
+        iso.fit(X_s)
+        scores  = iso.decision_function(X_s)
+        t_warn  = float(np.percentile(scores, 5.0))
+        t_fault = float(np.percentile(scores, 1.67))
+
+        model_dir   = os.path.join(os.path.dirname(__file__), 'model')
+        os.makedirs(model_dir, exist_ok=True)
+        prefix      = os.path.join(model_dir, sat.name)
+        bundle_path = prefix + '_iso.joblib'
+        meta_path   = prefix + '_meta.json'
+
+        _jl.dump({'scaler': scaler, 'model': iso}, bundle_path, compress=3)
+        trained_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        meta = {
+            'trained_at':      trained_at,
+            'satellite':       sat.name,
+            'mac':             sat.mac_hex,
+            'n_samples':       len(X_raw),
+            'contamination':   0.05,
+            'n_estimators':    200,
+            'feature_cols':    feat_cols,
+            'base_features':   _TRAIN_FEATS,
+            'threshold_warn':  t_warn,
+            'threshold_fault': t_fault,
+        }
+        with open(meta_path, 'w') as f:
+            json.dump(meta, f, indent=2)
+
+        _sat_models[sat.mac_hex] = {
+            'scaler':    scaler,
+            'model':     iso,
+            'feat_cols': feat_cols,
+            't_warn':    t_warn,
+            't_fault':   t_fault,
+        }
+        with _sat_lock:
+            sat.ml_trained    = True
+            sat.ml_trained_at = trained_at
+            sat.ml_training   = False
+
+        print(f'[ml] [{sat.name}] Model trained: {len(X_raw)} samples  '
+              f'WARN≤{t_warn:.4f}  FAULT≤{t_fault:.4f}  → {bundle_path}')
+    except Exception as e:
+        import traceback
+        print(f'[ml] [{sat.name}] Training failed: {e}\n{traceback.format_exc()}')
+        with _sat_lock:
+            sat.ml_training = False
 
 
 # ─── Accept loop ─────────────────────────────────────────────────────────────
@@ -966,6 +1141,9 @@ header{display:flex;align-items:center;padding:0 22px;height:56px;background:var
 .hdr-uptime{font-size:.62rem;color:var(--muted);font-variant-numeric:tabular-nums}
 @media(max-width:680px){.hdr-sep,#factory-lbl,.hdr-uptime,.chip-muted{display:none}}
 .c-pstatus{text-align:center;font-size:.78rem;font-weight:700;padding:5px 12px 3px;letter-spacing:.03em;border-bottom:1px solid var(--border)}
+.c-ml-row{text-align:center;font-size:.66rem;padding:3px 12px;border-bottom:1px solid var(--border);color:var(--muted)}
+.btn-green{background:rgba(34,197,94,.14);color:var(--ok);border-color:rgba(34,197,94,.28)}
+.btn-green:hover{background:rgba(34,197,94,.24)}
 @media(max-width:640px){
   header{padding:0 10px}
   .summary{padding:8px 10px;gap:6px}
@@ -1392,6 +1570,22 @@ function showQR(name,mac){
 function closeQR(){$('qr-modal').className='';}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();});
 
+/* --- per-satellite ML helpers --- */
+function mlStatusText(ml){
+  if(!ml)return '\u{1F9E0} AI: no data';
+  if(ml.training)return '\u{1F9E0} AI: Training… (this takes ~10 s)';
+  if(ml.trained&&ml.active)return '\u{1F9E0} AI: Active ✔ — personalised model loaded';
+  if(ml.buf_frames>=ml.buf_target)return '\u{1F9E0} AI: Ready to train ('+ml.buf_frames+' OK frames collected)';
+  return '\u{1F9E0} AI: Collecting baseline data ('+ml.buf_frames+'/'+ml.buf_target+' OK frames)';
+}
+async function retrainModel(name){
+  try{
+    const r=await fetch('/api/train?sat='+encodeURIComponent(name));
+    const d=await r.json();
+    toast(d.status||d.error||'done',!d.error);
+  }catch(e){toast('Error: '+e.message,false);}
+}
+
 /* --- card HTML --- */
 function cardHTML(s){
   const al=s.alert.toLowerCase(),m=s.metrics||{},ml=s.maint_log||{};
@@ -1405,6 +1599,7 @@ function cardHTML(s){
     +'<span class="ft-badge ft-'+ftCls(s.fault_type||'Normal')+'" id="FT_'+s.name+'">'+(s.fault_type||'Normal')+'</span></div></div>'
     +'<div class="c-pstatus" id="PS_'+s.name+'" style="color:'+(al==='fault'?'var(--fault)':al==='warn'?'var(--warn)':'var(--ok)')+';">'
     +(al==='fault'?'⚠ FAULT — Inspect machine immediately':al==='warn'?'⚠ Elevated vibration — attention needed':'Machine running normally')+'</div>'
+    +'<div class="c-ml-row" id="ML_'+s.name+'">'+mlStatusText(s.ml_status)+'</div>'
     +'<div class="c-metrics">'
     +'<div class="met"><div class="ml">Vibration Level</div><div class="mv" style="color:'+kCol(m.mic_kurtosis||0)+'" id="K_'+s.name+'">'+(m.mic_kurtosis||0).toFixed(2)+'</div></div>'
     +'<div class="met"><div class="ml">Shock Level</div><div class="mv" id="CF_'+s.name+'">'+(m.mic_crest||0).toFixed(2)+'</div></div>'
@@ -1430,6 +1625,7 @@ function cardHTML(s){
     +'<div class="c-actions">'
     +'<button class="btn btn-ghost" onclick="showQR(\''+s.name+'\',\''+s.mac+'\')">&#128247; QR</button>'
     +'<button class="btn btn-blue" onclick="openModal(\''+s.mac+'\',\''+s.name+'\')">&#128221; Log Maintenance</button>'
+    +'<button class="btn btn-green" onclick="retrainModel(\''+s.name+'\')">&#129504; Retrain AI</button>'
     +'<a class="btn btn-ghost" href="/api/report?name='+encodeURIComponent(s.name)+'" target="_blank">&#128202; Report</a>'
     +'<a class="btn btn-ghost" href="/api/export?name='+encodeURIComponent(s.name)+'" download>&#8595; CSV</a>'
     +'</div>'
@@ -1478,6 +1674,7 @@ function upCard(s){
   g('RMS_'+s.name,(m.mic_rms||0).toFixed(5));
   g('Z_'+s.name,s.z_score.toFixed(1));gs('Z_'+s.name,'color',s.z_score>3?'var(--fault)':s.z_score>1.5?'var(--warn)':'');
   g('FPS_'+s.name,s.fps.toFixed(1)+' fps');
+  const mlEl=$('ML_'+s.name);if(mlEl)mlEl.textContent=mlStatusText(s.ml_status);
   const rul=$('RUL_'+s.name);if(rul){rul.textContent=fmtRul(s.rul_days);rul.style.color=rulCol(s.rul_days);}
   const hf=$('HF_'+s.name);if(hf){hf.style.width=s.health_score+'%';hf.style.background=hc;}
   gs('HS_'+s.name,'color',hc);g('HS_'+s.name,s.health_score+'%');
@@ -1922,6 +2119,14 @@ def _build_status_json():
             'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
+            'ml_status': {
+                'trained':    s.ml_trained,
+                'training':   s.ml_training,
+                'trained_at': s.ml_trained_at,
+                'buf_frames': len(s.ml_buf),
+                'buf_target': N_TRAIN_FRAMES,
+                'active':     s.mac_hex in _sat_models,
+            },
             'history': {
                 'alerts':   list(s.history_alerts),
                 'kurtosis': [round(_safe_f(v), 2) for v in s.history_kurtosis],
@@ -2459,6 +2664,27 @@ class _DashHandler(BaseHTTPRequestHandler):
                 self._send_file(files[0], 'text/csv', os.path.basename(files[0]))
             else:
                 self._send(404, 'text/plain', 'No CSV data found for this satellite')
+
+        elif path == '/api/train':
+            sat_name = qs.get('sat', [''])[0].strip()
+            with _sat_lock:
+                target = next((s for s in _satellites.values()
+                               if s.name == sat_name or s.mac_hex == sat_name), None)
+            if not target:
+                self._send(404, 'application/json', '{"error":"satellite not found"}')
+                return
+            if target.ml_training:
+                self._send(200, 'application/json', '{"status":"training in progress"}')
+                return
+            n_buf      = len(target.ml_buf)
+            min_frames = N_TRAIN_FRAMES // 2
+            if n_buf < min_frames:
+                self._send(400, 'application/json',
+                           json.dumps({'error': f'need {min_frames} OK frames, have {n_buf}'}))
+                return
+            _trigger_sat_training(target)
+            self._send(200, 'application/json',
+                       json.dumps({'status': 'training started', 'n_samples': n_buf}))
 
         elif path == '/api/report':
             sat_name   = qs.get('name', [''])[0] or None

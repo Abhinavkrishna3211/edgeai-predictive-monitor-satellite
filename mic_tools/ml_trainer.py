@@ -126,49 +126,44 @@ def _train_isolation_forest(X: np.ndarray, contamination: float,
     return scaler, iso, t_warn, t_fault
 
 
-def main():
-    ap = argparse.ArgumentParser(
-        description='Train EPM bearing anomaly detection model from CSV logs',
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--satellite',
-                    default=None,
-                    help='Train on one satellite only (default: all)')
-    ap.add_argument('--contamination',
-                    type=float, default=0.05,
-                    help='Expected anomaly fraction 0.01–0.45 (default 0.05 = 5%%)')
-    ap.add_argument('--n-estimators',
-                    type=int, default=200,
-                    help='IsolationForest tree count (default 200)')
-    ap.add_argument('--output',
-                    default=os.path.join(MODEL_DIR, 'epm_model'),
-                    help='Output path prefix — two files are written: '
-                         '<prefix>_iso.joblib and <prefix>_meta.json')
-    ap.add_argument('--log-dir',
-                    default=LOG_DIR,
-                    help=f'CSV log directory (default {LOG_DIR})')
-    args = ap.parse_args()
+def _discover_satellites(log_dir: str) -> list[str]:
+    """Return unique satellite names found in CSV filenames (epm_<name>_*.csv)."""
+    files = glob.glob(os.path.join(log_dir, 'epm_*.csv'))
+    names = set()
+    for f in files:
+        base = os.path.basename(f)
+        # filename format: epm_<name>_YYYYMMDD.csv
+        parts = base[4:].rsplit('_', 1)
+        if len(parts) == 2 and parts[1].replace('.csv', '').isdigit():
+            names.add(parts[0])
+    return sorted(names)
 
-    if not (0.01 <= args.contamination <= 0.45):
-        sys.exit('--contamination must be between 0.01 and 0.45')
 
-    os.makedirs(os.path.dirname(args.output) or '.', exist_ok=True)
+def _train_and_save(satellite: str | None, log_dir: str, model_dir: str,
+                    output_prefix: str | None,
+                    contamination: float, n_estimators: int) -> None:
+    df           = _load_csvs(satellite, log_dir)
+    X, feat_cols = _build_feature_matrix(df)
+    scaler, iso, tw, tf = _train_isolation_forest(X, contamination, n_estimators)
 
-    df              = _load_csvs(args.satellite, args.log_dir)
-    X, feat_cols    = _build_feature_matrix(df)
-    scaler, iso, tw, tf = _train_isolation_forest(X, args.contamination, args.n_estimators)
+    if output_prefix:
+        prefix = output_prefix
+    elif satellite:
+        prefix = os.path.join(model_dir, satellite)
+    else:
+        prefix = os.path.join(model_dir, 'epm_model')
 
-    # ── Save model bundle ────────────────────────────────────────────────────
-    out_model = args.output + '_iso.joblib'
-    out_meta  = args.output + '_meta.json'
+    os.makedirs(os.path.dirname(prefix) or '.', exist_ok=True)
+    out_model = prefix + '_iso.joblib'
+    out_meta  = prefix + '_meta.json'
 
     joblib.dump({'scaler': scaler, 'model': iso}, out_model, compress=3)
-
     meta = {
         'trained_at':      datetime.now(timezone.utc).isoformat(),
-        'satellite':       args.satellite or 'all',
+        'satellite':       satellite or 'all',
         'n_samples':       int(len(X)),
-        'contamination':   args.contamination,
-        'n_estimators':    args.n_estimators,
+        'contamination':   contamination,
+        'n_estimators':    n_estimators,
         'feature_cols':    feat_cols,
         'base_features':   BASE_FEATURES,
         'threshold_warn':  tw,
@@ -177,14 +172,84 @@ def main():
     }
     with open(out_meta, 'w') as f:
         json.dump(meta, f, indent=2)
+    print(f'  Saved: {out_model}')
+    print(f'  Saved: {out_meta}')
 
-    print(f'\n[trainer] Model saved:')
-    print(f'  {out_model}')
-    print(f'  {out_meta}')
-    print(f'\nTo enable ML-based alerting:')
-    print(f'  python recv_verify.py --model {args.output}')
-    print(f'To run offline analysis:')
-    print(f'  python ml_infer.py --model {args.output}')
+
+def main():
+    ap = argparse.ArgumentParser(
+        description='Train EPM bearing anomaly detection model from CSV logs',
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--satellite',
+                    default=None,
+                    help='Train on one satellite only.  '
+                         'Default: train one model per satellite automatically '
+                         '(reads satellite names from CSV filenames in --log-dir).')
+    ap.add_argument('--all-in-one',
+                    action='store_true',
+                    help='Train a single global model across all satellites '
+                         'instead of one model per satellite.')
+    ap.add_argument('--contamination',
+                    type=float, default=0.05,
+                    help='Expected anomaly fraction 0.01–0.45 (default 0.05 = 5%%)')
+    ap.add_argument('--n-estimators',
+                    type=int, default=200,
+                    help='IsolationForest tree count (default 200)')
+    ap.add_argument('--output',
+                    default=None,
+                    help='Output path prefix (overrides default per-satellite naming). '
+                         'Two files: <prefix>_iso.joblib and <prefix>_meta.json')
+    ap.add_argument('--log-dir',
+                    default=LOG_DIR,
+                    help=f'CSV log directory (default {LOG_DIR})')
+    ap.add_argument('--model-dir',
+                    default=MODEL_DIR,
+                    help=f'Directory to save trained models (default {MODEL_DIR})')
+    args = ap.parse_args()
+
+    if not (0.01 <= args.contamination <= 0.45):
+        sys.exit('--contamination must be between 0.01 and 0.45')
+
+    os.makedirs(args.model_dir, exist_ok=True)
+
+    # ── Per-satellite mode (default) ─────────────────────────────────────────
+    if args.satellite:
+        print(f'\n[trainer] Training per-satellite model for: {args.satellite}')
+        _train_and_save(args.satellite, args.log_dir, args.model_dir, args.output,
+                        args.contamination, args.n_estimators)
+        prefix = args.output or os.path.join(args.model_dir, args.satellite)
+        print(f'\nTo enable for this satellite:')
+        print(f'  python recv_verify.py  (model auto-loaded on satellite connect)')
+        print(f'To run offline analysis:')
+        print(f'  python ml_infer.py --model {prefix}')
+        return
+
+    if args.all_in_one:
+        print('\n[trainer] Training single global model (all satellites combined)…')
+        output_prefix = args.output or os.path.join(args.model_dir, 'epm_model')
+        _train_and_save(None, args.log_dir, args.model_dir, output_prefix,
+                        args.contamination, args.n_estimators)
+        print(f'\nTo enable global ML alerting:')
+        print(f'  python recv_verify.py --model {output_prefix}')
+        return
+
+    # ── Default: auto-discover satellites and train one model each ───────────
+    satellites = _discover_satellites(args.log_dir)
+    if not satellites:
+        sys.exit(f'No CSV files found in {args.log_dir}.  '
+                 f'Run recv_verify.py first to collect training data.')
+
+    print(f'\n[trainer] Auto-discovered {len(satellites)} satellite(s): {satellites}')
+    for sat in satellites:
+        print(f'\n  ── {sat} ──')
+        try:
+            _train_and_save(sat, args.log_dir, args.model_dir, None,
+                            args.contamination, args.n_estimators)
+        except SystemExit as e:
+            print(f'  Skipped {sat}: {e}')
+
+    print(f'\n[trainer] Done.  Per-satellite models saved to {args.model_dir}/')
+    print('  Models are auto-loaded by recv_verify.py when each satellite connects.')
 
 
 if __name__ == '__main__':

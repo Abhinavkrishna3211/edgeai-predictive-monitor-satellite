@@ -43,6 +43,7 @@ RUN pip install --no-cache-dir \
 COPY recv_verify.py .
 COPY bearing_math.py .
 COPY docker_start.py .
+COPY ml_trainer.py .
 
 # Satellite TCP port
 EXPOSE 5100

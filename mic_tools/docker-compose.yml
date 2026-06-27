@@ -1,0 +1,62 @@
+# EPM Gateway — Docker Compose for Arduino Uno Q (or any Linux host)
+#
+# Quick start on Uno Q / Ubuntu:
+#   cd mic_tools
+#   docker compose up -d
+#   docker compose logs -f
+#
+# Dashboard:  http://<uno-q-ip>:8080/
+# TCP port:   <uno-q-ip>:5100  (satellites connect here)
+#
+# Configuration — set in .env file or export before running:
+#   FACTORY_NAME="Plant A Line 3"
+#   AUTH=admin:yourpassword
+#   NOTIFY_WEBHOOK=https://hooks.slack.com/services/...
+#
+# Transfer to Uno Q once it arrives:
+#   scp -r mic_tools/ user@uno-q-ip:~/epm/
+#   ssh user@uno-q-ip "cd ~/epm/mic_tools && docker compose up -d"
+
+services:
+  epm-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: epm-gateway:latest
+    container_name: epm
+    restart: unless-stopped
+
+    # Use host networking so satellites on the LAN connect directly.
+    # Remove 'network_mode: host' and uncomment 'ports' for bridge mode.
+    network_mode: host
+    # ports:
+    #   - "5100:5100"   # satellite TCP
+    #   - "8080:8080"   # dashboard HTTP
+
+    volumes:
+      # Persist logs and trained ML models across container restarts
+      - ./logs:/app/logs
+      - ./model:/app/model
+
+    environment:
+      FACTORY_NAME: ${FACTORY_NAME:-EPM Factory}
+      GATEWAY_PORT: ${GATEWAY_PORT:-5100}
+      DASHBOARD_PORT: ${DASHBOARD_PORT:-8080}
+      AUTH: ${AUTH:-}
+      NOTIFY_WEBHOOK: ${NOTIFY_WEBHOOK:-}
+      NOTIFY_EMAIL: ${NOTIFY_EMAIL:-}
+
+    # Health check: poll the dashboard every 30 s
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/status')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
