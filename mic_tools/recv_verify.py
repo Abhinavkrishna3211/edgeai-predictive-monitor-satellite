@@ -1386,7 +1386,7 @@ function cardHTML(s){
     +'<div class="c-head"><div><div class="c-name">'+s.name+'</div><div class="c-mac">'+s.mac+'</div>'
     +'<div class="c-fw">FW '+s.fw+(s.calibrated?' · ✓ Calibrated':' · ⧖ Calibrating')+'</div></div>'
     +'<div class="c-right"><div class="sdot '+al+'"></div><span class="badge '+al+'">'+s.alert+'</span>'
-    +'<span class="ft-badge ft-'+(ftCls(s.fault_type||\'Normal\'))+'" id="FT_'+s.name+'">'+(s.fault_type||\'Normal\')+'</span></div></div>'
+    +'<span class="ft-badge ft-'+ftCls(s.fault_type||'Normal')+'" id="FT_'+s.name+'">'+(s.fault_type||'Normal')+'</span></div></div>'
     +'<div class="c-metrics">'
     +'<div class="met"><div class="ml">Kurtosis</div><div class="mv" style="color:'+kCol(m.mic_kurtosis||0)+'" id="K_'+s.name+'">'+(m.mic_kurtosis||0).toFixed(2)+'</div></div>'
     +'<div class="met"><div class="ml">Crest Factor</div><div class="mv" id="CF_'+s.name+'">'+(m.mic_crest||0).toFixed(2)+'</div></div>'
