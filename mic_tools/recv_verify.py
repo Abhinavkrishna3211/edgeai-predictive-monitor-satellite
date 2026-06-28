@@ -209,6 +209,10 @@ class SatelliteState:
         # Online HST detector — river HalfSpaceTrees, fully on-device
         self.hst_detector  = None   # OnlineDetector, initialised in _try_load_hst_state
         self.hst_score     = 0.0    # last HST score for dashboard display
+        # Concept-drift tracking — ADWIN updates only on OK-frame scores
+        self.hst_feat_buf  = collections.deque(maxlen=500)  # recent OK-frame features
+        self.drift_count   = 0      # number of baseline refreshes this session
+        self.last_drift_t  = None   # epoch of most recent baseline refresh
         # Bayesian posterior fusion
         self.p_fault       = 0.0    # P(fault | all channels), updated every frame
         # Kalman exponential RUL estimator — one instance per satellite
@@ -678,8 +682,22 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             sent_alert = alert
 
             # Learn only on healthy frames (anomalous frames would corrupt model)
+            _drift_refreshed = False
             if _hst_feats is not None and alert == EPM_ALERT_OK:
                 sat.hst_detector.learn(_hst_feats)
+                # ADWIN drift check — OK-frame scores only; see check_drift() docstring
+                if sat.hst_detector.check_drift(hst_score, now):
+                    if len(sat.hst_feat_buf) >= 50:
+                        sat.hst_detector.refresh_baseline(list(sat.hst_feat_buf))
+                        _recompute_z_baseline(sat, sat.hst_feat_buf)
+                        _drift_refreshed = True
+                sat.hst_feat_buf.append(_hst_feats)
+
+            if _drift_refreshed:
+                _log_drift_event(sat.name, mac_hex, len(sat.hst_feat_buf))
+                print(f"[{name}] Concept drift — baseline refreshed "
+                      f"({len(sat.hst_feat_buf)} OK frames, "
+                      f"refresh #{sat.drift_count + 1})")
 
             # ── Kalman exponential RUL estimator ─────────────────────────────
             _rul_result = None
@@ -759,6 +777,9 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 sat.hst_score    = hst_score
                 sat.p_fault      = p_fault
                 sat.rul_result   = _rul_result
+                if _drift_refreshed:
+                    sat.drift_count  += 1
+                    sat.last_drift_t  = now
                 _need_train = (sat.calibrated and not sat.ml_training
                                and not sat.ml_trained
                                and len(sat.ml_buf) >= N_TRAIN_FRAMES)
@@ -1537,6 +1558,11 @@ header{display:flex;align-items:center;padding:0 22px;height:56px;background:var
 .c-pfault-top{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted);margin-bottom:4px}
 .c-pfbar{height:4px;border-radius:3px;background:var(--border);overflow:hidden}
 .c-pffill{height:100%;border-radius:3px;transition:width .5s,background .4s}
+.drift-chip{display:inline-block;font-size:.55rem;font-weight:600;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle;letter-spacing:.02em}
+.drift-stable{background:rgba(74,109,136,.18);color:#4a6d88}
+.drift-recent{background:rgba(245,158,11,.18);color:#f59e0b}
+.drift-fresh{background:rgba(239,68,68,.18);color:#ef4444}
+.ev-refresh{background:rgba(99,102,241,.08);border-left:2px solid #6366f1}
 .c-hpct{font-size:1.15rem;font-weight:700;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
 .c-rec{margin:0 12px 9px;padding:8px 11px;border-radius:7px;font-size:.72rem}
 .c-rec.ok{background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.17)}
@@ -1863,6 +1889,17 @@ function kCol(k){return k>TH.k_fault?'var(--fault)':k>TH.k_warn?'var(--warn)':'v
 function hCol(h){return h>=75?'var(--ok)':h>=50?'var(--warn)':'var(--fault)';}
 function pfCol(p){return p>=0.95?'var(--fault)':p>=0.70?'var(--warn)':p>=0.30?'#ff9500':'var(--ok)';}
 function fmtPf(p){if(p===null||p===undefined)return '—';var s=(p*100).toFixed(1)+'%';if(p>=0.95)return '⚠ '+s;return s;}
+function driftCls(s){
+  if(!s.last_drift_t)return 'drift-stable';
+  var age=(Date.now()/1000)-s.last_drift_t;
+  return age<3600?'drift-fresh':age<86400?'drift-recent':'drift-stable';
+}
+function driftChip(s){
+  if(!s.drift_count)return '';
+  var cls=driftCls(s);
+  var label=cls==='drift-stable'?'Drift: '+s.drift_count+'×':cls==='drift-fresh'?'⟳ Drift now':'⟳ Drift today';
+  return '<span class="drift-chip '+cls+'" id="DR_'+s.name+'">'+label+'</span>';
+}
 function mCls(d){return d===0?'fault':d<=30?'warn':'ok';}
 function rulCol(s){
   // Colour based on hours remaining (from Kalman) or days*24 (linear fallback)
@@ -1946,7 +1983,8 @@ function cardHTML(s){
     +'<div class="c-head"><div><div class="c-name">'+s.name+'</div><div class="c-mac">'+s.mac+'</div>'
     +'<div class="c-fw">FW '+s.fw+(s.calibrated?' · ✓ Calibrated':' · ⧖ Calibrating')+'</div></div>'
     +'<div class="c-right"><div class="sdot '+al+'"></div><span class="badge '+al+'">'+s.alert+'</span>'
-    +'<span class="ft-badge ft-'+ftCls(s.fault_type||'Normal')+'" id="FT_'+s.name+'">'+(s.fault_type||'Normal')+'</span></div></div>'
+    +'<span class="ft-badge ft-'+ftCls(s.fault_type||'Normal')+'" id="FT_'+s.name+'">'+(s.fault_type||'Normal')+'</span>'
+    +driftChip(s)+'</div></div>'
     +'<div class="c-pstatus" id="PS_'+s.name+'" style="color:'+(al==='fault'?'var(--fault)':al==='warn'?'var(--warn)':'var(--ok)')+';">'
     +(al==='fault'?'⚠ FAULT — Inspect machine immediately':al==='warn'?'⚠ Elevated vibration — attention needed':'Machine running normally')+'</div>'
     +'<div class="c-ml-row" id="ML_'+s.name+'">'+mlStatusText(s.ml_status)+'</div>'
@@ -2033,6 +2071,9 @@ function upCard(s){
   gs('HS_'+s.name,'color',hc);g('HS_'+s.name,s.health_score+'%');
   const pff=$('PFF_'+s.name);if(pff){const pc=pfCol(s.p_fault||0);pff.style.width=Math.round((s.p_fault||0)*100)+'%';pff.style.background=pc;}
   const pfEl=$('PF_'+s.name);if(pfEl){pfEl.textContent=fmtPf(s.p_fault||0);pfEl.style.color=pfCol(s.p_fault||0);}
+  const drEl=$('DR_'+s.name);
+  if(drEl){const dc=driftCls(s);drEl.className='drift-chip '+dc;drEl.textContent=dc==='drift-stable'?'Drift: '+s.drift_count+'×':dc==='drift-fresh'?'⟳ Drift now':'⟳ Drift today';}
+  else if(s.drift_count){const cr=document.querySelector('#C_'+s.name+' .c-right');if(cr)cr.insertAdjacentHTML('beforeend',driftChip(s));}
   const mnt=$('MNT_'+s.name);
   if(mnt){mnt.className='c-rec '+mc;mnt.innerHTML='<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
     +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>';}
@@ -2171,9 +2212,18 @@ async function loadAlerts(){
     const r=await fetch('/api/alerts?n=500');const data=await r.json();
     if(!data.length){tbody.innerHTML='<tr><td class="empty-cell" colspan="7">No alert transitions recorded yet. State changes appear here in real time.</td></tr>';return;}
     tbody.innerHTML=data.map(ev=>{
-      const tc=transCls(ev.prev,ev.alert);
       const dt=new Date(ev.time*1000);
       const dts=dt.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' '+dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      if(ev.event_type==='BASELINE_REFRESH'){
+        return '<tr class="ev-refresh">'
+          +'<td style="font-size:.65rem;color:var(--muted);font-family:monospace;white-space:nowrap">'+dts+'</td>'
+          +'<td style="font-weight:700">'+ev.satellite+'</td>'
+          +'<td colspan="4" style="font-size:.7rem;color:var(--muted);font-style:italic">'
+          +'<span style="margin-right:6px">&#x21BA;</span>'+ev.detail+'</td>'
+          +'<td style="font-size:.6rem;color:var(--muted);font-family:monospace">'+(ev.mac||'—')+'</td>'
+          +'</tr>';
+      }
+      const tc=transCls(ev.prev,ev.alert);
       return '<tr>'
         +'<td style="font-size:.65rem;color:var(--muted);font-family:monospace;white-space:nowrap">'+dts+'</td>'
         +'<td style="font-weight:700">'+ev.satellite+'</td>'
@@ -2287,6 +2337,40 @@ def _log_alert_event(sat_name, mac_hex, new_alert, prev_alert, kurtosis, crest, 
     }
     with _ALERT_HISTORY_LOCK:
         _ALERT_HISTORY.appendleft(event)
+
+
+def _log_drift_event(sat_name, mac_hex, n_samples):
+    """Append a BASELINE_REFRESH event to the audit trail."""
+    event = {
+        'time':       time.time(),
+        'satellite':  sat_name,
+        'mac':        mac_hex,
+        'event_type': 'BASELINE_REFRESH',
+        'alert':      'INFO',
+        'prev':       'OK',
+        'kurtosis':   0.0,
+        'crest':      0.0,
+        'z_score':    0.0,
+        'detail':     f'Concept drift — baseline refreshed from {n_samples} OK frames',
+    }
+    with _ALERT_HISTORY_LOCK:
+        _ALERT_HISTORY.appendleft(event)
+
+
+def _recompute_z_baseline(sat, feat_buf) -> None:
+    """Recompute z-score calibration baseline from recent OK-frame feature vectors.
+
+    HST feature layout (from _extract_hst_features):
+      feat[0] = mic_kurtosis,  feat[2] = mic_rms
+
+    Baseline uses [mic_rms, mic_kurtosis] order to match _sat_update_baseline().
+    Silently skips if the buffer is too small.
+    """
+    if len(feat_buf) < 10:
+        return
+    arr = np.array([[f[2], f[0]] for f in feat_buf], dtype=np.float32)
+    sat.bl_mean = arr.mean(axis=0)
+    sat.bl_std  = arr.std(axis=0) + 1e-6
 
 
 # ─── Maintenance log ──────────────────────────────────────────────────────────
@@ -2491,6 +2575,8 @@ def _build_status_json():
             'last_fault_t':     s.last_fault_t,
             'z_score':          round(_safe_f(s.last_z), 2),
             'p_fault':          round(_safe_f(getattr(s, 'p_fault', 0.0)), 4),
+            'drift_count':      getattr(s, 'drift_count', 0),
+            'last_drift_t':     getattr(s, 'last_drift_t', None),
             'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
