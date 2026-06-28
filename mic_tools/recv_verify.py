@@ -55,6 +55,23 @@ try:
 except ImportError:
     _BEARING_AVAILABLE = False
 
+# Optional: online HST anomaly detection (river — install with: pip install river>=0.21.0)
+_HST_AVAILABLE = False
+try:
+    from online_detector import OnlineDetector as OnlineDetector
+    _HST_AVAILABLE = True
+except ImportError:
+    OnlineDetector = None  # type: ignore[assignment,misc]
+
+# Optional: Kalman exponential RUL estimator (pure numpy — always available)
+_RUL_AVAILABLE = False
+try:
+    from rul_estimator import ExponentialRUL, RULResult
+    _RUL_AVAILABLE = True
+except ImportError:
+    ExponentialRUL = None  # type: ignore[assignment,misc]
+    RULResult = None       # type: ignore[assignment,misc]
+
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
 _ML_MODEL = None   # populated by _load_ml_model() if --model is given (legacy global)
 _sat_models: dict = {}  # mac_hex → model dict; one per satellite (takes priority over global)
@@ -105,6 +122,8 @@ CREST_WARN  = 5.0   # override with --crest-warn
 CREST_FAULT = 10.0  # override with --crest-fault
 K_WARN      = 6.0   # kurtosis warn  (Gaussian=3, early fault=6-10)
 K_FAULT     = 12.0  # kurtosis fault (advanced fault=12+)
+K_FAIL      = 40.0  # ISO 13381-1: severe-stage kurtosis threshold for rolling-element bearings
+                    #   K>40 indicates imminent failure; used as RUL target by ExponentialRUL
 CAL_FRAMES  = 30    # frames to collect for Z-score baseline
 HISTORY_LEN    = 200   # ~90 s of history at 2.2 fps — Uno Q 4GB easily holds this per satellite
 WATERFALL_ROWS = 120   # time rows in the mic FFT waterfall (~55 s at 2.2 fps)
@@ -122,6 +141,10 @@ MIC_FS_HZ = 16000
 IMU_FS_HZ = 25600   # KX134 ODR — must match FFT_IMU_N and epm_config.h
 
 _SERVER_START_T = time.time()   # used by dashboard uptime counter
+
+# HST feature dimension: 7 mic-only stats; extend to 28 when IMU FIFO is real
+# (mirrors the 7 mic stats across imu_x, imu_y, imu_z for 4×7=28)
+FEATURE_DIM = 7
 
 # ─── Satellite registry ───────────────────────────────────────────────────────
 
@@ -165,7 +188,13 @@ class SatelliteState:
         self.ml_trained    = False
         self.ml_training   = False
         self.ml_trained_at = None  # ISO string or float epoch after training
-        self.ml_backend    = 'none'  # 'Qualcomm NPU (QNN-HTP)', 'CPU (TFLite)', 'IsolationForest', 'none'
+        self.ml_backend    = 'none'  # 'Qualcomm Adreno 702 GPU', 'CPU (TFLite)', 'IsolationForest', 'none'
+        # Online HST detector — river HalfSpaceTrees, fully on-device
+        self.hst_detector  = None   # OnlineDetector, initialised in _try_load_hst_state
+        self.hst_score     = 0.0    # last HST score for dashboard display
+        # Kalman exponential RUL estimator — one instance per satellite
+        self.rul_estimator = None   # ExponentialRUL, created at registration
+        self.rul_result    = None   # RULResult from last update (None until n_updates>=30)
 
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
@@ -197,6 +226,9 @@ def _sat_register(mac_hex, name, fw_major, fw_minor, addr):
             sat = SatelliteState(mac_hex, name, fw_major, fw_minor, addr)
             _satellites[mac_hex] = sat
     _try_load_sat_model(sat)
+    _try_load_hst_state(sat)
+    if _RUL_AVAILABLE and sat.rul_estimator is None:
+        sat.rul_estimator = ExponentialRUL(k_fail=K_FAIL)
     return sat
 
 
@@ -343,6 +375,37 @@ def _high_band_ratio(mic_fft_db):
     """Fraction of mic FFT power in the bearing resonance band (2 kHz–Nyquist)."""
     hi_r, _, _ = _band_ratios(mic_fft_db)
     return hi_r
+
+
+def _spectral_centroid(mic_fft_db: np.ndarray) -> float:
+    """Spectral centroid frequency normalised to [0, 1] over the Nyquist range."""
+    if len(mic_fft_db) < 2:
+        return 0.5
+    power    = 10.0 ** (np.clip(mic_fft_db, -140.0, 0.0) / 10.0)
+    n        = len(power)
+    freqs    = np.arange(n, dtype=np.float64) * (MIC_FS_HZ / 2.0 / n)
+    total    = power.sum() + 1e-10
+    return float((freqs * power).sum() / total) / (MIC_FS_HZ / 2.0)
+
+
+def _extract_hst_features(frame: dict, lo_r: float, mid_r: float,
+                           hb: float) -> np.ndarray:
+    """Build FEATURE_DIM-element feature vector for HST online anomaly detection.
+
+    Features (7):  kurtosis, crest, rms, spectral_centroid,
+                   band_energy_low, band_energy_mid, band_energy_high
+    """
+    mic_fft  = frame.get('mic_fft')
+    centroid = _spectral_centroid(mic_fft) if mic_fft is not None else 0.5
+    return np.array([
+        float(frame['mic_kurtosis']),
+        float(frame['mic_crest']),
+        float(frame['mic_rms']),
+        centroid,
+        lo_r,
+        mid_r,
+        hb,
+    ], dtype=np.float64)
 
 
 def _classify_fault_type(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
@@ -559,6 +622,20 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb)
             sent_alert = alert
 
+            # ── Online HST detection — river HalfSpaceTrees, fully on-device ─
+            hst_score = 0.0
+            if sat.hst_detector is not None:
+                _hst_feats = _extract_hst_features(frame, lo_r, mid_r, hb)
+                hst_score  = sat.hst_detector.score(_hst_feats)
+                if alert == EPM_ALERT_OK:
+                    sat.hst_detector.learn(_hst_feats)
+
+            # ── Kalman exponential RUL estimator ─────────────────────────────
+            _rul_result = None
+            if sat.rul_estimator is not None:
+                _rul_result = sat.rul_estimator.update(
+                    float(frame['mic_kurtosis']), now)
+
             # Detect state transitions → audit trail + phone notifications
             if alert != prev_alert:
                 _log_alert_event(sat.name, mac_hex, alert, prev_alert,
@@ -628,18 +705,26 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                     sat.ml_buf.append(_feat)
                     if len(sat.ml_buf) > N_TRAIN_FRAMES:
                         sat.ml_buf = sat.ml_buf[-N_TRAIN_FRAMES:]
+                sat.hst_score    = hst_score
+                sat.rul_result   = _rul_result
                 _need_train = (sat.calibrated and not sat.ml_training
                                and not sat.ml_trained
                                and len(sat.ml_buf) >= N_TRAIN_FRAMES)
+                _should_save_hst = (sat.hst_detector is not None
+                                    and sat.frame_count % 500 == 0)
 
             if _need_train:
                 _trigger_sat_training(sat)
+            if _should_save_hst:
+                _save_hst_state(sat)
 
             _display.put(frame, name)
 
             cal_str   = (f"z={z_score:.1f}" if sat.calibrated
                          else f"cal{len(sat._cal_buf)}/{CAL_FRAMES}")
             alert_str = ["OK", "WARN", "FAULT"][min(alert, 2)]
+            hst_str   = (f"hst={hst_score:.3f}" if sat.hst_detector is not None
+                         else "hst=--")
             status    = "OK" if not frame['errors'] else "WARN:" + ";".join(frame['errors'])
             print(f"[{name:<10}] #{frame['frame_id']:5d}  "
                   f"fps={fps:.1f}  "
@@ -647,7 +732,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                   f"K={frame['mic_kurtosis']:.2f}  "
                   f"CF={frame['mic_crest']:.2f}  "
                   f"hb={hb:.2f}  {cal_str}  "
-                  f"alert={alert_str}  {status}")
+                  f"{hst_str}  alert={alert_str}  {status}")
 
     except (ConnectionError, struct.error) as e:
         print(f"\n[-] {(sat.name if sat else mac_hex) or addr[0]} disconnected: {e}")
@@ -848,6 +933,38 @@ def _try_load_sat_model(sat):
         pass
     except Exception as e:
         print(f'[ml] [{sat.name}] Warning: could not load model: {e}')
+
+
+# ─── Per-satellite HST detector helpers ──────────────────────────────────────
+
+def _try_load_hst_state(sat):
+    """Load HST detector state from pickle; create a fresh detector if absent."""
+    if not _HST_AVAILABLE:
+        return
+    log_dir  = os.path.join(os.path.dirname(__file__), 'logs')
+    pkl_path = os.path.join(log_dir, f'hst_state_{sat.name}.pkl')
+    det = OnlineDetector(n_features=FEATURE_DIM)
+    if os.path.exists(pkl_path):
+        try:
+            det.load(pkl_path)
+            print(f'[hst] [{sat.name}] Resumed detector from {pkl_path}  '
+                  f'(n={det._n} frames learned)')
+        except Exception as e:
+            print(f'[hst] [{sat.name}] Could not resume {pkl_path}: {e} — starting fresh')
+            det = OnlineDetector(n_features=FEATURE_DIM)
+    sat.hst_detector = det
+
+
+def _save_hst_state(sat):
+    """Persist HST detector state to disk (called every 500 frames)."""
+    if sat.hst_detector is None:
+        return
+    log_dir  = os.path.join(os.path.dirname(__file__), 'logs')
+    pkl_path = os.path.join(log_dir, f'hst_state_{sat.name}.pkl')
+    try:
+        sat.hst_detector.save(pkl_path)
+    except Exception as e:
+        print(f'[hst] [{sat.name}] State save failed: {e}')
 
 
 def _trigger_sat_training(sat):
@@ -1688,8 +1805,32 @@ function fmtFuture(days){if(!days&&days!==0)return '';const d=new Date(Date.now(
 function kCol(k){return k>TH.k_fault?'var(--fault)':k>TH.k_warn?'var(--warn)':'var(--ok)';}
 function hCol(h){return h>=75?'var(--ok)':h>=50?'var(--warn)':'var(--fault)';}
 function mCls(d){return d===0?'fault':d<=30?'warn':'ok';}
-function rulCol(d){return d===null?'var(--ok)':d>90?'var(--ok)':d>30?'var(--warn)':d>7?'#ff9500':'var(--fault)';}
-function fmtRul(d){if(d===null||d===undefined)return '✓ Stable';if(d<0.05)return '⚠ Threshold reached';if(d<1)return '⚠ <1 day';if(d<7)return '⚠ ~'+Math.round(d)+' day'+(Math.round(d)!==1?'s':'');return '~'+Math.round(d)+' days';}
+function rulCol(s){
+  // Colour based on hours remaining (from Kalman) or days*24 (linear fallback)
+  var h=s.rul_hours!==undefined&&s.rul_hours!==null?s.rul_hours:((s.rul_days||null)!==null?s.rul_days*24:null);
+  if(h===null)return 'var(--ok)';
+  var d=h/24;
+  return d>90?'var(--ok)':d>30?'var(--warn)':d>7?'#ff9500':'var(--fault)';
+}
+function fmtRul(s){
+  // Kalman path: show "47 h  (CI95: 32-68 h)  conf: 73%"
+  var h=s.rul_hours!==undefined?s.rul_hours:null;
+  if(h!==null&&h!==undefined){
+    if(h<=0)return '⚠ Failure threshold reached';
+    var lo=s.rul_ci_low_h,hi=s.rul_ci_high_h,cf=s.rul_confidence;
+    var pt=Math.round(h)+' h';
+    var ci=(lo!==null&&hi!==null)?' (CI95: '+Math.round(lo)+'–'+Math.round(hi)+' h)':'';
+    var cstr=(cf!==null&&cf>0.05)?' conf: '+Math.round(cf*100)+'%':'';
+    return pt+ci+cstr;
+  }
+  // Linear fallback: days
+  var d=s.rul_days!==undefined?s.rul_days:null;
+  if(d===null||d===undefined)return '✓ Stable';
+  if(d<0.05)return '⚠ Threshold reached';
+  if(d<1)return '⚠ <1 day';
+  if(d<7)return '⚠ ~'+Math.round(d)+' day'+(Math.round(d)!==1?'s':'');
+  return '~'+Math.round(d)+' days';
+}
 function transCls(from,to){const r={OK:0,WARN:1,FAULT:2};return (r[to]||0)>(r[from]||0)?'esc':(r[to]||0)<(r[from]||0)?'rec':'war';}
 
 function toast(msg,ok=true){const t=$('toast');t.textContent=msg;t.className='in '+(ok?'ok-t':'err-t');setTimeout(()=>{t.className='';},3200);}
@@ -1758,7 +1899,7 @@ function cardHTML(s){
     +'<div class="met"><div class="ml">Anomaly Score</div><div class="mv" style="color:'+(s.z_score>3?'var(--fault)':s.z_score>1.5?'var(--warn)':'inherit')+'" id="Z_'+s.name+'">'+s.z_score.toFixed(1)+'</div></div>'
     +'<div class="met"><div class="ml">Data Rate</div><div class="mv" id="FPS_'+s.name+'">'+s.fps.toFixed(1)+' fps</div></div>'
     +'<div class="met sp3"><div class="ml">Est. Remaining Useful Life</div>'
-    +'<div class="mv" id="RUL_'+s.name+'" style="color:'+rulCol(s.rul_days)+';font-size:.8rem">'+fmtRul(s.rul_days)+'</div></div>'
+    +'<div class="mv" id="RUL_'+s.name+'" style="color:'+rulCol(s)+';font-size:.8rem">'+fmtRul(s)+'</div></div>'
     +'</div>'
     +'<div class="c-health"><div class="c-hbar-wrap">'
     +'<div class="c-hbar-top"><span>Machine Health</span><span id="HS_'+s.name+'" style="color:'+hc+'">'+s.health_score+'%</span></div>'
@@ -1825,7 +1966,7 @@ function upCard(s){
   g('Z_'+s.name,s.z_score.toFixed(1));gs('Z_'+s.name,'color',s.z_score>3?'var(--fault)':s.z_score>1.5?'var(--warn)':'');
   g('FPS_'+s.name,s.fps.toFixed(1)+' fps');
   const mlEl=$('ML_'+s.name);if(mlEl)mlEl.textContent=mlStatusText(s.ml_status);
-  const rul=$('RUL_'+s.name);if(rul){rul.textContent=fmtRul(s.rul_days);rul.style.color=rulCol(s.rul_days);}
+  const rul=$('RUL_'+s.name);if(rul){rul.textContent=fmtRul(s);rul.style.color=rulCol(s);}
   const hf=$('HF_'+s.name);if(hf){hf.style.width=s.health_score+'%';hf.style.background=hc;}
   gs('HS_'+s.name,'color',hc);g('HS_'+s.name,s.health_score+'%');
   const mnt=$('MNT_'+s.name);
@@ -2178,10 +2319,10 @@ def _send_email(msg, sat_name, alert_str):
 def _sat_health(sat):
     """Compute 0–100 health score, maintenance recommendation, and RUL estimate.
 
-    Returns (health_score, maintenance_str, maintenance_days, rul_days).
-    rul_days is None when kurtosis is stable or trending downward; otherwise it
-    is the estimated number of days until kurtosis crosses the FAULT threshold
-    based on a linear regression over the most recent history window.
+    Returns (health_score, maintenance_str, maintenance_days, rul_days, rul_result).
+
+    rul_days   — days until fault threshold (linear fallback or Kalman/24, for compat)
+    rul_result — RULResult from ExponentialRUL Kalman filter (None if not converged)
     """
     total = max(sat.frame_count, 1)
     score = 100.0
@@ -2201,22 +2342,29 @@ def _sat_health(sat):
     else:
         maint, days = "EXCELLENT — Routine inspection in 180 days", 180
 
-    # ── Remaining Useful Life (RUL) estimate from kurtosis trend ─────────────
+    # ── Kalman exponential RUL (preferred) ───────────────────────────────────
+    rul_result = getattr(sat, 'rul_result', None)
+    if (rul_result is not None
+            and not math.isinf(rul_result.hours_remaining)
+            and rul_result.confidence > 0.05):
+        rul_days = max(0.0, round(rul_result.hours_remaining / 24.0, 1))
+        return round(score, 1), maint, days, rul_days, rul_result
+
+    # ── Linear fallback (history window regression) ───────────────────────────
     rul_days = None
     hist = list(sat.history_kurtosis)
     n    = len(hist)
     if n >= 10 and sat.fps > 0.01:
         xs    = np.arange(n, dtype=np.float64)
         ys    = np.array(hist, dtype=np.float64)
-        slope = float(np.polyfit(xs, ys, 1)[0])   # frames per unit kurtosis rise
+        slope = float(np.polyfit(xs, ys, 1)[0])
         current_k = float(ys[-1])
-        # Only compute if trending upward and not yet at fault threshold
         if slope > 0.005 and current_k < K_FAULT:
             frames_to_fault = (K_FAULT - current_k) / slope
-            rul_seconds = frames_to_fault / sat.fps
-            rul_days    = max(0.0, round(rul_seconds / 86400.0, 1))
+            rul_seconds     = frames_to_fault / sat.fps
+            rul_days        = max(0.0, round(rul_seconds / 86400.0, 1))
 
-    return round(score, 1), maint, days, rul_days
+    return round(score, 1), maint, days, rul_days, rul_result
 
 
 def _safe_f(v, default=0.0):
@@ -2235,7 +2383,7 @@ def _build_status_json():
 
     sat_list = []
     for s in sats:
-        health, maint, maint_days, rul_days = _sat_health(s)
+        health, maint, maint_days, rul_days, rul_result = _sat_health(s)
         m = {}
         if s.last_frame:
             m = {
@@ -2262,7 +2410,19 @@ def _build_status_json():
             'maintenance':      maint,
             'maintenance_days': maint_days,
             'rul_days':         rul_days,
-            'warn_frames':      s.warn_frames,
+            # Kalman RUL fields (None until filter has converged — n_updates >= 30
+            # and lambda > 0; inf means no degradation detected)
+            'rul_hours':      None if (rul_result is None or math.isinf(rul_result.hours_remaining))
+                              else round(rul_result.hours_remaining, 1),
+            'rul_ci_low_h':   None if (rul_result is None or math.isinf(rul_result.hours_low))
+                              else round(rul_result.hours_low, 1),
+            'rul_ci_high_h':  None if (rul_result is None or math.isinf(rul_result.hours_high))
+                              else round(rul_result.hours_high, 1),
+            'rul_confidence': None if rul_result is None
+                              else round(rul_result.confidence, 3),
+            'rul_lambda':     None if rul_result is None
+                              else round(rul_result.lambda_hat, 6),
+            'warn_frames':    s.warn_frames,
             'fault_frames':     s.fault_frames,
             'last_fault_t':     s.last_fault_t,
             'z_score':          round(_safe_f(s.last_z), 2),
@@ -2320,7 +2480,18 @@ def _generate_report_html(sat_name=None):
             return f'{s//60}m {s%60:02d}s'
         return f'{s//3600}h {(s%3600)//60:02d}m'
 
-    def fmt_rul(d):
+    def fmt_rul(r):
+        """Format RUL for HTML report.  r is the sat_rows dict (has rul_result)."""
+        rr = r.get('rul_result') if isinstance(r, dict) else None
+        if rr is not None and not math.isinf(rr.hours_remaining) and rr.confidence > 0.05:
+            h   = round(rr.hours_remaining, 1)
+            lo  = round(rr.hours_low,  1) if not math.isinf(rr.hours_low)  else None
+            hi  = round(rr.hours_high, 1) if not math.isinf(rr.hours_high) else None
+            ci  = f'  CI95: {lo}–{hi} h' if lo is not None else ''
+            cst = f'  conf: {round(rr.confidence * 100)}%' if rr.confidence > 0.05 else ''
+            return f'{h} h{ci}{cst}'
+        # Linear fallback
+        d = r.get('rul_days') if isinstance(r, dict) else r
         if d is None:
             return 'Stable — no upward trend'
         if d < 0.05:
@@ -2357,12 +2528,13 @@ def _generate_report_html(sat_name=None):
 
     sat_rows = []
     for s in sats:
-        health, maint_str, maint_days, rul_days = _sat_health(s)
+        health, maint_str, maint_days, rul_days, rul_result = _sat_health(s)
         ml = maint.get(s.mac_hex, {})
         m  = s.last_frame or {}
         sat_alerts = [ev for ev in all_alerts if ev['satellite'] == s.name]
         sat_rows.append(dict(s=s, health=health, maint_str=maint_str,
                              maint_days=maint_days, rul_days=rul_days,
+                             rul_result=rul_result,
                              ml=ml, m=m, alerts=sat_alerts))
 
     fault_n  = sum(1 for r in sat_rows if r['s'].sent_alert == EPM_ALERT_FAULT)
@@ -2501,7 +2673,7 @@ tr:nth-child(even) td{{background:#f9fafb}}
           f'<td>{status_badge(al)}</td>'
           f'<td>{health_bar(r["health"])}</td>'
           f'<td style="font-family:monospace;color:{kc};font-weight:700">{k:.2f}</td>'
-          f'<td style="font-size:.78rem">{fmt_rul(r["rul_days"])}</td>'
+          f'<td style="font-size:.78rem">{fmt_rul(r)}</td>'
           f'<td style="text-align:center;font-weight:700;color:{fc}">{s.fault_frames}</td>'
           f'<td style="font-size:.76rem">{fmt_dt(s.last_fault_t)}</td>'
           f'<td style="font-size:.76rem">{esc(ml.get("last_date","— not logged"))}'
@@ -2564,8 +2736,8 @@ tr:nth-child(even) td{{background:#f9fafb}}
         W(f'<strong>Condition:</strong> {esc(r["maint_str"])}')
         W(f'<br><strong>Fault Analysis:</strong> '
           f'<span style="color:{ft_color};font-weight:700">{esc(ft)}</span>')
-        if r['rul_days'] is not None:
-            W(f'<br><strong>Estimated RUL:</strong> {fmt_rul(r["rul_days"])}')
+        if r['rul_days'] is not None or r.get('rul_result') is not None:
+            W(f'<br><strong>Estimated RUL:</strong> {fmt_rul(r)}')
         W('</div>')
 
         # Analysis box
@@ -2627,8 +2799,11 @@ tr:nth-child(even) td{{background:#f9fafb}}
             W(f'<li>High fault event rate ({fault_rate:.0f}%). Recommend vibration analysis, lubrication check, and alignment verification.</li>')
         if not ml.get('last_date'):
             W('<li>No maintenance record on file. Log service history to establish compliance baseline and enable predictive scheduling.</li>')
-        if r['rul_days'] is not None and r['rul_days'] < 30:
-            W(f'<li>Estimated RUL is {fmt_rul(r["rul_days"])}. Order replacement bearings and schedule planned downtime before failure occurs.</li>')
+        _rul_d = (r['rul_result'].hours_remaining / 24.0
+                  if r.get('rul_result') and not math.isinf(r['rul_result'].hours_remaining)
+                  else r.get('rul_days'))
+        if _rul_d is not None and _rul_d < 30:
+            W(f'<li>Estimated RUL is {fmt_rul(r)}. Order replacement bearings and schedule planned downtime before failure occurs.</li>')
         if al == 'OK' and not fault_rate:
             W('<li>Machine is operating normally. Continue routine maintenance schedule and log service dates after each inspection.</li>')
         W('</ul>')
@@ -3055,6 +3230,14 @@ def main():
               f"BPFI={bearing_freqs_mic.get('BPFI', 0):.1f} Hz")
     if _ML_MODEL:
         print(f"ML alerting: active")
+    if _HST_AVAILABLE:
+        print(f"[EPM] OnlineDetector: river HalfSpaceTrees, fully on-device.")
+        print(f"[EPM]   - n_trees=25 height=15 window=250 features={FEATURE_DIM}")
+        print(f"[EPM]   - No network calls, no telemetry, no cloud dependencies.")
+        print(f"[EPM]   - To verify: tcpdump -i any not port 22 and not port 5100 and not port 8080")
+    else:
+        print("[EPM] OnlineDetector: river not installed — HST scoring disabled.")
+        print("[EPM]   Install: pip install 'river>=0.21.0'")
     print("Firewall rule for TCP receiver (elevated PowerShell, run once):")
     print(f"  New-NetFirewallRule -DisplayName EPM-{args.port} -Direction Inbound "
           f"-Protocol TCP -LocalPort {args.port} -Action Allow")

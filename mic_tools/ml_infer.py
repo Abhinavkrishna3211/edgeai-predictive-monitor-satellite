@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
-ml_infer.py — Run ML inference on EPM CSV logs and generate a fault report.
+ml_infer.py — LEGACY: Offline IsolationForest inference on EPM CSV logs.
+
+This module is superseded by online_detector.py (river HalfSpaceTrees) which
+runs inference live in recv_verify.py with no separate batch step.
+
+This file is kept for backward compatibility so that existing CSV logs and
+trained IsolationForest models (from ml_trainer.py) can still be evaluated
+offline.  It is not needed for day-to-day gateway operation.
 
 Loads the IsolationForest model produced by ml_trainer.py and evaluates it
 against historical CSV data, producing a per-frame anomaly score, ML-based
@@ -29,13 +36,13 @@ import sys
 import numpy as np
 
 try:
-    import pandas as pd
+    import pandas as pd  # type: ignore[import]
 except ImportError:
     sys.exit('pandas not installed.  Run: pip install pandas scikit-learn joblib')
 
 try:
-    import joblib
-    from sklearn.metrics import classification_report
+    import joblib  # type: ignore[import]
+    from sklearn.metrics import classification_report  # type: ignore[import]
 except ImportError:
     sys.exit('scikit-learn / joblib not installed.  Run: pip install scikit-learn joblib')
 

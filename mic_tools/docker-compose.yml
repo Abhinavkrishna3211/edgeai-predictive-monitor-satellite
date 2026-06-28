@@ -37,21 +37,17 @@ services:
       # Persist logs and trained ML models across container restarts
       - ./logs:/app/logs
       - ./model:/app/model
-      # ── Qualcomm NPU delegate — Arduino Uno Q (QCS6490 / Hexagon 770) ────────
-      # Mount the host Qualcomm AI Engine libraries into the container so that
-      # autoencoder.NpuInferencer can find libQnnHtp.so at runtime.
-      # If the SDK is not installed on the host, this mount is silently skipped
-      # and inference falls back to CPU TFLite automatically.
-      - /usr/lib/qnn:/usr/lib/qnn:ro        # QNN runtime libs (libQnnHtp.so etc.)
-      - /usr/lib/rfsa/adsp:/usr/lib/rfsa/adsp:ro  # Hexagon DSP firmware blobs
+      # ── Qualcomm GPU delegate — Arduino Uno Q (QRB2210 / Adreno 702) ─────────
+      # The QRB2210 SoC has an Adreno 702 GPU (OpenCL 2.0) but NO Hexagon DSP.
+      # Mount QNN GPU runtime libs so autoencoder.NpuInferencer can find
+      # libQnnGpu.so at runtime.  Falls back to CPU TFLite if SDK not installed.
+      - /usr/lib/qnn:/usr/lib/qnn:ro        # QNN runtime libs (libQnnGpu.so etc.)
+      # /usr/lib/rfsa/adsp is NOT mounted — QRB2210 has no Hexagon ADSP.
 
-    # ── Qualcomm DSP device passthrough ──────────────────────────────────────
-    # Exposes /dev/adsprpc-smd (ADSP remote procedure call) so the Hexagon
-    # NPU delegate can schedule workloads on the Hexagon 770 DSP.
-    # Comment out if running on non-Qualcomm hardware (laptop, RPi, etc.).
-    devices:
-      - /dev/adsprpc-smd:/dev/adsprpc-smd
-      - /dev/adsprpc-smd0:/dev/adsprpc-smd0
+    # ── No DSP device passthrough needed ─────────────────────────────────────
+    # The QRB2210 does NOT have /dev/adsprpc-smd (that device belongs to the
+    # Hexagon DSP found on QCS6490/SA8155/etc., not the QRB2210).
+    # GPU acceleration uses standard DRM/render nodes; no special device needed.
 
     environment:
       FACTORY_NAME: ${FACTORY_NAME:-EPM Factory}
@@ -62,7 +58,7 @@ services:
       NOTIFY_EMAIL: ${NOTIFY_EMAIL:-}
       # Set to 0 to skip TF install and force IsolationForest-only mode
       BUILD_TRAINING: ${BUILD_TRAINING:-1}
-      # Force CPU TFLite even if Hexagon delegate is present (for debugging)
+      # Force CPU TFLite even if Adreno GPU delegate is present (for debugging)
       EPM_FORCE_CPU: ${EPM_FORCE_CPU:-0}
 
     # ── Health check: poll dashboard every 30 s ───────────────────────────────

@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-ml_trainer.py — Train a bearing anomaly detection model from EPM gateway logs.
+ml_trainer.py — LEGACY: Batch IsolationForest / neural autoencoder trainer.
 
-Trains an IsolationForest on CSV data collected by recv_verify.py so that
-the gateway can use a learned model (via --model) instead of fixed thresholds.
-The model captures the multi-dimensional signature of healthy operation and
-scores each new frame by its distance from that learned distribution.
+This module is superseded by the online Half-Space Trees detector in
+online_detector.py, which learns continuously from the live data stream
+without any separate training step and reacts to faults within ~10 frames.
 
-Workflow:
+This file is kept for backward compatibility so that existing CSV logs can
+still be analysed offline with the IsolationForest approach.  The trained
+models are also still loaded and used as a secondary scoring layer in
+recv_verify.py alongside the online HST detector.
+
+Workflow (legacy offline training):
   1. Run recv_verify.py to collect CSV logs in mic_tools/logs/
   2. Train:   python ml_trainer.py
   3. Infer:   python recv_verify.py --model model/epm_model
@@ -30,14 +34,14 @@ from datetime import datetime, timezone
 import numpy as np
 
 try:
-    import pandas as pd
+    import pandas as pd  # type: ignore[import]
 except ImportError:
     sys.exit('pandas not installed.  Run: pip install pandas scikit-learn joblib')
 
 try:
-    from sklearn.ensemble import IsolationForest
-    from sklearn.preprocessing import StandardScaler
-    import joblib
+    from sklearn.ensemble import IsolationForest  # type: ignore[import]
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import]
+    import joblib  # type: ignore[import]
 except ImportError:
     sys.exit('scikit-learn / joblib not installed.  Run: pip install scikit-learn joblib')
 

@@ -43,5 +43,12 @@ tensorflow-cpu>=2.13,<2.16    # comment out if using full tensorflow
 # autoencoder.NpuInferencer tries libQnnHtp.so automatically on startup.
 # No action needed — if the lib is present, NPU is used; otherwise CPU TFLite.
 
+# ── Online streaming ML — river (HalfSpaceTrees anomaly detection) ───────────
+# Pure-Python, no network calls, no telemetry, BSD-licensed.
+# Used by online_detector.py for fully on-device streaming anomaly detection.
+# Replaces the static IsolationForest with an adaptive online model that
+# updates every frame without retraining batch jobs.
+river>=0.21.0
+
 # ── Optional: serial port (legacy plot_mic.py) ────────────────────────────────
 # pyserial>=3.5

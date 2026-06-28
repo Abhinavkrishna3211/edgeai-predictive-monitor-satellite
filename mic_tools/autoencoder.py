@@ -2,9 +2,17 @@
 """
 autoencoder.py — Spectral-aware neural autoencoder for EPM bearing anomaly detection.
 
-Designed to run on the Qualcomm Hexagon NPU inside the Arduino Uno Q (QCS6490)
-via TFLite delegate.  Falls back gracefully:
-    Qualcomm NPU (QNN-HTP / Hexagon) → CPU TFLite → numpy forward-pass
+Designed to run on the Arduino Uno Q (QRB2210 SoC) via TFLite delegate.
+
+Hardware clarification — Arduino Uno Q (QRB2210):
+  The QRB2210 contains an Adreno 702 GPU (OpenCL 2.0, documented).
+  It does NOT have a Hexagon DSP / QNN-HTP NPU (not listed in the QRB2210
+  datasheet).  The reliable hardware-accelerated inference path on Uno Q is:
+
+      libQnnGpu.so (Adreno 702 via QNN GPU delegate)  ← primary
+      CPU TFLite (4 threads)                           ← always-available fallback
+
+  libQnnHtp.so and libhexagon_* are silently skipped if not found.
 
 Feature vector (INPUT_DIM = 41):
   [0:9]   Statistical features:
@@ -25,10 +33,10 @@ Thresholds (derived from training data):
   t_fault = 98.33rd percentile                      (1.67% false-positive rate)
 
 Why an autoencoder beats IsolationForest for this use case:
-  1. It is a neural network — runs on NPU silicon, not CPU trees
+  1. It is a neural network — runs on GPU/CPU silicon, not CPU trees
   2. Spectral input — it learns which *frequencies* matter for each machine
   3. More discriminative — 3584-dimensional input compressed to 16 latent dims
-  4. Quantisable — int8 TFLite export fits on Hexagon cache, <5ms inference
+  4. Quantisable — int8 TFLite export for low-latency GPU inference
   5. Per-machine model — trained on one machine's healthy baseline only
 """
 
@@ -104,7 +112,7 @@ def make_feature_vector(frame: dict) -> np.ndarray:
 def build_autoencoder(input_dim: int = INPUT_DIM):
     """
     Dense autoencoder using only NPU-friendly ops:
-    Dense + BatchNorm + ReLU (all supported by Qualcomm Hexagon delegate).
+    Dense + BatchNorm + ReLU (all supported by Qualcomm Adreno GPU delegate).
 
     BatchNorm is folded into the preceding Dense during TFLite conversion,
     so inference has no BN overhead and runs in a single fused op per layer.
@@ -208,12 +216,13 @@ def export_tflite(model, scaler, path_prefix: str,
     """
     Convert trained Keras model to TFLite with full-integer quantisation.
 
-    Full int8 quantisation is required for the Qualcomm Hexagon NPU delegate —
-    float ops are silently downgraded to CPU.  The representative dataset
-    calibrates activation ranges so all MatMul ops are mapped to integer HW units.
+    Full int8 quantisation allows all MatMul ops to be mapped to integer HW units
+    by the Qualcomm Adreno GPU delegate (libQnnGpu.so).  Float ops would be
+    silently downgraded to CPU, so int8 is required for true GPU acceleration.
+    The representative dataset calibrates activation ranges for quantisation.
 
     Saves:
-      <path_prefix>_autoencoder.tflite  — deployable NPU model
+      <path_prefix>_autoencoder.tflite  — deployable GPU/CPU model
       <path_prefix>_scaler.json         — StandardScaler params (applied externally)
 
     Returns path to .tflite file.
@@ -254,7 +263,7 @@ def export_tflite(model, scaler, path_prefix: str,
         }, f)
 
     size_kb = len(tflite_bytes) / 1024
-    print(f'  TFLite exported: {tflite_path}  ({size_kb:.1f} kB, int8-quantised)')
+    print(f'  TFLite exported: {tflite_path}  ({size_kb:.1f} kB, int8-quantised, Adreno GPU-ready)')
     print(f'  Scaler saved:    {scaler_path}')
     return tflite_path
 
@@ -263,26 +272,28 @@ def export_tflite(model, scaler, path_prefix: str,
 
 class NpuInferencer:
     """
-    TFLite inference with Qualcomm Hexagon NPU auto-selection.
+    TFLite inference with hardware-accelerated delegate auto-selection.
 
-    Delegate priority on Arduino Uno Q (QCS6490 — Hexagon 770):
-      1. libQnnHtp.so         — Qualcomm QNN HTP (Hexagon Tensor Processor) ← best
-      2. libQnnGpu.so         — Qualcomm Adreno GPU
-      3. libhexagon_nn_skel.so — Legacy Hexagon NN skeleton
-      4. CPU (4 threads)      — Always available, guaranteed fallback
+    Delegate priority on Arduino Uno Q (QRB2210 — Adreno 702):
+      1. libQnnGpu.so  — Qualcomm QNN GPU delegate (Adreno 702, OpenCL 2.0) ← best
+      2. CPU (4 threads) — Always available, guaranteed fallback
+
+    The QRB2210 datasheet documents an Adreno 702 GPU; it does not list a
+    Hexagon DSP or QNN-HTP NPU.  libQnnHtp.so and libhexagon_* candidates are
+    left in the list as no-ops so this code also works on QCS6490-based boards
+    that do have Hexagon, without any code change.
 
     The model is identical regardless of which delegate runs it — correctness is
-    independent of the backend.  Only latency changes (NPU: ~1 ms, CPU: ~8 ms).
+    independent of the backend.  Only latency changes (GPU: ~2 ms, CPU: ~8 ms).
 
-    self.backend   — human-readable string of active backend
+    self.backend    — human-readable string of active backend
     self.npu_active — True if a hardware accelerator is in use
     """
 
     _DELEGATE_CANDIDATES = [
-        ('libQnnHtp.so',          'Qualcomm NPU (QNN-HTP / Hexagon 770)'),
-        ('libQnnGpu.so',          'Qualcomm GPU (Adreno 643)'),
-        ('libhexagon_nn_skel.so', 'Qualcomm Hexagon NN (legacy)'),
-        ('libhexagon_interface.so', 'Qualcomm Hexagon interface'),
+        ('libQnnGpu.so',          'Qualcomm Adreno 702 GPU (QNN GPU delegate)'),
+        ('libQnnHtp.so',          'Qualcomm QNN-HTP (Hexagon — not on QRB2210)'),
+        ('libhexagon_nn_skel.so', 'Qualcomm Hexagon NN legacy (not on QRB2210)'),
     ]
 
     def __init__(self, tflite_path: str, scaler_path: str, use_npu: bool = True):
@@ -469,7 +480,7 @@ if __name__ == '__main__':
     import glob as _glob
 
     ap = argparse.ArgumentParser(
-        description='Train EPM neural autoencoder and export TFLite for Uno Q NPU')
+        description='Train EPM neural autoencoder and export TFLite for Uno Q (Adreno 702 GPU)')
     ap.add_argument('--log-dir',  default='logs',  help='CSV log directory')
     ap.add_argument('--out',      default='model/epm_auto',
                     help='Output path prefix (default: model/epm_auto)')
