@@ -104,10 +104,48 @@ typedef struct __attribute__((packed)) {
 
 _Static_assert(sizeof(epm_hello_t) == 24, "epm_hello_t must be 24 bytes");
 
-/* 1-byte alert code sent by gateway → satellite after each data frame */
+/* 1-byte alert code sent by gateway → satellite after each data frame (v1) */
 #define EPM_ALERT_OK     0x00   /* normal */
 #define EPM_ALERT_WARN   0x01   /* kurtosis or crest factor above WARN threshold */
 #define EPM_ALERT_FAULT  0x02   /* kurtosis or crest factor above FAULT threshold */
+
+/*
+ * EPM Protocol v2 — 8-byte adaptive reply (gateway → satellite).
+ *
+ * The gateway AI closes the loop into the satellite's data-acquisition
+ * pipeline: fault posterior P(fault) drives FFT overlap and spectral
+ * averaging so sensing resolution adapts to machine health.
+ *
+ * proto_ver = EPM_PROTO_V2_MAGIC (0xA2) — chosen to be unambiguously
+ * distinct from the three valid v1 alert values 0x00/0x01/0x02.
+ * Satellites identify v2 by checking whether the first received byte
+ * equals EPM_PROTO_V2_MAGIC; if so they read 7 more bytes.
+ *
+ * Adaptive-sensing rationale:
+ *   fft_overlap_pct — Welch's method: overlap_pct% of the previous FFT
+ *     window is reused as the head of the next one.  Higher overlap →
+ *     more FFTs per unit time → better time resolution for fault transients.
+ *     At 75%, effective FFT rate quadruples (step = FFT_MIC_N/4 samples).
+ *
+ *   spec_avg_n — Power-spectral averaging.  Variance ∝ 1/N, so N=8 gives
+ *     a 2.8× lower noise floor than N=1.  When healthy, heavy averaging
+ *     yields a cleaner baseline.  When fault suspicion is high, N=2 gives
+ *     4× faster transient response.
+ */
+#define EPM_PROTO_V2_MAGIC  0xA2u
+
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t  proto_ver;        /* = EPM_PROTO_V2_MAGIC */
+    uint8_t  alert_state;      /* 0=OK, 1=WARN, 2=FAULT */
+    uint16_t fault_posterior;  /* P(fault) × 10000  →  0..10000 = 0.0..1.0 */
+    uint8_t  fft_overlap_pct;  /* 0, 25, 50, 75 — % of FFT_MIC_N to overlap */
+    uint8_t  spec_avg_n;       /* 1..16 — spectral frames to average */
+    uint8_t  reserved[2];      /* zero — future fields, keeps struct 8-byte aligned */
+} epm_alert_v2_t;
+#pragma pack(pop)
+
+_Static_assert(sizeof(epm_alert_v2_t) == 8, "epm_alert_v2_t must be 8 bytes");
 
 #ifdef __cplusplus
 }

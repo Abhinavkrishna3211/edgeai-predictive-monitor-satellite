@@ -54,6 +54,10 @@ static const char *TAG = "wifi_task";
 static EventGroupHandle_t s_wifi_event_group = NULL;
 static int                s_retry_cnt        = 0;
 
+/* Adaptive-sensing parameters — set by wifi_task on v2 reply, read by mic_task. */
+volatile uint8_t g_adapt_overlap_pct = 0;
+volatile uint8_t g_adapt_spec_avg_n  = SPEC_AVG_N;
+
 /* Static receive buffers — kept out of the task stack to avoid stack overflow.
  * mic_frame_t ~2 KB (512 floats), imu_frame_t ~12 KB (3 × 1024 floats). */
 static mic_frame_t s_mic;
@@ -292,34 +296,97 @@ static bool send_frame(int sock, const epm_header_t *hdr)
     return err == 0;
 }
 
-/* Read the 1-byte alert code sent by the gateway after each frame.
- * Returns false when the caller must drop the connection and reconnect.
- * On timeout (EAGAIN), returns true without modifying *alert_out so the
- * caller keeps the previous alert level — the LED must not flicker to OK
- * just because the gateway was slow to respond for one frame. */
+/*
+ * Read the gateway reply after each frame.  Handles both protocol versions:
+ *
+ *   v1 (legacy) — 1 byte: 0x00=OK, 0x01=WARN, 0x02=FAULT.
+ *   v2          — 8 bytes: epm_alert_v2_t starting with EPM_PROTO_V2_MAGIC (0xA2).
+ *
+ * Disambiguation: the three valid v1 bytes are 0x00/0x01/0x02.  EPM_PROTO_V2_MAGIC
+ * is 0xA2, which cannot occur in a v1 reply, so the first byte unambiguously
+ * identifies the protocol version — no timeout heuristic needed.
+ *
+ * On recv() timeout (EAGAIN/EWOULDBLOCK), *alert_out is left unchanged so the
+ * LED never flickers to OK just because the gateway was slow to reply once.
+ */
 static bool read_gateway_alert(int sock, uint8_t *alert_out)
 {
-    int n = recv(sock, alert_out, 1, 0);
-
-    if (n == 1) {
-        if (*alert_out != EPM_ALERT_OK) {
-            ESP_LOGW(TAG, "Gateway alert: 0x%02x", *alert_out);
-        }
-        return true;
-    }
+    uint8_t first = 0;
+    int n = recv(sock, &first, 1, 0);
 
     if (n == 0) {
         ESP_LOGW(TAG, "Gateway closed connection — reconnecting");
         return false;
     }
+    if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return true;   /* timeout — keep previous alert level */
+        }
+        ESP_LOGW(TAG, "recv() error: errno %d — reconnecting", errno);
+        return false;
+    }
 
-    /* n < 0: distinguish timeout from a real socket error */
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        /* Normal recv timeout — *alert_out unchanged, caller keeps previous level */
+    /* ── v2 reply: 0xA2 header → read remaining 7 bytes ───────────────────── */
+    if (first == EPM_PROTO_V2_MAGIC) {
+        uint8_t rest[7];
+        int got = 0;
+        while (got < 7) {
+            int r = recv(sock, rest + got, 7 - got, 0);
+            if (r <= 0) {
+                if (r == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
+                    ESP_LOGW(TAG, "v2 reply truncated after %d bytes", 1 + got);
+                    return (r == 0) ? false : true;
+                }
+                ESP_LOGW(TAG, "v2 recv() error: errno %d", errno);
+                return false;
+            }
+            got += r;
+        }
+
+        epm_alert_v2_t v2;
+        v2.proto_ver       = first;
+        v2.alert_state     = rest[0];
+        v2.fault_posterior = (uint16_t)(rest[1] | ((uint16_t)rest[2] << 8));
+        v2.fft_overlap_pct = rest[3];
+        v2.spec_avg_n      = rest[4];
+        /* rest[5..6] = reserved, ignored */
+
+        *alert_out = v2.alert_state;
+
+        /* Clamp incoming values to safe ranges before writing globals */
+        uint8_t new_overlap = v2.fft_overlap_pct;
+        uint8_t new_avg     = v2.spec_avg_n;
+        if (new_overlap != 0 && new_overlap != 25 &&
+            new_overlap != 50 && new_overlap != 75) {
+            new_overlap = 0;  /* reject out-of-spec values */
+        }
+        if (new_avg < 1 || new_avg > 16) {
+            new_avg = SPEC_AVG_N;
+        }
+
+        if (new_overlap != g_adapt_overlap_pct || new_avg != g_adapt_spec_avg_n) {
+            ESP_LOGI(TAG, "Adapt: overlap=%u%%  avg_n=%u  (was %u%%/%u)  p_fault=%.2f%%",
+                     new_overlap, new_avg,
+                     g_adapt_overlap_pct, g_adapt_spec_avg_n,
+                     v2.fault_posterior / 100.0f);
+            g_adapt_overlap_pct = new_overlap;
+            g_adapt_spec_avg_n  = new_avg;
+        }
+
+        if (v2.alert_state != EPM_ALERT_OK) {
+            ESP_LOGW(TAG, "v2 alert=%u  p_fault=%.2f%%  overlap=%u%%  avg=%u",
+                     v2.alert_state, v2.fault_posterior / 100.0f,
+                     new_overlap, new_avg);
+        }
         return true;
     }
-    ESP_LOGW(TAG, "recv() error: errno %d — reconnecting", errno);
-    return false;
+
+    /* ── v1 reply: single byte 0x00/0x01/0x02 ──────────────────────────────── */
+    *alert_out = first;
+    if (first != EPM_ALERT_OK) {
+        ESP_LOGW(TAG, "v1 alert: 0x%02x", first);
+    }
+    return true;
 }
 
 static void update_led(uint8_t alert, uint32_t cal_frames)

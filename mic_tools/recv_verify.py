@@ -163,6 +163,38 @@ _FAULT_PRIOR    = 0.01  # P(fault per frame); tune higher for noisier environmen
 _EVIDENCE_Z_MID = 3.0   # z-score at which a channel gives 50/50 evidence
 _bayesian_fusion = None  # BayesianFusion instance created in main()
 
+# ─── Adaptive-sensing reply (EPM protocol v2) ─────────────────────────────────
+#
+# The gateway closes the AI inference loop back into the satellite's DSP
+# pipeline.  P(fault) drives two FFT parameters sent in the 8-byte v2 reply:
+#
+#   fft_overlap_pct — Welch's windowed overlap.  Higher P(fault) → more overlap
+#     → higher FFT frame rate → better time resolution for transient detection.
+#     Variance of each spectral estimate is unchanged; what improves is
+#     temporal tracking of rapidly-evolving fault signatures.
+#
+#   spec_avg_n — Number of FFT frames averaged before sending.  Lower N →
+#     faster frame delivery at the cost of a higher noise floor.  When the
+#     machine is healthy we want a clean, averaged baseline; when fault
+#     suspicion is high we want rapid response to new transients.
+#
+# Operating points (fault_posterior → commanded parameters):
+#   p < 0.30  →  overlap=0%,  avg=8   (healthy: max averaging, no overlap cost)
+#   p < 0.70  →  overlap=50%, avg=4   (moderate: standard Welch, 2× frame rate)
+#   p ≥ 0.70  →  overlap=75%, avg=2   (high suspicion: 4× frame rate, fast reaction)
+#
+EPM_PROTO_V2_MAGIC = 0xA2  # first byte of v2 reply — distinct from 0x00/0x01/0x02
+
+def _adaptive_overlap(p_fault: float) -> int:
+    if p_fault < 0.30: return 0
+    if p_fault < 0.70: return 50
+    return 75
+
+def _adaptive_avg_n(p_fault: float) -> int:
+    if p_fault < 0.30: return 8
+    if p_fault < 0.70: return 4
+    return 2
+
 # ─── Satellite registry ───────────────────────────────────────────────────────
 
 class SatelliteState:
@@ -218,6 +250,9 @@ class SatelliteState:
         # Kalman exponential RUL estimator — one instance per satellite
         self.rul_estimator = None   # ExponentialRUL, created at registration
         self.rul_result    = None   # RULResult from last update (None until n_updates>=30)
+        # Adaptive-sensing parameters currently commanded to this satellite (v2 protocol)
+        self.adapt_overlap = 0     # last commanded fft_overlap_pct
+        self.adapt_avg_n   = 4     # last commanded spec_avg_n
 
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
@@ -725,10 +760,44 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             ])
             csv_f.flush()
 
+            # ── EPM v2 adaptive reply ──────────────────────────────────────────
+            # Build and send the 8-byte v2 struct.  The AI posterior reshapes
+            # the satellite's FFT pipeline: higher P(fault) → more overlap and
+            # less averaging → faster temporal response to transient fault events.
+            _ov  = _adaptive_overlap(p_fault)
+            _avg = _adaptive_avg_n(p_fault)
+            _v2  = struct.pack('<BBHBBBB',
+                               EPM_PROTO_V2_MAGIC,        # proto_ver
+                               alert,                     # alert_state
+                               min(int(p_fault * 10000), 10000),  # fault_posterior
+                               _ov,                       # fft_overlap_pct
+                               _avg,                      # spec_avg_n
+                               0, 0)                      # reserved
             try:
-                conn.sendall(bytes([alert]))
+                conn.sendall(_v2)
             except OSError:
                 break
+
+            # Log ADAPT event when commanded parameters change
+            if _ov != sat.adapt_overlap or _avg != sat.adapt_avg_n:
+                _adapt_event = {
+                    'time':       now,
+                    'satellite':  sat.name,
+                    'mac':        mac_hex,
+                    'event_type': 'ADAPT',
+                    'alert':      'INFO',
+                    'prev':       'INFO',
+                    'kurtosis':   0.0,
+                    'crest':      0.0,
+                    'z_score':    0.0,
+                    'detail':     (f'Sensor adapt: overlap {sat.adapt_overlap}%→{_ov}%  '
+                                   f'avg_n {sat.adapt_avg_n}→{_avg}  '
+                                   f'p_fault={p_fault:.3f}'),
+                }
+                with _ALERT_HISTORY_LOCK:
+                    _ALERT_HISTORY.appendleft(_adapt_event)
+                sat.adapt_overlap = _ov
+                sat.adapt_avg_n   = _avg
 
             fault_type = _classify_fault_type(
                 frame['mic_kurtosis'], frame['mic_crest'], frame['imu_crest'],
@@ -1563,6 +1632,8 @@ header{display:flex;align-items:center;padding:0 22px;height:56px;background:var
 .drift-recent{background:rgba(245,158,11,.18);color:#f59e0b}
 .drift-fresh{background:rgba(239,68,68,.18);color:#ef4444}
 .ev-refresh{background:rgba(99,102,241,.08);border-left:2px solid #6366f1}
+.ev-adapt{background:rgba(16,185,129,.06);border-left:2px solid #10b981}
+.adapt-chip{display:inline-block;font-size:.55rem;font-weight:600;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle;letter-spacing:.02em;background:rgba(16,185,129,.18);color:#10b981;font-family:monospace}
 .c-hpct{font-size:1.15rem;font-weight:700;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
 .c-rec{margin:0 12px 9px;padding:8px 11px;border-radius:7px;font-size:.72rem}
 .c-rec.ok{background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.17)}
@@ -1900,6 +1971,11 @@ function driftChip(s){
   var label=cls==='drift-stable'?'Drift: '+s.drift_count+'×':cls==='drift-fresh'?'⟳ Drift now':'⟳ Drift today';
   return '<span class="drift-chip '+cls+'" id="DR_'+s.name+'">'+label+'</span>';
 }
+function adaptChip(s){
+  var ov=s.adapt_overlap||0,av=s.adapt_avg_n||4;
+  var label='OV:'+ov+'% AVG:'+av;
+  return '<span class="adapt-chip" id="ADP_'+s.name+'" title="Gateway-commanded: FFT overlap='+ov+'%  spectral_avg='+av+'">'+label+'</span>';
+}
 function mCls(d){return d===0?'fault':d<=30?'warn':'ok';}
 function rulCol(s){
   // Colour based on hours remaining (from Kalman) or days*24 (linear fallback)
@@ -1984,7 +2060,7 @@ function cardHTML(s){
     +'<div class="c-fw">FW '+s.fw+(s.calibrated?' · ✓ Calibrated':' · ⧖ Calibrating')+'</div></div>'
     +'<div class="c-right"><div class="sdot '+al+'"></div><span class="badge '+al+'">'+s.alert+'</span>'
     +'<span class="ft-badge ft-'+ftCls(s.fault_type||'Normal')+'" id="FT_'+s.name+'">'+(s.fault_type||'Normal')+'</span>'
-    +driftChip(s)+'</div></div>'
+    +driftChip(s)+adaptChip(s)+'</div></div>'
     +'<div class="c-pstatus" id="PS_'+s.name+'" style="color:'+(al==='fault'?'var(--fault)':al==='warn'?'var(--warn)':'var(--ok)')+';">'
     +(al==='fault'?'⚠ FAULT — Inspect machine immediately':al==='warn'?'⚠ Elevated vibration — attention needed':'Machine running normally')+'</div>'
     +'<div class="c-ml-row" id="ML_'+s.name+'">'+mlStatusText(s.ml_status)+'</div>'
@@ -2074,6 +2150,8 @@ function upCard(s){
   const drEl=$('DR_'+s.name);
   if(drEl){const dc=driftCls(s);drEl.className='drift-chip '+dc;drEl.textContent=dc==='drift-stable'?'Drift: '+s.drift_count+'×':dc==='drift-fresh'?'⟳ Drift now':'⟳ Drift today';}
   else if(s.drift_count){const cr=document.querySelector('#C_'+s.name+' .c-right');if(cr)cr.insertAdjacentHTML('beforeend',driftChip(s));}
+  const adpEl=$('ADP_'+s.name);
+  if(adpEl){adpEl.textContent='OV:'+(s.adapt_overlap||0)+'% AVG:'+(s.adapt_avg_n||4);adpEl.title='Gateway-commanded: FFT overlap='+(s.adapt_overlap||0)+'%  spectral_avg='+(s.adapt_avg_n||4);}
   const mnt=$('MNT_'+s.name);
   if(mnt){mnt.className='c-rec '+mc;mnt.innerHTML='<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
     +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>';}
@@ -2220,6 +2298,15 @@ async function loadAlerts(){
           +'<td style="font-weight:700">'+ev.satellite+'</td>'
           +'<td colspan="4" style="font-size:.7rem;color:var(--muted);font-style:italic">'
           +'<span style="margin-right:6px">&#x21BA;</span>'+ev.detail+'</td>'
+          +'<td style="font-size:.6rem;color:var(--muted);font-family:monospace">'+(ev.mac||'—')+'</td>'
+          +'</tr>';
+      }
+      if(ev.event_type==='ADAPT'){
+        return '<tr class="ev-adapt">'
+          +'<td style="font-size:.65rem;color:var(--muted);font-family:monospace;white-space:nowrap">'+dts+'</td>'
+          +'<td style="font-weight:700">'+ev.satellite+'</td>'
+          +'<td colspan="4" style="font-size:.7rem;color:#10b981;font-family:monospace">'
+          +'<span style="margin-right:6px">&#x25B6;</span>'+ev.detail+'</td>'
           +'<td style="font-size:.6rem;color:var(--muted);font-family:monospace">'+(ev.mac||'—')+'</td>'
           +'</tr>';
       }
@@ -2577,6 +2664,8 @@ def _build_status_json():
             'p_fault':          round(_safe_f(getattr(s, 'p_fault', 0.0)), 4),
             'drift_count':      getattr(s, 'drift_count', 0),
             'last_drift_t':     getattr(s, 'last_drift_t', None),
+            'adapt_overlap':    getattr(s, 'adapt_overlap', 0),
+            'adapt_avg_n':      getattr(s, 'adapt_avg_n', 4),
             'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
