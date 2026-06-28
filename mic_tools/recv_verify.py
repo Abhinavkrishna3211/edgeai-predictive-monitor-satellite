@@ -72,6 +72,14 @@ except ImportError:
     ExponentialRUL = None  # type: ignore[assignment,misc]
     RULResult = None       # type: ignore[assignment,misc]
 
+# Optional: Bayesian posterior fusion of multi-channel anomaly evidence
+_FUSION_AVAILABLE = False
+try:
+    from bayesian_fusion import BayesianFusion
+    _FUSION_AVAILABLE = True
+except ImportError:
+    BayesianFusion = None  # type: ignore[assignment,misc]
+
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
 _ML_MODEL = None   # populated by _load_ml_model() if --model is given (legacy global)
 _sat_models: dict = {}  # mac_hex → model dict; one per satellite (takes priority over global)
@@ -146,6 +154,15 @@ _SERVER_START_T = time.time()   # used by dashboard uptime counter
 # (mirrors the 7 mic stats across imu_x, imu_y, imu_z for 4×7=28)
 FEATURE_DIM = 7
 
+# Bayesian fusion posterior thresholds (tuned for prior=0.01, 2-3 channels)
+P_FUSION_WARN  = 0.70   # posterior >= this → escalate raw to WARN
+P_FUSION_FAULT = 0.95   # posterior >= this → escalate raw to FAULT
+
+# Bayesian fusion hyperparameters — overridden by --fault-prior / --evidence-midpoint
+_FAULT_PRIOR    = 0.01  # P(fault per frame); tune higher for noisier environments
+_EVIDENCE_Z_MID = 3.0   # z-score at which a channel gives 50/50 evidence
+_bayesian_fusion = None  # BayesianFusion instance created in main()
+
 # ─── Satellite registry ───────────────────────────────────────────────────────
 
 class SatelliteState:
@@ -192,6 +209,8 @@ class SatelliteState:
         # Online HST detector — river HalfSpaceTrees, fully on-device
         self.hst_detector  = None   # OnlineDetector, initialised in _try_load_hst_state
         self.hst_score     = 0.0    # last HST score for dashboard display
+        # Bayesian posterior fusion
+        self.p_fault       = 0.0    # P(fault | all channels), updated every frame
         # Kalman exponential RUL estimator — one instance per satellite
         self.rul_estimator = None   # ExponentialRUL, created at registration
         self.rul_result    = None   # RULResult from last update (None until n_updates>=30)
@@ -460,17 +479,21 @@ def _sat_update_baseline(sat, mic_rms, mic_kurtosis):
               f"kurt_std={sat.bl_std[1]:.2f}")
 
 
-def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb):
-    """Compute per-frame alert level and z-score.
+def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
+                  hst_score: float = 0.0):
+    """Compute per-frame alert level, z-score, and Bayesian fault posterior.
 
     hb is the pre-computed high-band energy ratio from _band_ratios(), passed
     in to avoid a duplicate dBFS→power conversion (the caller already has it).
+    hst_score is the HST anomaly score for the current frame (0.0 if HST is
+    not yet active); it is included as a third Bayesian fusion channel when
+    the HST detector is warmed up.
 
     Streak counters are passed in and returned so this function has no
     side-effects on sat.  All sat mutations happen in satellite_thread under
     _sat_lock, eliminating data races with the dashboard HTTP reader thread.
 
-    Returns (alert_byte, z_score, new_warn_streak, new_ok_streak).
+    Returns (alert_byte, z_score, p_fusion, new_warn_streak, new_ok_streak).
     The caller is responsible for updating sent_alert = returned alert_byte.
     """
     mic_kurtosis = frame['mic_kurtosis']
@@ -497,6 +520,28 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb):
         raw = EPM_ALERT_FAULT
     elif max(mic_crest, imu_crest) >= CREST_WARN:
         raw = EPM_ALERT_WARN
+
+    # ── Bayesian multi-channel fusion — escalates raw if multi-channel evidence
+    # agrees; subject to the high-band filter and persistence below.
+    # Channels: z_kurtosis, z_rms from calibration baseline + z_hst when ready.
+    # Independence assumption: mic kurtosis (impulsive) and RMS (energetic)
+    # respond differently to fault modes; HST uses 7 spectral features.
+    # For correlated faults this overestimates joint evidence — acceptable for
+    # detection; not for fault magnitude. See bayesian_fusion.py for details.
+    p_fusion = 0.0
+    if _FUSION_AVAILABLE and _bayesian_fusion is not None and sat.calibrated:
+        z_k = float((mic_kurtosis  - sat.bl_mean[1]) / sat.bl_std[1])
+        z_r = float((mic_rms       - sat.bl_mean[0]) / sat.bl_std[0])
+        z_list: list = [z_k, z_r]
+        if sat.hst_detector is not None and sat.hst_detector.is_warmed_up():
+            # Map HST [0,1] → z-scale: score=0.3 (typical normal) → z≈0,
+            # score=0.7 → z≈4, score=0.9 → z≈8. Tune via --evidence-midpoint.
+            z_list.append((hst_score - 0.3) / 0.05)
+        p_fusion = _bayesian_fusion.fuse(z_list)
+        if p_fusion >= P_FUSION_FAULT:
+            raw = max(raw, EPM_ALERT_FAULT)
+        elif p_fusion >= P_FUSION_WARN:
+            raw = max(raw, EPM_ALERT_WARN)
 
     # ── Factory noise filter: only alert if high-band energy is present ───────
     # Bearing faults excite 2-8kHz; factory floor noise is mostly <500Hz.
@@ -541,7 +586,7 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb):
         if ml_alert is not None and ml_alert > final:
             final = ml_alert   # escalate if ML is more confident
 
-    return final, z_score, warn_streak, ok_streak
+    return final, z_score, p_fusion, warn_streak, ok_streak
 
 
 # ─── Per-satellite connection thread ─────────────────────────────────────────
@@ -585,7 +630,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             csv_w.writerow(['wall_time', 'frame_id', 'device_ms',
                             'mic_rms', 'mic_crest', 'mic_kurtosis',
                             'imu_rms', 'imu_crest',
-                            'high_band_ratio', 'z_score', 'alert'])
+                            'high_band_ratio', 'z_score', 'p_fault', 'alert'])
         print(f"    Logging to: {csv_path}  ({'new' if is_new else 'append'})")
 
         # Maximum valid payload: header + mic FFT + 3 × IMU FFT + 1 KB margin.
@@ -617,18 +662,24 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             # Compute band ratios once — shared by alert engine and fault classifier
             hb, lo_r, mid_r = _band_ratios(frame['mic_fft'])
 
-            prev_alert = sent_alert   # alert from the PREVIOUS frame
-            alert, z_score, warn_streak, ok_streak = \
-                compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb)
-            sent_alert = alert
-
-            # ── Online HST detection — river HalfSpaceTrees, fully on-device ─
-            hst_score = 0.0
+            # ── Online HST detection — score before compute_alert() so the
+            # HST z-score can feed the Bayesian fusion inside that function.
+            # Learning happens AFTER alert is known (only on OK frames).
+            _hst_feats = None
+            hst_score  = 0.0
             if sat.hst_detector is not None:
                 _hst_feats = _extract_hst_features(frame, lo_r, mid_r, hb)
                 hst_score  = sat.hst_detector.score(_hst_feats)
-                if alert == EPM_ALERT_OK:
-                    sat.hst_detector.learn(_hst_feats)
+
+            prev_alert = sent_alert   # alert from the PREVIOUS frame
+            alert, z_score, p_fault, warn_streak, ok_streak = \
+                compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
+                              hst_score)
+            sent_alert = alert
+
+            # Learn only on healthy frames (anomalous frames would corrupt model)
+            if _hst_feats is not None and alert == EPM_ALERT_OK:
+                sat.hst_detector.learn(_hst_feats)
 
             # ── Kalman exponential RUL estimator ─────────────────────────────
             _rul_result = None
@@ -651,7 +702,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 f"{frame['mic_rms']:.6f}", f"{frame['mic_crest']:.3f}",
                 f"{frame['mic_kurtosis']:.3f}",
                 f"{frame['imu_rms']:.6f}", f"{frame['imu_crest']:.3f}",
-                f"{hb:.3f}", f"{z_score:.2f}",
+                f"{hb:.3f}", f"{z_score:.2f}", f"{p_fault:.4f}",
                 ["OK", "WARN", "FAULT"][min(alert, 2)]
             ])
             csv_f.flush()
@@ -706,6 +757,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                     if len(sat.ml_buf) > N_TRAIN_FRAMES:
                         sat.ml_buf = sat.ml_buf[-N_TRAIN_FRAMES:]
                 sat.hst_score    = hst_score
+                sat.p_fault      = p_fault
                 sat.rul_result   = _rul_result
                 _need_train = (sat.calibrated and not sat.ml_training
                                and not sat.ml_trained
@@ -725,6 +777,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             alert_str = ["OK", "WARN", "FAULT"][min(alert, 2)]
             hst_str   = (f"hst={hst_score:.3f}" if sat.hst_detector is not None
                          else "hst=--")
+            pf_str    = (f"pf={p_fault:.2f}" if sat.calibrated else "pf=--")
             status    = "OK" if not frame['errors'] else "WARN:" + ";".join(frame['errors'])
             print(f"[{name:<10}] #{frame['frame_id']:5d}  "
                   f"fps={fps:.1f}  "
@@ -732,7 +785,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                   f"K={frame['mic_kurtosis']:.2f}  "
                   f"CF={frame['mic_crest']:.2f}  "
                   f"hb={hb:.2f}  {cal_str}  "
-                  f"{hst_str}  alert={alert_str}  {status}")
+                  f"{hst_str}  {pf_str}  alert={alert_str}  {status}")
 
     except (ConnectionError, struct.error) as e:
         print(f"\n[-] {(sat.name if sat else mac_hex) or addr[0]} disconnected: {e}")
@@ -1480,6 +1533,10 @@ header{display:flex;align-items:center;padding:0 22px;height:56px;background:var
 .c-hbar-top{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted);margin-bottom:4px}
 .c-hbar{height:5px;border-radius:3px;background:var(--border);overflow:hidden}
 .c-hfill{height:100%;border-radius:3px;transition:width .7s,background .5s}
+.c-pfault{padding:.3rem .85rem .45rem;border-bottom:1px solid #0d2035}
+.c-pfault-top{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted);margin-bottom:4px}
+.c-pfbar{height:4px;border-radius:3px;background:var(--border);overflow:hidden}
+.c-pffill{height:100%;border-radius:3px;transition:width .5s,background .4s}
 .c-hpct{font-size:1.15rem;font-weight:700;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
 .c-rec{margin:0 12px 9px;padding:8px 11px;border-radius:7px;font-size:.72rem}
 .c-rec.ok{background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.17)}
@@ -1804,6 +1861,8 @@ function fmtDt(ts){return ts?new Date(ts*1000).toLocaleString(undefined,{month:'
 function fmtFuture(days){if(!days&&days!==0)return '';const d=new Date(Date.now()+days*864e5);return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}
 function kCol(k){return k>TH.k_fault?'var(--fault)':k>TH.k_warn?'var(--warn)':'var(--ok)';}
 function hCol(h){return h>=75?'var(--ok)':h>=50?'var(--warn)':'var(--fault)';}
+function pfCol(p){return p>=0.95?'var(--fault)':p>=0.70?'var(--warn)':p>=0.30?'#ff9500':'var(--ok)';}
+function fmtPf(p){if(p===null||p===undefined)return '—';var s=(p*100).toFixed(1)+'%';if(p>=0.95)return '⚠ '+s;return s;}
 function mCls(d){return d===0?'fault':d<=30?'warn':'ok';}
 function rulCol(s){
   // Colour based on hours remaining (from Kalman) or days*24 (linear fallback)
@@ -1905,6 +1964,9 @@ function cardHTML(s){
     +'<div class="c-hbar-top"><span>Machine Health</span><span id="HS_'+s.name+'" style="color:'+hc+'">'+s.health_score+'%</span></div>'
     +'<div class="c-hbar"><div class="c-hfill" id="HF_'+s.name+'" style="width:'+s.health_score+'%;background:'+hc+'"></div></div>'
     +'</div></div>'
+    +'<div class="c-pfault"><div class="c-pfault-top"><span>Fault Probability (Bayesian)</span>'
+    +'<span id="PF_'+s.name+'" style="color:'+pfCol(s.p_fault||0)+'">'+fmtPf(s.p_fault||0)+'</span></div>'
+    +'<div class="c-pfbar"><div class="c-pffill" id="PFF_'+s.name+'" style="width:'+Math.round((s.p_fault||0)*100)+'%;background:'+pfCol(s.p_fault||0)+'"></div></div></div>'
     +'<div class="c-rec '+mc+'" id="MNT_'+s.name+'">'
     +'<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
     +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>'
@@ -1969,6 +2031,8 @@ function upCard(s){
   const rul=$('RUL_'+s.name);if(rul){rul.textContent=fmtRul(s);rul.style.color=rulCol(s);}
   const hf=$('HF_'+s.name);if(hf){hf.style.width=s.health_score+'%';hf.style.background=hc;}
   gs('HS_'+s.name,'color',hc);g('HS_'+s.name,s.health_score+'%');
+  const pff=$('PFF_'+s.name);if(pff){const pc=pfCol(s.p_fault||0);pff.style.width=Math.round((s.p_fault||0)*100)+'%';pff.style.background=pc;}
+  const pfEl=$('PF_'+s.name);if(pfEl){pfEl.textContent=fmtPf(s.p_fault||0);pfEl.style.color=pfCol(s.p_fault||0);}
   const mnt=$('MNT_'+s.name);
   if(mnt){mnt.className='c-rec '+mc;mnt.innerHTML='<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
     +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>';}
@@ -2426,6 +2490,7 @@ def _build_status_json():
             'fault_frames':     s.fault_frames,
             'last_fault_t':     s.last_fault_t,
             'z_score':          round(_safe_f(s.last_z), 2),
+            'p_fault':          round(_safe_f(getattr(s, 'p_fault', 0.0)), 4),
             'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
@@ -3109,6 +3174,7 @@ def start_dashboard(port=8080):
 def main():
     global CREST_WARN, CREST_FAULT, _NOTIFY_WEBHOOK, _NOTIFY_EMAIL_CFG
     global _AUTH_USER, _AUTH_PASS, _FACTORY_NAME
+    global _FAULT_PRIOR, _EVIDENCE_Z_MID, _bayesian_fusion
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -3149,12 +3215,23 @@ def main():
     parser.add_argument('--factory-name', type=str, default=None,
                         help='Site/factory name shown in the dashboard header '
                              '(default: "EPM Industrial Monitor")')
+    parser.add_argument('--fault-prior', type=float, default=0.01,
+                        help='Bayesian prior P(fault per frame) for multi-channel '
+                             'fusion (default 0.01). Raise to 0.05 for noisier sites.')
+    parser.add_argument('--evidence-midpoint', type=float, default=3.0,
+                        help='Z-score at which a channel contributes 50/50 fault '
+                             'evidence (default 3.0 = 3-sigma deviation).')
     args = parser.parse_args()
 
     if args.crest_warn is not None:
         CREST_WARN = args.crest_warn
     if args.crest_fault is not None:
         CREST_FAULT = args.crest_fault
+    _FAULT_PRIOR    = args.fault_prior
+    _EVIDENCE_Z_MID = args.evidence_midpoint
+    if _FUSION_AVAILABLE:
+        _bayesian_fusion = BayesianFusion(
+            prior=_FAULT_PRIOR, z_mid=_EVIDENCE_Z_MID, temperature=1.0)
 
     # ── Auth ──────────────────────────────────────────────────────────────────
     if args.auth:
@@ -3238,6 +3315,13 @@ def main():
     else:
         print("[EPM] OnlineDetector: river not installed — HST scoring disabled.")
         print("[EPM]   Install: pip install 'river>=0.21.0'")
+    if _FUSION_AVAILABLE:
+        print(f"[EPM] BayesianFusion: multi-channel posterior P(fault|evidence).")
+        print(f"[EPM]   prior={_FAULT_PRIOR:.3f}  z_mid={_EVIDENCE_Z_MID:.1f}  "
+              f"WARN@p>{P_FUSION_WARN:.0%}  FAULT@p>{P_FUSION_FAULT:.0%}")
+        print(f"[EPM]   Channels: z_kurtosis, z_rms (+ z_hst when HST warmed up)")
+    else:
+        print("[EPM] BayesianFusion: bayesian_fusion.py not found — multi-channel fusion disabled.")
     print("Firewall rule for TCP receiver (elevated PowerShell, run once):")
     print(f"  New-NetFirewallRule -DisplayName EPM-{args.port} -Direction Inbound "
           f"-Protocol TCP -LocalPort {args.port} -Action Allow")
