@@ -80,6 +80,14 @@ try:
 except ImportError:
     BayesianFusion = None  # type: ignore[assignment,misc]
 
+# Optional: per-machine adaptive baselines (pure Python — always available if file is present)
+_AB_AVAILABLE = False
+try:
+    from adaptive_baseline import AdaptiveBaseline
+    _AB_AVAILABLE = True
+except ImportError:
+    AdaptiveBaseline = None  # type: ignore[assignment,misc]
+
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
 _ML_MODEL = None   # populated by _load_ml_model() if --model is given (legacy global)
 _sat_models: dict = {}  # mac_hex → model dict; one per satellite (takes priority over global)
@@ -162,6 +170,23 @@ P_FUSION_FAULT = 0.95   # posterior >= this → escalate raw to FAULT
 _FAULT_PRIOR    = 0.01  # P(fault per frame); tune higher for noisier environments
 _EVIDENCE_Z_MID = 3.0   # z-score at which a channel gives 50/50 evidence
 _bayesian_fusion = None  # BayesianFusion instance created in main()
+
+# ─── Adaptive per-machine baseline thresholds ─────────────────────────────────
+#
+# When AdaptiveBaseline is warmed up (n_updates >= AB_WARMUP_FRAMES), deviations
+# from the machine's own learned distribution escalate alerts independently of the
+# global K_WARN/K_FAULT absolute constants.  This catches incipient bearing wear
+# on quiet machines whose healthy kurtosis is well below K_WARN=6.
+#
+# Z_HB_SIGMA: if high-band energy is Z_HB_SIGMA above baseline, allow the alert
+# through even when hb < HIGH_BAND_MIN — the machine itself is showing elevated
+# structural resonance, so the absolute factory-floor threshold does not apply.
+#
+Z_WARN_SIGMA    = 4.0    # σ above machine baseline → WARN
+Z_FAULT_SIGMA   = 6.0    # σ above machine baseline → FAULT
+Z_HB_SIGMA      = 3.0    # σ above baseline high-band energy → bypass HIGH_BAND_MIN
+AB_WARMUP_FRAMES = 30    # warm-up length (matches CAL_FRAMES)
+AB_SAVE_INTERVAL = 1000  # persist baseline state every N healthy-frame updates
 
 # ─── Adaptive-sensing reply (EPM protocol v2) ─────────────────────────────────
 #
@@ -253,6 +278,14 @@ class SatelliteState:
         # Adaptive-sensing parameters currently commanded to this satellite (v2 protocol)
         self.adapt_overlap = 0     # last commanded fft_overlap_pct
         self.adapt_avg_n   = 4     # last commanded spec_avg_n
+        # Per-feature adaptive baselines — one per scalar feature, OK-frames only
+        if _AB_AVAILABLE:
+            self.ab_kurtosis = AdaptiveBaseline()
+            self.ab_crest    = AdaptiveBaseline()
+            self.ab_rms      = AdaptiveBaseline()
+            self.ab_hb       = AdaptiveBaseline()
+        else:
+            self.ab_kurtosis = self.ab_crest = self.ab_rms = self.ab_hb = None
 
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
@@ -285,6 +318,7 @@ def _sat_register(mac_hex, name, fw_major, fw_minor, addr):
             _satellites[mac_hex] = sat
     _try_load_sat_model(sat)
     _try_load_hst_state(sat)
+    _load_baselines(sat)
     if _RUL_AVAILABLE and sat.rul_estimator is None:
         sat.rul_estimator = ExponentialRUL(k_fail=K_FAIL)
     return sat
@@ -549,11 +583,24 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
         z_scores = np.abs(features - sat.bl_mean) / sat.bl_std
         z_score  = float(z_scores.max())
 
+    # ── Adaptive per-machine z-score (escalates raw, never suppresses) ───────
+    # Fires when any feature deviates >= Z_WARN_SIGMA/Z_FAULT_SIGMA from THIS
+    # machine's own EMA baseline.  Detects incipient wear on quiet machines whose
+    # healthy kurtosis is below K_WARN before the absolute thresholds would fire.
+    _z_adapt_max = 0.0
+    if (sat.ab_kurtosis is not None
+            and sat.ab_kurtosis.n_updates >= AB_WARMUP_FRAMES):
+        _z_adapt_max = max(
+            sat.ab_kurtosis.z_score(mic_kurtosis),
+            sat.ab_crest.z_score(mic_crest),
+            sat.ab_rms.z_score(mic_rms),
+        )
+
     # ── Raw alert level (before noise filter + persistence) ──────────────────
     raw = EPM_ALERT_OK
-    if mic_kurtosis >= K_FAULT or z_score >= 5.0:
+    if mic_kurtosis >= K_FAULT or z_score >= 5.0 or _z_adapt_max >= Z_FAULT_SIGMA:
         raw = EPM_ALERT_FAULT
-    elif mic_kurtosis >= K_WARN or z_score >= 3.0:
+    elif mic_kurtosis >= K_WARN or z_score >= 3.0 or _z_adapt_max >= Z_WARN_SIGMA:
         raw = EPM_ALERT_WARN
     elif max(mic_crest, imu_crest) >= CREST_FAULT:
         raw = EPM_ALERT_FAULT
@@ -584,8 +631,14 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
 
     # ── Factory noise filter: only alert if high-band energy is present ───────
     # Bearing faults excite 2-8kHz; factory floor noise is mostly <500Hz.
+    # Exception: if the machine's own HB baseline is elevated >= Z_HB_SIGMA, the
+    # alert is a genuine structural-resonance event and must not be suppressed.
     if raw != EPM_ALERT_OK and hb < HIGH_BAND_MIN:
-        raw = EPM_ALERT_OK   # suppress: broadband floor noise, not a fault
+        _hb_adapt_ok = (sat.ab_hb is not None
+                        and sat.ab_hb.n_updates >= AB_WARMUP_FRAMES
+                        and sat.ab_hb.z_score(hb) >= Z_HB_SIGMA)
+        if not _hb_adapt_ok:
+            raw = EPM_ALERT_OK   # suppress: broadband floor noise, not a fault
 
     # ── Persistence / hysteresis ──────────────────────────────────────────────
     if raw != EPM_ALERT_OK:
@@ -740,6 +793,25 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 _rul_result = sat.rul_estimator.update(
                     float(frame['mic_kurtosis']), now)
 
+            # ── Adaptive per-machine baseline update (OK-frames only) ─────────
+            # Update AFTER the alert decision so an escalating frame does not
+            # corrupt the distribution that will score the next frame.
+            if sat.ab_kurtosis is not None:
+                _is_ok = (alert == EPM_ALERT_OK)
+                sat.ab_kurtosis.update(frame['mic_kurtosis'], _is_ok)
+                sat.ab_crest.update(frame['mic_crest'],       _is_ok)
+                sat.ab_rms.update(frame['mic_rms'],           _is_ok)
+                sat.ab_hb.update(hb,                          _is_ok)
+                # Live-update bl_mean/bl_std from EMA stats so the Bayesian
+                # fusion always sees the current distribution, not the frozen
+                # 30-frame initial window.
+                if sat.ab_rms.n_updates >= AB_WARMUP_FRAMES:
+                    sat.bl_mean = np.array([sat.ab_rms.mean,  sat.ab_kurtosis.mean],
+                                           dtype=np.float32)
+                    sat.bl_std  = np.array([sat.ab_rms.std,   sat.ab_kurtosis.std],
+                                           dtype=np.float32)
+                    sat.calibrated = True
+
             # Detect state transitions → audit trail + phone notifications
             if alert != prev_alert:
                 _log_alert_event(sat.name, mac_hex, alert, prev_alert,
@@ -854,11 +926,18 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                                and len(sat.ml_buf) >= N_TRAIN_FRAMES)
                 _should_save_hst = (sat.hst_detector is not None
                                     and sat.frame_count % 500 == 0)
+                _should_save_baseline = (
+                    sat.ab_kurtosis is not None
+                    and alert == EPM_ALERT_OK
+                    and sat.ab_kurtosis.n_updates > 0
+                    and sat.ab_kurtosis.n_updates % AB_SAVE_INTERVAL == 0)
 
             if _need_train:
                 _trigger_sat_training(sat)
             if _should_save_hst:
                 _save_hst_state(sat)
+            if _should_save_baseline:
+                _save_baselines(sat)
 
             _display.put(frame, name)
 
@@ -1108,6 +1187,55 @@ def _save_hst_state(sat):
         sat.hst_detector.save(pkl_path)
     except Exception as e:
         print(f'[hst] [{sat.name}] State save failed: {e}')
+
+
+# ─── Per-satellite adaptive baseline persistence ──────────────────────────────
+
+def _baselines_path(sat) -> str:
+    model_dir = os.path.join(os.path.dirname(__file__), 'model')
+    os.makedirs(model_dir, exist_ok=True)
+    mac_clean = sat.mac_hex.replace(':', '')
+    return os.path.join(model_dir, f'baselines_{mac_clean}.json')
+
+
+def _save_baselines(sat) -> None:
+    """Persist all four adaptive baselines for one satellite to JSON."""
+    if sat.ab_kurtosis is None:
+        return
+    try:
+        state = {
+            'kurtosis': sat.ab_kurtosis.state_dict(),
+            'crest':    sat.ab_crest.state_dict(),
+            'rms':      sat.ab_rms.state_dict(),
+            'hb':       sat.ab_hb.state_dict(),
+            'saved_at': time.time(),
+        }
+        with open(_baselines_path(sat), 'w') as f:
+            json.dump(state, f)
+    except Exception as e:
+        print(f'[baseline] [{sat.name}] Save failed: {e}')
+
+
+def _load_baselines(sat) -> None:
+    """Restore adaptive baselines from JSON if a saved file exists."""
+    if sat.ab_kurtosis is None:
+        return
+    path = _baselines_path(sat)
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path) as f:
+            state = json.load(f)
+        sat.ab_kurtosis.load_state_dict(state['kurtosis'])
+        sat.ab_crest.load_state_dict(state['crest'])
+        sat.ab_rms.load_state_dict(state['rms'])
+        sat.ab_hb.load_state_dict(state['hb'])
+        print(f'[baseline] [{sat.name}] Resumed adaptive baseline '
+              f'(n={sat.ab_kurtosis.n_updates} OK frames, '
+              f'kurt_mean={sat.ab_kurtosis.mean:.3f}, '
+              f'kurt_std={sat.ab_kurtosis.std:.3f})')
+    except Exception as e:
+        print(f'[baseline] [{sat.name}] Could not load {path}: {e} — starting fresh')
 
 
 def _trigger_sat_training(sat):
@@ -1634,6 +1762,14 @@ header{display:flex;align-items:center;padding:0 22px;height:56px;background:var
 .ev-refresh{background:rgba(99,102,241,.08);border-left:2px solid #6366f1}
 .ev-adapt{background:rgba(16,185,129,.06);border-left:2px solid #10b981}
 .adapt-chip{display:inline-block;font-size:.55rem;font-weight:600;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle;letter-spacing:.02em;background:rgba(16,185,129,.18);color:#10b981;font-family:monospace}
+.bl-section{margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.bl-sat-hdr{padding:10px 14px;font-weight:700;font-size:.8rem;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:baseline}
+.bl-sat-mac{font-size:.66rem;color:var(--muted);font-weight:400;font-family:monospace}
+.bl-tbl{width:100%;border-collapse:collapse;font-size:.74rem}
+.bl-tbl th{text-align:left;padding:6px 12px;background:rgba(0,0,0,.04);color:var(--muted);font-weight:600;font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+.bl-tbl td{padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+.bl-tbl tr:last-child td{border-bottom:none}
+.bl-warm{color:var(--muted);font-style:italic}
 .c-hpct{font-size:1.15rem;font-weight:700;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
 .c-rec{margin:0 12px 9px;padding:8px 11px;border-radius:7px;font-size:.72rem}
 .c-rec.ok{background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.17)}
@@ -1775,6 +1911,7 @@ footer{text-align:center;padding:11px;color:var(--dim);font-size:.6rem;border-to
     <button class="tab active" data-tab="machines">&#9881; Machines</button>
     <button class="tab" data-tab="alerts">&#128203; Alert Log <span class="tbadge" id="alert-badge" style="display:none">0</span></button>
     <button class="tab" data-tab="maintenance">&#128295; Maintenance</button>
+    <button class="tab" data-tab="baselines">&#128200; Baselines</button>
     <button class="tab" data-tab="reports">&#128202; Reports</button>
   </div>
 </div>
@@ -1816,6 +1953,18 @@ footer{text-align:center;padding:11px;color:var(--dim);font-size:.6rem;border-to
     <button class="btn btn-ghost" onclick="loadMaintenance()">&#8635; Refresh</button>
   </div>
   <div class="maint-grid" id="maint-grid"><p style="color:var(--muted);font-size:.76rem">Loading&hellip;</p></div>
+</div>
+
+<!-- BASELINES -->
+<div class="pane" id="pane-baselines">
+  <div class="pane-head">
+    <div>
+      <div class="pane-title">Adaptive Machine Baselines</div>
+      <div class="pane-note">Per-machine distributions learned during healthy operation (EMA &alpha;=0.0005 &asymp;11 min half-life). Z &ge; 4&sigma; raises WARN; Z &ge; 6&sigma; raises FAULT independently of the absolute thresholds.</div>
+    </div>
+    <button class="btn btn-ghost" onclick="loadBaselines()">&#8635; Refresh</button>
+  </div>
+  <div id="baselines-grid"></div>
 </div>
 
 <!-- REPORTS -->
@@ -2172,6 +2321,7 @@ document.querySelectorAll('.tab').forEach(t=>{
     const tab=t.dataset.tab;
     if(tab==='alerts'&&!alertsLoaded){loadAlerts();alertsLoaded=true;}
     if(tab==='maintenance')loadMaintenance();
+    if(tab==='baselines')loadBaselines();
     if(tab==='reports'&&STATUS)updateReports(STATUS);
   });
 });
@@ -2335,6 +2485,33 @@ async function exportAlerts(){
   }catch(e){toast('Export failed: '+e.message,false);}
 }
 
+/* --- baselines tab --- */
+function loadBaselines(){
+  if(!STATUS||!STATUS.satellites){return;}
+  const el=$('baselines-grid');
+  const sats=STATUS.satellites;
+  if(!sats.length){el.innerHTML='<p style="color:var(--muted);font-size:.76rem;padding:14px">No satellites connected yet.</p>';return;}
+  const THL=STATUS.thresholds||{};
+  const ws=THL.z_warn_sigma||4,fs=THL.z_fault_sigma||6;
+  let html='';
+  for(const s of sats){
+    const bl=s.baselines||{};
+    html+=`<div class="bl-section"><div class="bl-sat-hdr">${s.name}<span class="bl-sat-mac">${s.mac}</span></div>
+<table class="bl-tbl"><thead><tr><th>Feature</th><th>Mean</th><th>Std Dev</th><th>Warn (${ws}σ)</th><th>Fault (${fs}σ)</th><th>OK Frames</th></tr></thead><tbody>`;
+    const feats=[['Kurtosis','kurtosis'],['Crest Factor','crest'],['RMS','rms'],['High-Band Energy','hb']];
+    for(const[fname,fk]of feats){
+      const fd=bl[fk];
+      if(!fd){
+        html+=`<tr><td>${fname}</td><td class="bl-warm" colspan="5">warming up&hellip;</td></tr>`;
+      }else{
+        html+=`<tr><td>${fname}</td><td>${fd.mean.toFixed(4)}</td><td>${fd.std.toFixed(4)}</td><td>${fd.warn_4s.toFixed(4)}</td><td>${fd.fault_6s.toFixed(4)}</td><td>${fd.n.toLocaleString()}</td></tr>`;
+      }
+    }
+    html+='</tbody></table></div>';
+  }
+  el.innerHTML=html;
+}
+
 /* --- maintenance tab --- */
 async function loadMaintenance(){
   try{
@@ -2458,6 +2635,10 @@ def _recompute_z_baseline(sat, feat_buf) -> None:
     arr = np.array([[f[2], f[0]] for f in feat_buf], dtype=np.float32)
     sat.bl_mean = arr.mean(axis=0)
     sat.bl_std  = arr.std(axis=0) + 1e-6
+    # Reset adaptive baselines so they re-learn from the post-drift regime
+    for ab in (sat.ab_kurtosis, sat.ab_crest, sat.ab_rms, sat.ab_hb):
+        if ab is not None:
+            ab.reset()
 
 
 # ─── Maintenance log ──────────────────────────────────────────────────────────
@@ -2611,6 +2792,19 @@ def _safe_f(v, default=0.0):
         return default
 
 
+def _ab_summary(ab, z_warn: float = 4.0, z_fault: float = 6.0):
+    """Return baseline statistics dict for JSON API, or None if not warmed up."""
+    if ab is None or ab.n_updates < AB_WARMUP_FRAMES:
+        return None
+    return {
+        'mean':    round(ab.mean, 6),
+        'std':     round(ab.std, 6),
+        'warn_4s': round(ab.warn_threshold(z_warn), 6),
+        'fault_6s': round(ab.fault_threshold(z_fault), 6),
+        'n':       ab.n_updates,
+    }
+
+
 def _build_status_json():
     now = time.time()
     with _sat_lock:
@@ -2666,6 +2860,16 @@ def _build_status_json():
             'last_drift_t':     getattr(s, 'last_drift_t', None),
             'adapt_overlap':    getattr(s, 'adapt_overlap', 0),
             'adapt_avg_n':      getattr(s, 'adapt_avg_n', 4),
+            'baselines': {
+                'kurtosis': _ab_summary(getattr(s, 'ab_kurtosis', None),
+                                        Z_WARN_SIGMA, Z_FAULT_SIGMA),
+                'crest':    _ab_summary(getattr(s, 'ab_crest', None),
+                                        Z_WARN_SIGMA, Z_FAULT_SIGMA),
+                'rms':      _ab_summary(getattr(s, 'ab_rms', None),
+                                        Z_WARN_SIGMA, Z_FAULT_SIGMA),
+                'hb':       _ab_summary(getattr(s, 'ab_hb', None),
+                                        Z_HB_SIGMA, Z_HB_SIGMA),
+            },
             'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
@@ -2694,8 +2898,9 @@ def _build_status_json():
         'total_faults_today': sum(s['fault_frames'] for s in sat_list),
         'notify_active':      bool(_NOTIFY_WEBHOOK or _NOTIFY_EMAIL_CFG),
         'thresholds': {
-            'k_warn':  K_WARN, 'k_fault': K_FAULT,
-            'cf_warn': CREST_WARN, 'cf_fault': CREST_FAULT,
+            'k_warn':       K_WARN, 'k_fault': K_FAULT,
+            'cf_warn':      CREST_WARN, 'cf_fault': CREST_FAULT,
+            'z_warn_sigma': Z_WARN_SIGMA, 'z_fault_sigma': Z_FAULT_SIGMA,
         },
         'satellites': sat_list,
     })
@@ -3350,6 +3555,7 @@ def main():
     global CREST_WARN, CREST_FAULT, _NOTIFY_WEBHOOK, _NOTIFY_EMAIL_CFG
     global _AUTH_USER, _AUTH_PASS, _FACTORY_NAME
     global _FAULT_PRIOR, _EVIDENCE_Z_MID, _bayesian_fusion
+    global Z_WARN_SIGMA, Z_FAULT_SIGMA
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -3396,6 +3602,10 @@ def main():
     parser.add_argument('--evidence-midpoint', type=float, default=3.0,
                         help='Z-score at which a channel contributes 50/50 fault '
                              'evidence (default 3.0 = 3-sigma deviation).')
+    parser.add_argument('--threshold-sigma', type=float, default=4.0,
+                        help='Adaptive z-sigma threshold for WARN from per-machine baseline '
+                             '(default 4.0; FAULT is set to this value + 2.0). '
+                             'Lower values increase sensitivity on quiet machines.')
     args = parser.parse_args()
 
     if args.crest_warn is not None:
@@ -3404,6 +3614,8 @@ def main():
         CREST_FAULT = args.crest_fault
     _FAULT_PRIOR    = args.fault_prior
     _EVIDENCE_Z_MID = args.evidence_midpoint
+    Z_WARN_SIGMA    = args.threshold_sigma
+    Z_FAULT_SIGMA   = args.threshold_sigma + 2.0
     if _FUSION_AVAILABLE:
         _bayesian_fusion = BayesianFusion(
             prior=_FAULT_PRIOR, z_mid=_EVIDENCE_Z_MID, temperature=1.0)
