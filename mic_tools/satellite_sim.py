@@ -28,11 +28,13 @@ import time
 
 # ─── Protocol constants (must match epm_protocol.h) ────────────────────────
 
-HELLO_FMT  = '<I6sBB12s'       # 24 bytes
+HELLO_FMT  = '<I6sBB12s'          # 24 bytes
 HEADER_FMT = '<IIIHHffffBfffBBx'  # 48 bytes
+V2_FMT     = '<BBHBBBB'           # 8 bytes — epm_alert_v2_t
 
-EPM_HELLO_MAGIC = 0xEA1D0000
-EPM_FRAME_MAGIC = 0xEA1DF00D
+EPM_HELLO_MAGIC    = 0xEA1D0000
+EPM_FRAME_MAGIC    = 0xEA1DF00D
+EPM_PROTO_V2_MAGIC = 0xA2         # first byte of v2 reply
 
 MIC_FS_HZ  = 16000
 MIC_BINS   = 512   # FFT_MIC_N / 2
@@ -96,6 +98,24 @@ def _gen_imu_fft(mode, axis='x'):
     return fft
 
 
+def _make_frame_custom(frame_id, kurtosis, crest, mode):
+    """Build a frame with explicit kurtosis and crest values (for ramp testing)."""
+    ts_ms   = int(time.time() * 1000) & 0xFFFFFFFF
+    mic_rms = 0.002 + kurtosis / 10000.0
+    imu_rms = 0.005 + kurtosis / 5000.0
+    hdr = struct.pack(HEADER_FMT,
+                      EPM_FRAME_MAGIC, frame_id, ts_ms,
+                      MIC_BINS, IMU_BINS,
+                      mic_rms, crest, 0.0, kurtosis, 0,
+                      imu_rms, crest * 0.9, 0.0, 0, 3)
+    mic_bytes = struct.pack(f'<{MIC_BINS}f', *_gen_mic_fft(mode))
+    imu_x     = struct.pack(f'<{IMU_BINS}f', *_gen_imu_fft(mode, 'x'))
+    imu_y     = struct.pack(f'<{IMU_BINS}f', *_gen_imu_fft(mode, 'y'))
+    imu_z     = struct.pack(f'<{IMU_BINS}f', *_gen_imu_fft(mode, 'z'))
+    payload = hdr + mic_bytes + imu_x + imu_y + imu_z
+    return struct.pack('<I', len(payload)) + payload
+
+
 def _make_frame(frame_id, mode):
     """Build a complete length-prefixed frame packet for the given fault mode."""
     ts_ms = int(time.time() * 1000) & 0xFFFFFFFF
@@ -136,9 +156,41 @@ def _make_frame(frame_id, mode):
 
 # ─── Per-satellite thread ────────────────────────────────────────────────────
 
-def _run_satellite(sat_id, host, port, mode):
-    """Connect, send hello + frames, read alert bytes. Reconnects automatically."""
-    # Build a deterministic but unique fake MAC from sat_id
+def _recv_gateway_reply(sock, tag, frame_id):
+    """Read and decode the gateway's v1 or v2 reply.  Returns (alert_name, extras_str)."""
+    try:
+        first = sock.recv(1)
+        if not first:
+            return None, None  # connection closed
+        b0 = first[0]
+
+        if b0 == EPM_PROTO_V2_MAGIC:
+            # v2 reply — read remaining 7 bytes
+            rest = b''
+            while len(rest) < 7:
+                chunk = sock.recv(7 - len(rest))
+                if not chunk:
+                    return None, None
+                rest += chunk
+            _, alert, posterior, overlap, avg_n, _, _ = struct.unpack(V2_FMT, first + rest)
+            alert_name = ALERT_MAP.get(alert, f'0x{alert:02x}')
+            p_pct = posterior / 100.0
+            extras = f'p_fault={p_pct:.1f}%  OV={overlap}%  AVG={avg_n}'
+            return alert_name, extras
+        else:
+            # v1 reply — single byte
+            alert_name = ALERT_MAP.get(b0, f'0x{b0:02x}')
+            return alert_name, '(v1)'
+    except socket.timeout:
+        return '(timeout)', ''
+
+
+def _run_satellite(sat_id, host, port, mode, ramp=False):
+    """Connect, send hello + frames, read v1/v2 reply. Reconnects automatically.
+
+    When ramp=True the satellite slowly increases kurtosis from healthy to fault
+    levels over 120 frames to exercise the adaptive-sensing closed loop.
+    """
     mac = bytes([0xAA, 0xBB, 0xCC, 0xDD, 0x00, sat_id & 0xFF])
     name_str   = f'SIM-{sat_id:02d}'
     name_bytes = name_str.encode('ascii').ljust(12, b'\x00')
@@ -147,7 +199,7 @@ def _run_satellite(sat_id, host, port, mode):
     tag      = f'[{name_str}]'
     frame_id = 0
 
-    mode_label = f' ({mode.upper()})' if mode else ''
+    mode_label = ' (RAMP)' if ramp else (f' ({mode.upper()})' if mode else '')
     print(f'{tag} Starting{mode_label}  target={host}:{port}')
 
     while True:
@@ -160,22 +212,37 @@ def _run_satellite(sat_id, host, port, mode):
             sock.sendall(hello)
             print(f'{tag} Connected')
 
+            ramp_frame = 0
             while True:
-                pkt = _make_frame(frame_id, mode)
+                # In ramp mode, linearly interpolate fault level over 120 frames
+                # then hold at fault for another 60 before recovering
+                if ramp:
+                    if ramp_frame < 120:
+                        t = ramp_frame / 120.0
+                        # Interpolate kurtosis from healthy (3) to fault (15)
+                        kurtosis = 3.0 + t * 12.0
+                        crest    = 3.0 + t * 8.0
+                        cur_mode = 'ok' if t < 0.3 else ('warn' if t < 0.6 else 'fault')
+                    elif ramp_frame < 180:
+                        kurtosis, crest, cur_mode = 15.0, 11.0, 'fault'
+                    else:
+                        ramp_frame = 0   # loop the ramp
+                        kurtosis, crest, cur_mode = 3.0, 3.0, 'ok'
+                    ramp_frame += 1
+                    pkt = _make_frame_custom(frame_id, kurtosis, crest, cur_mode)
+                else:
+                    pkt = _make_frame(frame_id, mode)
+
                 sock.sendall(pkt)
 
-                try:
-                    raw = sock.recv(1)
-                    if not raw:
-                        print(f'{tag} Gateway closed connection')
-                        break
-                    alert_name = ALERT_MAP.get(raw[0], f'0x{raw[0]:02x}')
-                    print(f'{tag} frame={frame_id:5d}  alert={alert_name}')
-                except socket.timeout:
-                    print(f'{tag} frame={frame_id:5d}  (no alert byte — gateway timeout)')
+                alert_name, extras = _recv_gateway_reply(sock, tag, frame_id)
+                if alert_name is None:
+                    print(f'{tag} Gateway closed connection')
+                    break
+                print(f'{tag} frame={frame_id:5d}  alert={alert_name}  {extras}')
 
                 frame_id += 1
-                time.sleep(0.45)  # ~2.2 fps — matches real satellite rate
+                time.sleep(0.45)
 
         except ConnectionRefusedError:
             print(f'{tag} Connection refused — is recv_verify.py running?')
@@ -188,7 +255,7 @@ def _run_satellite(sat_id, host, port, mode):
                 except OSError:
                     pass
 
-        time.sleep(2.0)  # wait before reconnect
+        time.sleep(2.0)
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
@@ -208,10 +275,14 @@ def main():
                     help='Force satellite ID to send FAULT-level data (K≈15, CF≈11)')
     ap.add_argument('--warn',  type=int, action='append', default=[], metavar='ID',
                     help='Force satellite ID to send WARN-level data  (K≈7,  CF≈6.5)')
+    ap.add_argument('--ramp',  type=int, action='append', default=[], metavar='ID',
+                    help='Ramp satellite ID from healthy→fault over 120 frames to test '
+                         'adaptive-sensing closed loop (verify overlap rises 0→50→75%%)')
     args = ap.parse_args()
 
     # Build per-satellite mode map
     modes = {}
+    ramps = set(args.ramp)
     for sid in args.fault:
         modes[sid] = 'fault'
     for sid in args.warn:
@@ -220,12 +291,14 @@ def main():
     print(f'Starting {args.n} simulated satellite(s) → {args.host}:{args.port}')
     if modes:
         print(f'Fault injection: {modes}')
+    if ramps:
+        print(f'Ramp satellites (adaptive-sensing test): {sorted(ramps)}')
 
     threads = []
     for sid in range(1, args.n + 1):
         t = threading.Thread(
             target=_run_satellite,
-            args=(sid, args.host, args.port, modes.get(sid)),
+            args=(sid, args.host, args.port, modes.get(sid), sid in ramps),
             daemon=True,
             name=f'sat-sim-{sid}')
         t.start()
