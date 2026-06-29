@@ -121,3 +121,27 @@ class ExponentialRUL:
             lambda_hat=lam,
             k0_hat=math.exp(ln_k0),
         )
+
+    # ── State persistence (for SQLite model_state table) ─────────────────────
+
+    def state_dict(self) -> dict:
+        """Return a JSON-serialisable snapshot of all Kalman filter state."""
+        return {
+            "x":         self.x.tolist(),
+            "P":         self.P.tolist(),
+            "Q":         self.Q.tolist(),
+            "R":         float(self.R),
+            "k_fail":    float(self.k_fail),
+            "t_start":   self.t_start,
+            "n_updates": self.n_updates,
+        }
+
+    def load_state_dict(self, d: dict) -> None:
+        """Restore Kalman filter state from a snapshot returned by state_dict()."""
+        self.x         = np.array(d["x"], dtype=float)
+        self.P         = np.array(d["P"], dtype=float)
+        self.Q         = np.array(d["Q"], dtype=float)
+        self.R         = float(d["R"])
+        self.k_fail    = float(d.get("k_fail", self.k_fail))
+        self.t_start   = d.get("t_start")         # None → re-initialised on next update
+        self.n_updates = int(d.get("n_updates", 0))

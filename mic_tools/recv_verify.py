@@ -88,6 +88,15 @@ try:
 except ImportError:
     AdaptiveBaseline = None  # type: ignore[assignment,misc]
 
+# Optional: SQLite-backed storage for alert events, maintenance log, and model state
+_STORAGE_AVAILABLE = False
+try:
+    from storage import Storage, rotate_old_csvs
+    _STORAGE_AVAILABLE = True
+except ImportError:
+    Storage = None          # type: ignore[assignment,misc,misc]
+    rotate_old_csvs = None  # type: ignore[assignment]
+
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
 _ML_MODEL = None   # populated by _load_ml_model() if --model is given (legacy global)
 _sat_models: dict = {}  # mac_hex → model dict; one per satellite (takes priority over global)
@@ -99,10 +108,13 @@ N_TRAIN_FRAMES = 300  # OK frames to buffer before auto-training a per-satellite
 _ALERT_HISTORY      = collections.deque(maxlen=1000)
 _ALERT_HISTORY_LOCK = threading.Lock()
 
-# ─── Maintenance log (persisted to logs/maintenance_log.json) ─────────────────
-_MAINT_LOG          = {}     # mac_hex → maintenance record dict
+# ─── SQLite storage (alert events, maintenance, model state) ──────────────────
+_storage            = None   # Storage instance, set in main() after log_dir is known
+
+# ─── Maintenance log (in-memory cache; backed by SQLite via _storage) ─────────
+_MAINT_LOG          = {}     # mac_hex → maintenance record dict (read cache)
 _MAINT_LOG_LOCK     = threading.Lock()
-_MAINT_LOG_PATH     = None   # set at startup
+_MAINT_LOG_PATH     = None   # legacy JSON path — kept for migration only
 
 # ─── Notifications ────────────────────────────────────────────────────────────
 _NOTIFY_WEBHOOK     = None   # set by --notify-webhook
@@ -321,6 +333,17 @@ def _sat_register(mac_hex, name, fw_major, fw_minor, addr):
     _load_baselines(sat)
     if _RUL_AVAILABLE and sat.rul_estimator is None:
         sat.rul_estimator = ExponentialRUL(k_fail=K_FAIL)
+    _load_rul_state(sat)
+    # Register in DB and load cached maintenance record for this MAC
+    if _storage is not None:
+        try:
+            _storage.upsert_satellite(sat.name, mac_hex)
+            maint = _storage.get_latest_maintenance(mac_hex)
+            if maint:
+                with _MAINT_LOG_LOCK:
+                    _MAINT_LOG[mac_hex] = maint
+        except Exception:
+            pass
     return sat
 
 
@@ -710,12 +733,14 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
         print(f"    Satellites active: {_sat_count()}")
         _print_sat_table()
 
-        # ── CSV log: one file per satellite per calendar day, append on reconnect ──
-        # Avoids the explosion of one-frame files when the satellite reconnects.
+        # ── CSV log: logs/csv/YYYY/MM/epm_{name}_{date}.csv, append on reconnect ──
+        # Dated subdirectory layout allows background rotation to gzip by age.
         log_dir  = os.path.join(os.path.dirname(__file__), 'logs')
-        os.makedirs(log_dir, exist_ok=True)
-        date_str = datetime.datetime.now().strftime('%Y%m%d')
-        csv_path = os.path.join(log_dir, f"epm_{name}_{date_str}.csv")
+        now_dt   = datetime.datetime.now()
+        csv_dir  = os.path.join(log_dir, 'csv', now_dt.strftime('%Y'), now_dt.strftime('%m'))
+        os.makedirs(csv_dir, exist_ok=True)
+        date_str = now_dt.strftime('%Y%m%d')
+        csv_path = os.path.join(csv_dir, f"epm_{name}_{date_str}.csv")
         is_new   = not os.path.exists(csv_path)
         csv_f    = open(csv_path, 'a', newline='')
         csv_w    = csv.writer(csv_f)
@@ -927,6 +952,8 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                                and len(sat.ml_buf) >= N_TRAIN_FRAMES)
                 _should_save_hst = (sat.hst_detector is not None
                                     and sat.frame_count % 500 == 0)
+                _should_save_rul = (sat.rul_estimator is not None
+                                    and sat.frame_count % 500 == 0)
                 _should_save_baseline = (
                     sat.ab_kurtosis is not None
                     and alert == EPM_ALERT_OK
@@ -937,6 +964,8 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 _trigger_sat_training(sat)
             if _should_save_hst:
                 _save_hst_state(sat)
+            if _should_save_rul:
+                _save_rul_state(sat)
             if _should_save_baseline:
                 _save_baselines(sat)
 
@@ -1201,17 +1230,24 @@ def _baselines_path(sat) -> str:
 
 
 def _save_baselines(sat) -> None:
-    """Persist all four adaptive baselines for one satellite to JSON."""
+    """Persist all four adaptive baselines — SQLite primary, JSON file fallback."""
     if sat.ab_kurtosis is None:
         return
+    state = {
+        'kurtosis': sat.ab_kurtosis.state_dict(),
+        'crest':    sat.ab_crest.state_dict(),
+        'rms':      sat.ab_rms.state_dict(),
+        'hb':       sat.ab_hb.state_dict(),
+        'saved_at': time.time(),
+    }
+    if _storage is not None:
+        try:
+            _storage.save_model_state(sat.name, 'baselines', state)
+            return
+        except Exception as e:
+            print(f'[baseline] [{sat.name}] DB save failed: {e} — falling back to JSON')
+    # Fallback: write to model/baselines_{mac}.json
     try:
-        state = {
-            'kurtosis': sat.ab_kurtosis.state_dict(),
-            'crest':    sat.ab_crest.state_dict(),
-            'rms':      sat.ab_rms.state_dict(),
-            'hb':       sat.ab_hb.state_dict(),
-            'saved_at': time.time(),
-        }
         with open(_baselines_path(sat), 'w') as f:
             json.dump(state, f)
     except Exception as e:
@@ -1219,15 +1255,27 @@ def _save_baselines(sat) -> None:
 
 
 def _load_baselines(sat) -> None:
-    """Restore adaptive baselines from JSON if a saved file exists."""
+    """Restore adaptive baselines — SQLite primary, JSON file migration fallback."""
     if sat.ab_kurtosis is None:
         return
-    path = _baselines_path(sat)
-    if not os.path.exists(path):
+    state = None
+    if _storage is not None:
+        try:
+            state = _storage.load_model_state(sat.name, 'baselines')
+        except Exception as e:
+            print(f'[baseline] [{sat.name}] DB load failed: {e}')
+    # Migration fallback: read legacy JSON file if DB has no entry yet
+    if state is None:
+        path = _baselines_path(sat)
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    state = json.load(f)
+            except Exception:
+                pass
+    if state is None:
         return
     try:
-        with open(path) as f:
-            state = json.load(f)
         sat.ab_kurtosis.load_state_dict(state['kurtosis'])
         sat.ab_crest.load_state_dict(state['crest'])
         sat.ab_rms.load_state_dict(state['rms'])
@@ -1237,7 +1285,34 @@ def _load_baselines(sat) -> None:
               f'kurt_mean={sat.ab_kurtosis.mean:.3f}, '
               f'kurt_std={sat.ab_kurtosis.std:.3f})')
     except Exception as e:
-        print(f'[baseline] [{sat.name}] Could not load {path}: {e} — starting fresh')
+        print(f'[baseline] [{sat.name}] Could not load state: {e} — starting fresh')
+
+
+# ─── Kalman RUL state persistence ────────────────────────────────────────────
+
+def _save_rul_state(sat) -> None:
+    """Persist RUL Kalman filter state to SQLite (called every 500 frames)."""
+    if _storage is None or sat.rul_estimator is None:
+        return
+    try:
+        _storage.save_model_state(sat.name, 'rul', sat.rul_estimator.state_dict())
+    except Exception as e:
+        print(f'[rul] [{sat.name}] DB save failed: {e}')
+
+
+def _load_rul_state(sat) -> None:
+    """Restore RUL Kalman filter state from SQLite if available."""
+    if _storage is None or sat.rul_estimator is None:
+        return
+    try:
+        state = _storage.load_model_state(sat.name, 'rul')
+        if state is not None:
+            sat.rul_estimator.load_state_dict(state)
+            print(f'[rul] [{sat.name}] Resumed Kalman RUL '
+                  f'(n={sat.rul_estimator.n_updates} frames, '
+                  f'lam={sat.rul_estimator.x[1]:.6f})')
+    except Exception as e:
+        print(f'[rul] [{sat.name}] Could not load RUL state: {e} — starting fresh')
 
 
 def _trigger_sat_training(sat):
@@ -2589,24 +2664,36 @@ setInterval(()=>{if($('pane-alerts').classList.contains('active'))loadAlerts();}
 # ─── Alert history ────────────────────────────────────────────────────────────
 
 def _log_alert_event(sat_name, mac_hex, new_alert, prev_alert, kurtosis, crest, z_score):
-    """Append a state-change event to the in-memory audit trail."""
+    """Append a state-change event to the in-memory audit trail and SQLite DB."""
     labels = ['OK', 'WARN', 'FAULT']
+    from_lbl = labels[min(prev_alert, 2)]
+    to_lbl   = labels[min(new_alert, 2)]
     event = {
         'time':      time.time(),
         'satellite': sat_name,
         'mac':       mac_hex,
-        'alert':     labels[min(new_alert, 2)],
-        'prev':      labels[min(prev_alert, 2)],
+        'alert':     to_lbl,
+        'prev':      from_lbl,
         'kurtosis':  round(kurtosis, 2),
         'crest':     round(crest, 2),
         'z_score':   round(z_score, 1),
     }
     with _ALERT_HISTORY_LOCK:
         _ALERT_HISTORY.appendleft(event)
+    # Persist to SQLite (non-blocking; autocommit connection)
+    if _storage is not None:
+        try:
+            _storage.log_alert(
+                sat_name, from_lbl, to_lbl, 0.0,
+                f'K={kurtosis:.2f} CF={crest:.2f} z={z_score:.1f}',
+            )
+        except Exception:
+            pass
 
 
 def _log_drift_event(sat_name, mac_hex, n_samples):
-    """Append a BASELINE_REFRESH event to the audit trail."""
+    """Append a BASELINE_REFRESH event to the audit trail and SQLite DB."""
+    detail = f'Concept drift — baseline refreshed from {n_samples} OK frames'
     event = {
         'time':       time.time(),
         'satellite':  sat_name,
@@ -2617,10 +2704,16 @@ def _log_drift_event(sat_name, mac_hex, n_samples):
         'kurtosis':   0.0,
         'crest':      0.0,
         'z_score':    0.0,
-        'detail':     f'Concept drift — baseline refreshed from {n_samples} OK frames',
+        'detail':     detail,
     }
     with _ALERT_HISTORY_LOCK:
         _ALERT_HISTORY.appendleft(event)
+    if _storage is not None:
+        try:
+            _storage.log_alert(sat_name, 'OK', 'INFO', 0.0,
+                               f'BASELINE_REFRESH: {detail}')
+        except Exception:
+            pass
 
 
 def _recompute_z_baseline(sat, feat_buf) -> None:
@@ -2646,25 +2739,45 @@ def _recompute_z_baseline(sat, feat_buf) -> None:
 # ─── Maintenance log ──────────────────────────────────────────────────────────
 
 def _load_maint_log(path):
+    """Load maintenance records from SQLite (primary) or JSON file (migration fallback)."""
     global _MAINT_LOG, _MAINT_LOG_PATH
     _MAINT_LOG_PATH = path
+    # Primary: SQLite — populated by _storage.get_all_maintenance() at startup
+    if _storage is not None:
+        try:
+            with _MAINT_LOG_LOCK:
+                _MAINT_LOG = _storage.get_all_maintenance()
+            if _MAINT_LOG:
+                print(f'[maint] Loaded {len(_MAINT_LOG)} maintenance record(s) from DB')
+                return
+        except Exception as e:
+            print(f'[maint] WARNING: could not read DB: {e}')
+    # Fallback: legacy maintenance_log.json (one-time migration path)
     if os.path.exists(path):
         try:
             with open(path) as f:
-                _MAINT_LOG = json.load(f)
-            print(f'[maint] Loaded {len(_MAINT_LOG)} maintenance record(s)')
+                data = json.load(f)
+            with _MAINT_LOG_LOCK:
+                _MAINT_LOG = data
+            print(f'[maint] Loaded {len(_MAINT_LOG)} maintenance record(s) from JSON '
+                  f'(run migrate_json_to_sqlite.py to migrate permanently)')
         except Exception as e:
             print(f'[maint] WARNING: could not read {path}: {e}')
             _MAINT_LOG = {}
 
 
 def _save_maint_log():
+    """Writes to SQLite via _storage; JSON fallback kept for environments without DB."""
+    # SQLite writes happen directly in the POST handler via _storage.log_maintenance()
+    # This function is retained for the no-storage fallback path only.
+    if _storage is not None:
+        return
     if _MAINT_LOG_PATH:
         try:
             with open(_MAINT_LOG_PATH, 'w') as f:
                 json.dump(_MAINT_LOG, f, indent=2)
         except Exception as e:
-            print(f'[maint] WARNING: save failed: {e}')
+            print(f'[maint] WARNING: JSON save failed: {e}')
 
 
 # ─── Notifications ────────────────────────────────────────────────────────────
@@ -3431,10 +3544,16 @@ class _DashHandler(BaseHTTPRequestHandler):
                 self._send(200, 'application/json', json.dumps(_MAINT_LOG))
 
         elif path == '/api/export':
-            name    = qs.get('name', [''])[0]
-            log_dir = os.path.join(os.path.dirname(__file__), 'logs')
-            pattern = f'epm_{name}_*.csv' if name else 'epm_*.csv'
-            files   = sorted(glob.glob(os.path.join(log_dir, pattern)), reverse=True)
+            name     = qs.get('name', [''])[0]
+            log_dir  = os.path.join(os.path.dirname(__file__), 'logs')
+            csv_root = os.path.join(log_dir, 'csv')
+            pattern  = f'epm_{name}_*.csv' if name else 'epm_*.csv'
+            # Search new dated-subdirectory tree first, then legacy flat logs/ dir
+            files = sorted(
+                glob.glob(os.path.join(csv_root, '**', pattern), recursive=True)
+                + glob.glob(os.path.join(log_dir, pattern)),
+                reverse=True,
+            )
             if files:
                 self._send_file(files[0], 'text/csv', os.path.basename(files[0]))
             else:
@@ -3510,7 +3629,20 @@ class _DashHandler(BaseHTTPRequestHandler):
                 }
                 with _MAINT_LOG_LOCK:
                     _MAINT_LOG[mac] = record
-                _save_maint_log()
+                # Persist to SQLite (primary) or JSON fallback
+                if _storage is not None:
+                    try:
+                        _storage.log_maintenance(
+                            mac,
+                            record['technician'],
+                            record['maint_type'],
+                            json.dumps(record),   # full record as JSON in notes field
+                        )
+                    except Exception as e:
+                        print(f'[maint] DB write failed: {e}')
+                        _save_maint_log()
+                else:
+                    _save_maint_log()
                 # Reset baseline so the satellite re-calibrates on known-good
                 # post-service data rather than pre-service degraded data.
                 with _sat_lock:
@@ -3559,7 +3691,7 @@ def main():
     global CREST_WARN, CREST_FAULT, _NOTIFY_WEBHOOK, _NOTIFY_EMAIL_CFG
     global _AUTH_USER, _AUTH_PASS, _FACTORY_NAME
     global _FAULT_PRIOR, _EVIDENCE_Z_MID, _bayesian_fusion
-    global Z_WARN_SIGMA, Z_FAULT_SIGMA
+    global Z_WARN_SIGMA, Z_FAULT_SIGMA, _storage
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -3683,10 +3815,34 @@ def main():
     if args.model:
         _load_ml_model(args.model)
 
-    # ── Load maintenance log from disk ────────────────────────────────────────
+    # ── SQLite storage ────────────────────────────────────────────────────────
+    global _storage
     log_dir = os.path.join(os.path.dirname(__file__), 'logs')
     os.makedirs(log_dir, exist_ok=True)
+    if _STORAGE_AVAILABLE:
+        try:
+            _storage = Storage(os.path.join(log_dir, 'epm.db'))
+            print(f'[storage] SQLite DB: {os.path.join(log_dir, "epm.db")}  (WAL mode)')
+        except Exception as e:
+            print(f'[storage] WARNING: could not open DB: {e} — using JSON fallback')
+
+    # ── Load maintenance log (from SQLite or legacy JSON) ─────────────────────
     _load_maint_log(os.path.join(log_dir, 'maintenance_log.json'))
+
+    # ── CSV rotation background thread — gzip files older than 90 days ────────
+    if _STORAGE_AVAILABLE and rotate_old_csvs is not None:
+        def _csv_rotation_loop():
+            csv_root = os.path.join(log_dir, 'csv')
+            while True:
+                time.sleep(3600)   # check hourly
+                try:
+                    n = rotate_old_csvs(csv_root, max_age_days=90)
+                    if n:
+                        print(f'[csv-rotation] Gzipped {n} CSV file(s) older than 90 days')
+                except Exception as e:
+                    print(f'[csv-rotation] Error: {e}')
+        threading.Thread(target=_csv_rotation_loop, daemon=True,
+                         name='csv-rotation').start()
 
     print("EPM gateway — multi-satellite predictive maintenance receiver")
     print(f"Factory: {_FACTORY_NAME}")
