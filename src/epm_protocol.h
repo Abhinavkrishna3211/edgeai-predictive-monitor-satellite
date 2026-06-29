@@ -1,7 +1,8 @@
 /*
  * epm_protocol.h — Binary wire-format for EPM TCP frames.
  *
- * On-wire layout (little-endian):
+ * PLAINTEXT on-wire layout (little-endian, default when EPM_ENCRYPT_FRAMES is
+ * not defined — dev/debug only):
  *
  *   [uint32_t payload_bytes]          4 bytes  ← does NOT count itself
  *   [epm_header_t]                   48 bytes
@@ -10,7 +11,24 @@
  *   [float imu_y_fft[imu_bins]]       imu_bins × 4 bytes  (radial B)
  *   [float imu_z_fft[imu_bins]]       imu_bins × 4 bytes  (axial)
  *
- * payload_bytes = sizeof(epm_header_t)
+ * ENCRYPTED on-wire layout (when EPM_ENCRYPT_FRAMES is defined — default):
+ *
+ *   [uint32_t payload_bytes]         4 bytes  = 12 (IV) + plaintext_len + 16 (tag)
+ *   [uint8_t  iv[12]]               12 bytes  AES-128-GCM nonce, TRNG-generated per frame
+ *   [uint8_t  ciphertext[N]]         N bytes  AES-128-GCM encrypted epm_header_t + FFT data
+ *   [uint8_t  tag[16]]              16 bytes  GCM authentication tag
+ *
+ * The Hello packet (epm_hello_t) is always sent plaintext — it carries no
+ * sensor data and must be readable for initial protocol negotiation.
+ *
+ * AES-128-GCM properties:
+ *   - Authenticated encryption: any bitflip in ciphertext causes tag verification
+ *     failure — injected frames are cryptographically rejected.
+ *   - The epm_header_t.frame_id inside the authenticated ciphertext provides
+ *     replay protection: the gateway rejects any frame where frame_id decreases
+ *     within a TCP connection and logs a SECURITY event.
+ *
+ * payload_bytes (plaintext) = sizeof(epm_header_t)
  *               + mic_bins  * 4
  *               + imu_bins  * 4 * imu_axes          (imu_axes = 3)
  *

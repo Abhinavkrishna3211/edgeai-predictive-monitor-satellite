@@ -42,5 +42,16 @@ onnxruntime>=1.17.0
 # updates every frame without retraining batch jobs.
 river>=0.21.0
 
+# ── AES-128-GCM frame decryption (matches satellite EPM_ENCRYPT_FRAMES) ──────
+# Decrypts the per-frame AES-GCM envelope produced by the ESP32-S3 hardware
+# AES accelerator.  Required when --psk-hex is passed to recv_verify.py.
+# Uses only the hazmat AEAD primitive — no RSA, no X.509, no TLS overhead.
+cryptography>=42.0.0
+
+# ── mDNS service advertisement — satellites auto-discover the gateway ─────────
+# Registers _epm-gateway._tcp.local. so satellites can find the gateway IP
+# without a hardcoded SERVER_IP.  Pure-Python, zero native dependencies.
+zeroconf>=0.131.0
+
 # ── Optional: serial port (legacy plot_mic.py) ────────────────────────────────
 # pyserial>=3.5

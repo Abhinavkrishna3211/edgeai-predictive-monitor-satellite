@@ -97,6 +97,24 @@ except ImportError:
     Storage = None          # type: ignore[assignment,misc,misc]
     rotate_old_csvs = None  # type: ignore[assignment]
 
+# Optional: AES-128-GCM frame decryption (cryptography>=42.0.0)
+_CRYPTO_AVAILABLE = False
+try:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    _CRYPTO_AVAILABLE = True
+except ImportError:
+    AESGCM = None  # type: ignore[assignment,misc]
+
+# Optional: mDNS gateway advertisement (zeroconf>=0.131.0)
+_MDNS_AVAILABLE = False
+_zc_instance   = None   # Zeroconf instance, kept alive for unregister on exit
+try:
+    from zeroconf import ServiceInfo, Zeroconf
+    _MDNS_AVAILABLE = True
+except ImportError:
+    ServiceInfo = None  # type: ignore[assignment,misc]
+    Zeroconf    = None  # type: ignore[assignment,misc]
+
 # Optional: ML inference (scikit-learn — install with: pip install scikit-learn joblib)
 _ML_MODEL = None   # populated by _load_ml_model() if --model is given (legacy global)
 _sat_models: dict = {}  # mac_hex → model dict; one per satellite (takes priority over global)
@@ -121,6 +139,9 @@ _NOTIFY_WEBHOOK     = None   # set by --notify-webhook
 _NOTIFY_EMAIL_CFG   = None   # set by --notify-email
 _NOTIFY_COOLDOWN    = {}     # mac_hex → epoch of last notification sent
 _NOTIFY_COOLDOWN_S  = 300    # 5 min minimum between alerts per satellite
+
+# ─── Encryption / security ────────────────────────────────────────────────────
+_decryptor          = None   # FrameDecryptor instance, set in main() when --psk-hex given
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 _AUTH_USER          = None   # set by --auth user:pass
@@ -400,6 +421,80 @@ class _DisplayState:
 
 
 _display = _DisplayState()
+
+# ─── Network helpers ──────────────────────────────────────────────────────────
+
+def get_local_ip() -> str:
+    """Return the primary non-loopback IPv4 address of this host."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return '127.0.0.1'
+
+
+# ─── AES-128-GCM frame decryption ─────────────────────────────────────────────
+
+class FrameDecryptor:
+    """Decrypts AES-128-GCM encrypted EPM frames produced by the satellite firmware.
+
+    Wire format (after the uint32_t payload_bytes length prefix):
+        iv[12]           AES-GCM nonce (TRNG-generated per frame on satellite)
+        ciphertext[N]    encrypted epm_header_t + FFT arrays
+        tag[16]          GCM authentication tag
+
+    The `cryptography` library combines ciphertext and tag as `ciphertext||tag`
+    for its decrypt() call — FrameDecryptor handles the split transparently.
+    """
+    def __init__(self, psk_bytes: bytes):
+        if not _CRYPTO_AVAILABLE:
+            raise RuntimeError("cryptography package not installed — run: pip install 'cryptography>=42.0.0'")
+        if len(psk_bytes) != 16:
+            raise ValueError(f"PSK must be exactly 16 bytes (AES-128), got {len(psk_bytes)}")
+        self._aes = AESGCM(psk_bytes)
+
+    def decrypt(self, blob: bytes) -> bytes:
+        """Decrypt a payload blob = iv[12] + ciphertext[N] + tag[16].
+
+        Returns the plaintext bytes on success.
+        Raises an exception (InvalidTag) if authentication fails — caller logs SECURITY.
+        """
+        if len(blob) < 12 + 16:
+            raise ValueError(f"encrypted blob too short ({len(blob)} bytes)")
+        iv         = blob[:12]
+        tag        = blob[-16:]
+        ciphertext = blob[12:-16]
+        return self._aes.decrypt(iv, ciphertext + tag, None)
+
+
+# ─── Security event logging ────────────────────────────────────────────────────
+
+def _log_security_event(sat_name: str, mac_hex: str, detail: str):
+    """Append a SECURITY event to the audit trail and SQLite DB."""
+    event = {
+        'time':       time.time(),
+        'satellite':  sat_name,
+        'mac':        mac_hex,
+        'event_type': 'SECURITY',
+        'alert':      'SECURITY',
+        'prev':       'OK',
+        'kurtosis':   0.0,
+        'crest':      0.0,
+        'z_score':    0.0,
+        'detail':     detail,
+    }
+    with _ALERT_HISTORY_LOCK:
+        _ALERT_HISTORY.appendleft(event)
+    if _storage is not None:
+        try:
+            _storage.log_alert(sat_name, 'OK', 'SECURITY', 0.0, f'SECURITY: {detail}')
+        except Exception:
+            pass
+    print(f"[SECURITY] {sat_name} ({mac_hex}): {detail}")
+
 
 # ─── TCP helpers ──────────────────────────────────────────────────────────────
 
@@ -761,27 +856,50 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
         print(f"    Logging to: {csv_path}  ({'new' if is_new else 'append'})")
 
         # Maximum valid payload: header + mic FFT + 3 × IMU FFT + 1 KB margin.
+        # In encrypted mode, add 12 (IV) + 16 (tag) overhead.
         # Guards against a malicious/buggy satellite sending a huge length prefix
         # that would cause recv_exact to try to allocate gigabytes.
-        max_payload = (HEADER_SIZE
-                       + exp_mic_bins * 4
-                       + exp_imu_bins * 4 * 3
-                       + 1024)
+        _plaintext_len = HEADER_SIZE + exp_mic_bins * 4 + exp_imu_bins * 4 * 3
+        max_payload = (_plaintext_len + 12 + 16 + 1024)
 
         # Per-connection streak counters — kept as local variables so mutations
         # never race with the dashboard HTTP reader (all sat writes go through lock).
-        warn_streak = 0
-        ok_streak   = 0
-        sent_alert  = EPM_ALERT_OK
+        warn_streak    = 0
+        ok_streak      = 0
+        sent_alert     = EPM_ALERT_OK
+        last_frame_id  = -1   # replay protection: must be monotonically increasing
 
         while True:
             (payload_bytes,) = struct.unpack('<I', recv_exact(conn, 4))
-            if payload_bytes < HEADER_SIZE or payload_bytes > max_payload:
+            # Accept either plaintext or encrypted payload sizes
+            min_size = HEADER_SIZE if _decryptor is None else (12 + HEADER_SIZE + 16)
+            if payload_bytes < min_size or payload_bytes > max_payload:
                 raise ValueError(
                     f"payload_bytes={payload_bytes} out of valid range "
-                    f"[{HEADER_SIZE}..{max_payload}]")
-            raw   = recv_exact(conn, payload_bytes)
+                    f"[{min_size}..{max_payload}]")
+            raw = recv_exact(conn, payload_bytes)
+
+            # ── AES-128-GCM decryption (if gateway started with --psk-hex) ──────
+            if _decryptor is not None:
+                try:
+                    raw = _decryptor.decrypt(raw)
+                except Exception as exc:
+                    _log_security_event(
+                        sat.name, mac_hex,
+                        f"GCM tag verification failed on frame — possible key mismatch "
+                        f"or injected data ({exc})")
+                    continue   # keep connection; satellite can retry after reboot
+
             frame = parse_frame(raw, exp_mic_bins, exp_imu_bins)
+
+            # ── Replay protection: frame_id must not decrease within a connection ──
+            fid = frame.get('frame_id', 0)
+            if last_frame_id >= 0 and fid <= last_frame_id:
+                _log_security_event(
+                    sat.name, mac_hex,
+                    f"Replay detected: frame_id {fid} <= last seen {last_frame_id}")
+                continue
+            last_frame_id = fid
 
             now   = time.time()
             fps   = sat.rolling_fps(now)
@@ -3827,6 +3945,13 @@ def main():
                         help='Adaptive z-sigma threshold for WARN from per-machine baseline '
                              '(default 4.0; FAULT is set to this value + 2.0). '
                              'Lower values increase sensitivity on quiet machines.')
+    parser.add_argument('--psk-hex', type=str, default=None,
+                        metavar='HEX32',
+                        help='32-character hex AES-128 key for frame decryption '
+                             '(e.g. deadbeefdeadbeefdeadbeefdeadbeef). '
+                             'Must match EPM_PSK in wifi_creds.h or the NVS key on satellites. '
+                             'Also readable from the EPM_PSK env-var. '
+                             'Omit to run in plaintext mode (dev/debug only).')
     args = parser.parse_args()
 
     if args.crest_warn is not None:
@@ -3928,6 +4053,47 @@ def main():
                     print(f'[csv-rotation] Error: {e}')
         threading.Thread(target=_csv_rotation_loop, daemon=True,
                          name='csv-rotation').start()
+
+    # ── AES-128-GCM frame decryption ──────────────────────────────────────────
+    global _decryptor
+    psk_hex = args.psk_hex or os.environ.get('EPM_PSK')
+    if psk_hex:
+        if not _CRYPTO_AVAILABLE:
+            sys.exit('[crypto] ERROR: --psk-hex requires the cryptography package: '
+                     'pip install "cryptography>=42.0.0"')
+        psk_hex = psk_hex.strip()
+        if len(psk_hex) != 32 or not all(c in '0123456789abcdefABCDEF' for c in psk_hex):
+            sys.exit(f'[crypto] ERROR: --psk-hex must be exactly 32 hex characters (got {len(psk_hex)})')
+        _decryptor = FrameDecryptor(bytes.fromhex(psk_hex))
+        print(f'[crypto] AES-128-GCM decryption enabled — PSK: {psk_hex[:8]}...{psk_hex[-4:]} '
+              f'(all {len(psk_hex)//2} bytes)')
+    else:
+        print('[crypto] Plaintext mode — pass --psk-hex or set EPM_PSK env-var to enable '
+              'AES-128-GCM encryption (required for production)')
+
+    # ── mDNS service advertisement ─────────────────────────────────────────────
+    global _zc_instance
+    if _MDNS_AVAILABLE:
+        try:
+            my_ip = get_local_ip()
+            zc    = Zeroconf()
+            info  = ServiceInfo(
+                type_     = '_epm-gateway._tcp.local.',
+                name      = 'EPM-Gateway._epm-gateway._tcp.local.',
+                addresses = [socket.inet_aton(my_ip)],
+                port      = args.port,
+                properties= {'version': '2.0', 'factory': _FACTORY_NAME},
+                server    = 'epm-gateway.local.',
+            )
+            zc.register_service(info)
+            _zc_instance = zc
+            print(f'[mDNS] Advertised: epm-gateway.local:{args.port} -> {my_ip}')
+            print('[mDNS] Satellites will auto-discover the gateway (SERVER_IP becomes optional)')
+        except Exception as e:
+            print(f'[mDNS] WARNING: registration failed ({e}) — satellites must use static SERVER_IP')
+    else:
+        print('[mDNS] zeroconf not installed — satellites must use static SERVER_IP. '
+              'Install: pip install "zeroconf>=0.131.0"')
 
     print("EPM gateway — multi-satellite predictive maintenance receiver")
     print(f"Factory: {_FACTORY_NAME}")
