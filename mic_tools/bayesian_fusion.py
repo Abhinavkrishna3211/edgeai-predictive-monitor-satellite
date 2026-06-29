@@ -97,3 +97,19 @@ class BayesianFusion:
         if den <= 0.0:
             return float(self.prior)
         return float(num / den)
+
+    def attribute(self, z_scores: dict, top_k: int = 3) -> list:
+        """Return top-k features by their logit contribution to the fused posterior.
+
+        Contribution = log L_i - log(1-L_i) = (z_i - z_mid) / temperature.
+        Positive values push toward FAULT; negative toward healthy.
+        Sorted descending so the strongest fault drivers come first.
+        """
+        contribs = []
+        for name, z in z_scores.items():
+            if isinstance(z, float) and math.isnan(z):
+                continue
+            logit_contrib = (z - self.z_mid) / self.temperature
+            contribs.append((name, float(logit_contrib)))
+        contribs.sort(key=lambda x: x[1], reverse=True)
+        return contribs[:top_k]
