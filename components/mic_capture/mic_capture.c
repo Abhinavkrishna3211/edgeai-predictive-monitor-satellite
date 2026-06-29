@@ -20,8 +20,10 @@
 
 #include "mic_capture.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
 #include "driver/i2s_std.h"
 #include "driver/gpio.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include <math.h>
 #include <string.h>
@@ -30,8 +32,93 @@ static const char *TAG = "mic_capture";
 
 static i2s_chan_handle_t s_rx_chan = NULL;
 
+/* ── PSRAM pre-trigger ring buffer ──────────────────────────────────────────
+ * 4 seconds × 16000 Hz × 2 bytes = 128 KB.  int16_t truncation (raw >> 16)
+ * keeps the 16 most-significant bits — equivalent to 96 dB dynamic range.
+ */
+#define SNAPSHOT_SAMPLES  (4u * MIC_SAMPLE_RATE_HZ)
+
+static int16_t         *s_ring_buf   = NULL;
+static volatile size_t  s_ring_head  = 0;   /* next write position (mod SNAPSHOT_SAMPLES) */
+static volatile size_t  s_ring_count = 0;   /* valid samples, capped at SNAPSHOT_SAMPLES */
+static portMUX_TYPE     s_ring_mux   = portMUX_INITIALIZER_UNLOCKED;
+
+void snapshot_init(void)
+{
+    s_ring_buf = heap_caps_malloc(SNAPSHOT_SAMPLES * sizeof(int16_t), MALLOC_CAP_SPIRAM);
+    if (!s_ring_buf) {
+        ESP_LOGW(TAG, "PSRAM unavailable — pre-trigger ring buffer disabled");
+    } else {
+        ESP_LOGI(TAG, "PSRAM ring buffer: %u samples (%.0f s)",
+                 (unsigned)SNAPSHOT_SAMPLES,
+                 (float)SNAPSHOT_SAMPLES / MIC_SAMPLE_RATE_HZ);
+    }
+}
+
+static void snapshot_push_block(const int32_t *dma_raw, size_t n)
+{
+    if (!s_ring_buf || n == 0) return;
+    if (n > SNAPSHOT_SAMPLES) n = SNAPSHOT_SAMPLES;
+
+    size_t head = s_ring_head;  /* local snapshot before writing */
+    for (size_t i = 0; i < n; i++) {
+        s_ring_buf[(head + i) % SNAPSHOT_SAMPLES] = (int16_t)(dma_raw[i] >> 16);
+    }
+
+    portENTER_CRITICAL(&s_ring_mux);
+    s_ring_head = (s_ring_head + n) % SNAPSHOT_SAMPLES;
+    if (s_ring_count < SNAPSHOT_SAMPLES) {
+        s_ring_count += n;
+        if (s_ring_count > SNAPSHOT_SAMPLES) s_ring_count = SNAPSHOT_SAMPLES;
+    }
+    portEXIT_CRITICAL(&s_ring_mux);
+}
+
+size_t snapshot_count(void)
+{
+    portENTER_CRITICAL(&s_ring_mux);
+    size_t c = s_ring_count;
+    portEXIT_CRITICAL(&s_ring_mux);
+    return c;
+}
+
+size_t snapshot_read_chunk(size_t chunk_byte_offset, void *dst, size_t nbytes)
+{
+    if (!s_ring_buf || !dst || nbytes == 0) return 0;
+
+    portENTER_CRITICAL(&s_ring_mux);
+    size_t count = s_ring_count;
+    size_t head  = s_ring_head;
+    portEXIT_CRITICAL(&s_ring_mux);
+
+    size_t total_bytes = count * sizeof(int16_t);
+    if (chunk_byte_offset >= total_bytes) return 0;
+
+    size_t avail = total_bytes - chunk_byte_offset;
+    if (nbytes > avail) nbytes = avail;
+
+    /* Oldest sample sits at (head - count) mod SNAPSHOT_SAMPLES */
+    size_t oldest_idx    = (head + SNAPSHOT_SAMPLES - count) % SNAPSHOT_SAMPLES;
+    size_t sample_offset = chunk_byte_offset / sizeof(int16_t);
+    size_t start_idx     = (oldest_idx + sample_offset) % SNAPSHOT_SAMPLES;
+    size_t samples_total = nbytes / sizeof(int16_t);
+
+    int16_t *d = (int16_t *)dst;
+    size_t   copied = 0;
+    while (copied < samples_total) {
+        size_t pos          = (start_idx + copied) % SNAPSHOT_SAMPLES;
+        size_t avail_to_end = SNAPSHOT_SAMPLES - pos;
+        size_t remaining    = samples_total - copied;
+        size_t seg          = (remaining < avail_to_end) ? remaining : avail_to_end;
+        memcpy(d + copied, s_ring_buf + pos, seg * sizeof(int16_t));
+        copied += seg;
+    }
+    return samples_total * sizeof(int16_t);
+}
+
 esp_err_t mic_capture_init(void)
 {
+    snapshot_init();
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(MIC_I2S_PORT, I2S_ROLE_MASTER);
 
     // ESP32-S3 DMA descriptor max is 4092 bytes = 1023 samples at 32-bit.
@@ -83,8 +170,7 @@ esp_err_t mic_capture_init(void)
     return ESP_OK;
 }
 
-/* Call from mic_task_fn() running on CPU1 so the I2S DMA interrupt is
- * allocated to CPU1, away from the WiFi driver task on CPU0. */
+/* Call from mic_task_fn() running on CPU0. */
 esp_err_t mic_capture_enable(void)
 {
     esp_err_t err = i2s_channel_enable(s_rx_chan);
@@ -115,6 +201,8 @@ esp_err_t mic_capture_read_block(int32_t *out_raw, float *out_normalized,
         return err;
     }
     size_t n = got_bytes / sizeof(int32_t);
+
+    snapshot_push_block(raw_buf, n);
 
     if (got_bytes != want_bytes) {
         ESP_LOGW(TAG, "short read: got %u of %u bytes — zero-padding remainder",

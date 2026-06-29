@@ -1,10 +1,11 @@
 /*
  * main.c — EPM (EdgeAI Predictive Monitor) entry point.
  *
- * Initialises system services and starts the three FreeRTOS tasks:
- *   mic_task  — I2S capture + FFT (FFT_MIC_N pt, SPEC_AVG_N avg)
- *   imu_task  — KX134 stub/driver + FFT (FFT_IMU_N pt, SPEC_AVG_N avg)
- *   wifi_task — waits for both queues, TCP-sends concatenated FFT payload
+ * Initialises system services and starts the FreeRTOS tasks:
+ *   mic_task  — I2S DMA capture, core 0
+ *   dsp_task  — Welch/Hann/FFT pipeline (FFT_MIC_N pt, SPEC_AVG_N avg), core 1
+ *   imu_task  — KX134 stub/driver + FFT (FFT_IMU_N pt, SPEC_AVG_N avg), core 0
+ *   wifi_task — drains dsp+imu queues, TCP-sends EPM frames, core 0
  *
  * NVS flash must be initialised before WiFi (esp_wifi_init internally
  * reads/writes NVS calibration data).
@@ -27,6 +28,7 @@
 #include "epm_config.h"
 #include "led_task.h"
 #include "mic_task.h"
+#include "dsp_task.h"
 #include "imu_task.h"
 #include "wifi_task.h"
 
@@ -72,10 +74,13 @@ void app_main(void)
         ESP_LOGW(TAG, "WiFi not connected after 30 s — starting DSP anyway");
     }
 
-    /* --- Start DSP tasks (I2S DMA arms here, WiFi already connected) --- */
+    /* --- Start tasks ---
+     * Core 0: mic (I2S DMA), imu (stub/SPI), wifi (TCP)
+     * Core 1: dsp (FFT + features, uninterrupted by radio ISRs)          */
     mic_task_start();
+    dsp_task_start(mic_task_get_raw_queue());
     imu_task_start();
-    wifi_task_start(mic_task_get_queue(), imu_task_get_queue());
+    wifi_task_start(dsp_task_get_queue(), imu_task_get_queue());
 
     ESP_LOGI(TAG, "EPM: mic=%d-pt imu=%d-pt avg=%d | %s:%d",
              FFT_MIC_N, FFT_IMU_N, SPEC_AVG_N, SERVER_IP, SERVER_PORT);

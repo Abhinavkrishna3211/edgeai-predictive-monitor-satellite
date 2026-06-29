@@ -41,11 +41,13 @@
 #include "mdns.h"
 #include "mbedtls/gcm.h"
 #include "esp_random.h"
+#include "esp_pm.h"
 
 #include "epm_config.h"
 #include "epm_protocol.h"
 #include "led_task.h"
 #include "wifi_task.h"
+#include "mic_capture.h"  /* snapshot_count(), snapshot_read_chunk() */
 
 /* ---------- module constants ---------- */
 
@@ -434,6 +436,32 @@ static bool send_frame(int sock, const epm_header_t *hdr)
 #endif
 }
 
+/* Send the PSRAM pre-trigger ring buffer to the gateway as a raw int16_t
+ * stream prefixed by a uint32_t byte count.  Sent in 4 KB chunks to avoid
+ * allocating a 128 KB contiguous stack buffer. */
+static bool snapshot_send_tcp(int sock)
+{
+    size_t count = snapshot_count();
+    if (count == 0) {
+        ESP_LOGW(TAG, "snapshot requested but ring buffer empty or unavailable");
+        return true;
+    }
+    uint32_t snap_len = (uint32_t)(count * sizeof(int16_t));
+    ESP_LOGI(TAG, "Sending snapshot: %lu bytes (%.1f s)",
+             (unsigned long)snap_len, (float)count / (float)MIC_FS_HZ);
+    if (tcp_send_all(sock, &snap_len, sizeof(snap_len)) != 0) return false;
+
+    static uint8_t s_snap_chunk[4096];
+    size_t offset = 0;
+    while (offset < snap_len) {
+        size_t n = snapshot_read_chunk(offset, s_snap_chunk, sizeof(s_snap_chunk));
+        if (n == 0) break;
+        if (tcp_send_all(sock, s_snap_chunk, n) != 0) return false;
+        offset += n;
+    }
+    return true;
+}
+
 /*
  * Read the gateway reply after each frame.  Handles both protocol versions:
  *
@@ -447,7 +475,7 @@ static bool send_frame(int sock, const epm_header_t *hdr)
  * On recv() timeout (EAGAIN/EWOULDBLOCK), *alert_out is left unchanged so the
  * LED never flickers to OK just because the gateway was slow to reply once.
  */
-static bool read_gateway_alert(int sock, uint8_t *alert_out)
+static bool read_gateway_alert(int sock, uint8_t *alert_out, bool *snap_out)
 {
     uint8_t first = 0;
     int n = recv(sock, &first, 1, 0);
@@ -487,7 +515,8 @@ static bool read_gateway_alert(int sock, uint8_t *alert_out)
         v2.fault_posterior = (uint16_t)(rest[1] | ((uint16_t)rest[2] << 8));
         v2.fft_overlap_pct = rest[3];
         v2.spec_avg_n      = rest[4];
-        /* rest[5..6] = reserved, ignored */
+        v2.flags           = rest[5];
+        /* rest[6] = reserved */
 
         *alert_out = v2.alert_state;
 
@@ -509,6 +538,10 @@ static bool read_gateway_alert(int sock, uint8_t *alert_out)
                      v2.fault_posterior / 100.0f);
             g_adapt_overlap_pct = new_overlap;
             g_adapt_spec_avg_n  = new_avg;
+        }
+
+        if (snap_out) {
+            *snap_out = (v2.flags & EPM_SNAPSHOT_REQUEST) != 0;
         }
 
         if (v2.alert_state != EPM_ALERT_OK) {
@@ -568,6 +601,20 @@ static void wifi_task_fn(void *arg)
 
     wait_for_wifi();
 
+    /* Dynamic CPU frequency scaling: 240 MHz during active DSP/TCP bursts,
+     * 80 MHz during idle gaps between frames.  Light sleep between tasks
+     * further cuts radio modem draw by ~30%.  Requires CONFIG_PM_ENABLE=y and
+     * CONFIG_FREERTOS_USE_TICKLESS_IDLE=y in sdkconfig.defaults. */
+    esp_pm_config_esp32s3_t pm_cfg = {
+        .max_freq_mhz     = 240,
+        .min_freq_mhz     = 80,
+        .light_sleep_enable = true,
+    };
+    if (esp_pm_configure(&pm_cfg) != ESP_OK) {
+        ESP_LOGW(TAG, "esp_pm_configure failed — fixed 240 MHz");
+    }
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+
     /* mDNS — must be initialised after WiFi brings up the network interface */
     if (mdns_init() != ESP_OK) {
         ESP_LOGW(TAG, "mdns_init() failed — will use static SERVER_IP as fallback");
@@ -604,12 +651,21 @@ static void wifi_task_fn(void *arg)
 
         /* read_gateway_alert leaves last_alert unchanged on timeout so the LED
          * never flickers back to OK just because the gateway was slow to reply */
-        uint8_t alert = last_alert;
-        if (!read_gateway_alert(sock, &alert)) {
+        uint8_t alert      = last_alert;
+        bool    snap_req   = false;
+        if (!read_gateway_alert(sock, &alert, &snap_req)) {
             drop_connection(&sock);
             continue;
         }
         last_alert = alert;
+
+        if (snap_req) {
+            if (!snapshot_send_tcp(sock)) {
+                ESP_LOGE(TAG, "snapshot TCP send failed — reconnecting");
+                drop_connection(&sock);
+                continue;
+            }
+        }
 
         update_led(last_alert, ++cal_frames);
 
@@ -674,6 +730,6 @@ void wifi_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q)
 {
     s_task_args.mic_q = mic_q;
     s_task_args.imu_q = imu_q;
-    xTaskCreate(wifi_task_fn, "wifi_task", TASK_STACK_WIFI,
-                &s_task_args, TASK_PRIO_WIFI, NULL);
+    xTaskCreatePinnedToCore(wifi_task_fn, "wifi_task", TASK_STACK_WIFI,
+                            &s_task_args, TASK_PRIO_WIFI, NULL, 0);
 }
