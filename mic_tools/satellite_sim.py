@@ -190,7 +190,8 @@ def _run_satellite(sat_id: int, host: str, port: int,
         bf = BearingFreqs.from_shaft_hz(shaft_hz, bearing)
         print(f'{tag}   BPFO={bf.bpfo:.2f} Hz  BPFI={bf.bpfi:.2f} Hz  '
               f'BSF={bf.bsf:.2f} Hz  FTF={bf.ftf:.2f} Hz')
-        print(f'{tag}   λ={sev_fn.lam:.5f} s⁻¹  '
+        # VERIFY-FIX: use ASCII to avoid cp1252 UnicodeEncodeError on Windows.
+        print(f'{tag}   lam={sev_fn.lam:.5f} s^-1  '
               f'T_fail={sev_fn.evolution_sec/3600:.2f} h')
 
     connect_t = None
@@ -308,9 +309,10 @@ def main():
         fault_types.setdefault(sid, args.fault_type if args.fault_type != 'cycle' else 'outer')
 
     n_sats = args.n
-    print(f'Starting {n_sats} satellite(s) → {args.host}:{args.port}')
+    # VERIFY-FIX: replace Unicode arrows/dashes with ASCII to avoid cp1252 encode error on Windows.
+    print(f'Starting {n_sats} satellite(s) -> {args.host}:{args.port}')
     if modes:
-        print(f'Fault modes: { {k: (modes[k], fault_types.get(k,"—")) for k in sorted(modes)} }')
+        print(f'Fault modes: { {k: (modes[k], fault_types.get(k,"-")) for k in sorted(modes)} }')
 
     threads = []
     for sid in range(1, n_sats + 1):

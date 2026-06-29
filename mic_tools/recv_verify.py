@@ -341,7 +341,8 @@ def _print_sat_table():
     if not sats:
         return
     print(f"  {'NAME':<12} {'MAC':<17} {'FW':<6} {'FPS':<6} STATUS")
-    print(f"  {'-'*12} {'-'*17} {'-'*6} {'-'*6} {'─'*14}")
+    # VERIFY-FIX: use ASCII dash to avoid cp1252 UnicodeEncodeError on Windows.
+    print(f"  {'-'*12} {'-'*17} {'-'*6} {'-'*6} {'-'*14}")
     for s in sats:
         status    = "CONNECTED" if s.connected else "disconnected"
         alert_str = ["OK", "WARN", "FAULT"][min(s.alert, 2)] if s.connected else "—"
@@ -1007,8 +1008,9 @@ def _load_ml_model(model_prefix: str):
         print(f'[ml] Model loaded  trained={meta["trained_at"]}  '
               f'n={meta.get("n_samples","?")}  '
               f'contamination={meta.get("contamination",0):.0%}')
-        print(f'[ml] Thresholds — WARN ≤ {_ML_MODEL["t_warn"]:.4f}   '
-              f'FAULT ≤ {_ML_MODEL["t_fault"]:.4f}')
+        # VERIFY-FIX: use ASCII comparison operators to avoid cp1252 UnicodeEncodeError on Windows.
+        print(f'[ml] Thresholds -- WARN <= {_ML_MODEL["t_warn"]:.4f}   '
+              f'FAULT <= {_ML_MODEL["t_fault"]:.4f}')
     except ImportError:
         print('[ml] WARNING: joblib/scikit-learn not installed — '
               'ignoring --model.  Run: pip install scikit-learn joblib')
@@ -2709,7 +2711,8 @@ def _send_webhook(msg, sat_name, alert_str):
         req = _urllib_req.Request(url, data=payload,
                                    headers={'Content-Type': 'application/json'})
         with _urllib_req.urlopen(req, timeout=10) as resp:
-            print(f'[notify] Webhook → HTTP {resp.status}  ({alert_str} / {sat_name})')
+            # VERIFY-FIX: use ASCII arrow to avoid cp1252 UnicodeEncodeError on Windows.
+            print(f'[notify] Webhook -> HTTP {resp.status}  ({alert_str} / {sat_name})')
     except Exception as e:
         print(f'[notify] Webhook failed: {e}')
 
@@ -3540,8 +3543,9 @@ def start_dashboard(port=8080):
     notify_note = f'  notifications: webhook active' if _NOTIFY_WEBHOOK else (
                   f'  notifications: email active' if _NOTIFY_EMAIL_CFG else
                   f'  notifications: OFF (use --notify-webhook or --notify-email)')
-    print(f"[dashboard] http://localhost:{port}/  ← this machine")
-    print(f"[dashboard] http://{lan_ip}:{port}/  ← phone / LAN")
+    # VERIFY-FIX: replace Unicode arrows with ASCII to avoid cp1252 encode error on Windows.
+    print(f"[dashboard] http://localhost:{port}/  <- this machine")
+    print(f"[dashboard] http://{lan_ip}:{port}/  <- phone / LAN")
     print(f"[dashboard]{auth_note}")
     print(f"[dashboard]{notify_note}")
     print(f"[dashboard] Firewall (elevated PowerShell, run once):")
