@@ -32,6 +32,8 @@ from fault_models import (
     DEFAULT_BEARING, DEFAULT_SHAFT_HZ,
 )
 from bearing_math import BearingFreqs, COMMON_BEARINGS
+from adaptive_baseline import AdaptiveBaseline
+from bayesian_fusion import BayesianFusion
 
 # ─── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -369,6 +371,55 @@ class TestGenerateMicFrame(unittest.TestCase):
             rng = np.random.default_rng(0)
             pwr = healthy_motor_spectrum(MIC_BINS, MIC_FS, SHAFT, rng)
             add_bearing_fault(pwr, MIC_FS, BF, 'unknown_fault', 1.0, rng)
+
+
+def test_pfault_crosses_threshold_mid_run():
+    """p_fault must cross 0.5 between 20%–80% of a progressive fault run."""
+    N_STEPS = 200
+    frame_interval_s = 0.45
+
+    # evolution_seconds=600: fault reaches k_fail at 600s; run covers 90s,
+    # so kurtosis crosses the Bayesian threshold near step 70 (~35% of run).
+    severity_fn = make_severity_fn(evolution_seconds=600)
+    bl_kurt  = AdaptiveBaseline()
+    bl_crest = AdaptiveBaseline()
+    bl_rms   = AdaptiveBaseline()
+    fusion   = BayesianFusion()
+
+    for _ in range(60):
+        fft_db, kurt, crest, rms = generate_mic_frame(MIC_BINS, MIC_FS, severity=0.0)
+        bl_kurt.update(kurt, True)
+        bl_crest.update(crest, True)
+        bl_rms.update(rms, True)
+
+    p_faults = []
+    for step in range(N_STEPS):
+        t_s = step * frame_interval_s
+        severity = severity_fn(t_s)
+        fft_db, kurt, crest, rms = generate_mic_frame(MIC_BINS, MIC_FS, severity=severity)
+        is_healthy = severity < 0.1
+        bl_kurt.update(kurt, is_healthy)
+        bl_crest.update(crest, is_healthy)
+        bl_rms.update(rms, is_healthy)
+        z_scores = [
+            z for z in [
+                bl_kurt.z_score(kurt),
+                bl_crest.z_score(crest),
+                bl_rms.z_score(rms),
+            ]
+            if not np.isnan(z)
+        ]
+        p_faults.append(fusion.fuse(z_scores) if z_scores else 0.0)
+
+    crossing_step = next((i for i, p in enumerate(p_faults) if p >= 0.5), None)
+    assert crossing_step is not None, \
+        f"p_fault never crossed 0.5. Max={max(p_faults):.4f}"
+    run_pct = crossing_step / N_STEPS
+    assert 0.20 <= run_pct <= 0.80, \
+        f"Crossed at {run_pct*100:.1f}% — expected 20%-80%"
+    final_p = np.mean(p_faults[-20:])
+    assert final_p >= 0.7, \
+        f"Final p_fault={final_p:.4f}, expected >= 0.7"
 
 
 if __name__ == '__main__':

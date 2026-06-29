@@ -9,9 +9,9 @@ Kalman RUL estimation — can be validated end-to-end without real hardware.
 
 SPECTRUM FORMAT
 ---------------
-The firmware accumulates linear POWER per FFT bin over SPEC_AVG_N frames, then:
-    bin_db = 10 * log10(avg_power + 1e-12)
-This module generates linear power spectra and converts identically.
+The firmware computes the FFT magnitude and converts to amplitude dBFS:
+    bin_db = 20 * log10(|amplitude| + 1e-12)
+This module generates spectra in amplitude units and converts identically.
 
 BEARING FAULT PHYSICS
 ---------------------
@@ -71,11 +71,11 @@ BETA  = 1.5    # acceleration exponent (>1 = late-stage acceleration)
 # ─── Conversion helpers ───────────────────────────────────────────────────────
 
 def to_dbfs(pwr: np.ndarray) -> np.ndarray:
-    """Convert linear power spectrum to dBFS as the firmware does.
+    """Convert linear amplitude spectrum to amplitude dBFS as the firmware does.
 
     Returns array of the same shape in dBFS (negative floats, typically -120..0).
     """
-    return 10.0 * np.log10(np.maximum(pwr, 1e-12))
+    return 20.0 * np.log10(np.abs(pwr) + 1e-6)
 
 
 def _add_tone(pwr: np.ndarray, freq_hz: float, amplitude: float, fnyq: float) -> None:
