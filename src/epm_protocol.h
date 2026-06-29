@@ -150,7 +150,10 @@ _Static_assert(sizeof(epm_hello_t) == 24, "epm_hello_t must be 24 bytes");
  *     yields a cleaner baseline.  When fault suspicion is high, N=2 gives
  *     4× faster transient response.
  */
-#define EPM_PROTO_V2_MAGIC  0xA2u
+#define EPM_PROTO_V2_MAGIC    0xA2u
+
+/* Bitmask for epm_alert_v2_t.flags (gateway → satellite) */
+#define EPM_SNAPSHOT_REQUEST  0x01u  /* set → satellite transmits PSRAM ring buffer */
 
 #pragma pack(push, 1)
 typedef struct {
@@ -159,7 +162,8 @@ typedef struct {
     uint16_t fault_posterior;  /* P(fault) × 10000  →  0..10000 = 0.0..1.0 */
     uint8_t  fft_overlap_pct;  /* 0, 25, 50, 75 — % of FFT_MIC_N to overlap */
     uint8_t  spec_avg_n;       /* 1..16 — spectral frames to average */
-    uint8_t  reserved[2];      /* zero — future fields, keeps struct 8-byte aligned */
+    uint8_t  flags;            /* bitmask: EPM_SNAPSHOT_REQUEST (0x01) */
+    uint8_t  reserved;         /* zero — future use */
 } epm_alert_v2_t;
 #pragma pack(pop)
 

@@ -60,15 +60,15 @@ typedef struct {
 
 /**
  * Brings up I2S in double-buffered DMA RX mode for the configured mic.
- * Does NOT enable the channel — call mic_capture_enable() from the task
- * that will own the I2S DMA interrupt (must run on CPU1).
+ * Also allocates the PSRAM pre-trigger ring buffer via snapshot_init().
+ * Does NOT enable the channel — call mic_capture_enable() from mic_task.
  */
 esp_err_t mic_capture_init(void);
 
 /**
- * Enables the I2S channel and arms DMA.  Must be called from a task
- * pinned to CPU1 so the DMA interrupt is allocated to CPU1, not CPU0
- * (where the WiFi driver task runs and is sensitive to interrupt load).
+ * Enables the I2S channel and arms DMA.  Call from mic_task running on
+ * CPU0.  I2S, WiFi, and IMU all share CPU0; FFT runs uninterrupted on
+ * CPU1 (dsp_task).
  */
 esp_err_t mic_capture_enable(void);
 
@@ -92,6 +92,20 @@ void mic_capture_compute_stats(const float *normalized_block, size_t len,
                                 mic_block_stats_t *out_stats);
 
 void mic_capture_deinit(void);
+
+/* ── PSRAM pre-trigger ring buffer ──────────────────────────────────────────
+ *
+ * 4-second circular buffer of int16_t samples, allocated in PSRAM.
+ * snapshot_init() is called by mic_capture_init() — no explicit init needed.
+ * Data is pushed automatically on every successful mic_capture_read_block().
+ *
+ * snapshot_read_chunk() iterates the ring buffer in chronological order.
+ * Call with chunk_byte_offset=0, advancing by the returned byte count each
+ * call, until the return value is 0.
+ */
+void   snapshot_init(void);
+size_t snapshot_count(void);
+size_t snapshot_read_chunk(size_t chunk_byte_offset, void *dst, size_t nbytes);
 
 #ifdef __cplusplus
 }

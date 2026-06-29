@@ -117,14 +117,33 @@
 /* ─── FreeRTOS task sizing ───────────────────────────────────────────────── */
 
 #define TASK_STACK_MIC   8192
+#define TASK_STACK_DSP   16384   /* FFT + feature buffers on core 1 */
 #define TASK_STACK_IMU   8192
 #define TASK_STACK_WIFI  10240
 
 #define TASK_PRIO_MIC    6   /* higher than IMU — DMA overrun costs a whole block */
+#define TASK_PRIO_DSP    7   /* must drain raw_q before the next block arrives */
 #define TASK_PRIO_IMU    5
 #define TASK_PRIO_WIFI   4
 
 /* ─── Inter-task data structures ─────────────────────────────────────────── */
+
+/*
+ * raw_mic_block_t — one DMA capture block: mic_task → dsp_task handoff.
+ *
+ * Contains the DC-removed normalised float block plus the time-domain stats
+ * computed by mic_task.  dsp_task reads from the raw_q queue, applies the
+ * Welch/Hann/FFT pipeline, and emits a mic_frame_t after SPEC_AVG_N blocks.
+ */
+typedef struct {
+    float    samples[FFT_MIC_N];  /* DC-removed, aligned(16) for SIMD */
+    float    rms;
+    float    crest;
+    float    kurtosis;
+    float    dc;
+    uint8_t  clip;
+    uint32_t timestamp_ms;
+} raw_mic_block_t;
 
 /*
  * mic_frame_t — one averaged FFT frame from the microphone task.

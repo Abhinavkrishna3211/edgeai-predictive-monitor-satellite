@@ -246,5 +246,5 @@ void imu_task_start(void)
              FFT_IMU_N, SPEC_AVG_N, (float)IMU_FS_HZ / FFT_IMU_N, IMU_FS_HZ);
 
     xTaskCreatePinnedToCore(imu_task_fn, "imu_task", TASK_STACK_IMU, NULL,
-                            TASK_PRIO_IMU, NULL, 1);
+                            TASK_PRIO_IMU, NULL, 0);
 }

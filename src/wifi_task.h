@@ -30,20 +30,20 @@ bool wifi_wait_connected(TickType_t ticks_to_wait);
  * Phase 3 — call after mic_task_start() / imu_task_start().
  * Creates the TCP sender task that drains the DSP queues.
  *
- * @param mic_q  Queue returned by mic_task_get_queue()
+ * @param mic_q  Queue returned by dsp_task_get_queue()
  * @param imu_q  Queue returned by imu_task_get_queue()
  */
 void wifi_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q);
 
 /*
  * Adaptive-sensing parameters — written by wifi_task when a v2 reply arrives,
- * read by mic_task on each capture cycle.  uint8_t writes are atomic on
- * Xtensa so no mutex is needed for these two single-byte values.
+ * read by dsp_task at the start of each averaging cycle.  uint8_t writes
+ * are atomic on Xtensa so no mutex is needed for these two single-byte values.
  *
  *   g_adapt_overlap_pct : 0, 25, 50, or 75 — % of FFT window to overlap
  *   g_adapt_spec_avg_n  : 1..16 — FFT frames to average per output frame
  *
- * mic_task reads these at the START of each averaging cycle so a change
+ * dsp_task latches these at the START of each averaging cycle so a change
  * never corrupts a partially-accumulated power spectrum.
  */
 extern volatile uint8_t g_adapt_overlap_pct;
