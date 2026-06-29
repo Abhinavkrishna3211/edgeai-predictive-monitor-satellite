@@ -298,6 +298,8 @@ class SatelliteState:
             self.ab_hb       = AdaptiveBaseline()
         else:
             self.ab_kurtosis = self.ab_crest = self.ab_rms = self.ab_hb = None
+        # Latest per-feature z-scores for feature attribution (updated every frame)
+        self.feat_z: dict = {}
 
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
@@ -612,13 +614,17 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
     # machine's own EMA baseline.  Detects incipient wear on quiet machines whose
     # healthy kurtosis is below K_WARN before the absolute thresholds would fire.
     _z_adapt_max = 0.0
+    _feat_z: dict = {}   # per-feature z-scores for attribution
     if (sat.ab_kurtosis is not None
             and sat.ab_kurtosis.n_updates >= AB_WARMUP_FRAMES):
-        _z_adapt_max = max(
-            sat.ab_kurtosis.z_score(mic_kurtosis),
-            sat.ab_crest.z_score(mic_crest),
-            sat.ab_rms.z_score(mic_rms),
-        )
+        _feat_z = {
+            'mic_kurt':  sat.ab_kurtosis.z_score(mic_kurtosis),
+            'mic_crest': sat.ab_crest.z_score(mic_crest),
+            'mic_rms':   sat.ab_rms.z_score(mic_rms),
+        }
+        if sat.ab_hb is not None and sat.ab_hb.n_updates >= AB_WARMUP_FRAMES:
+            _feat_z['mic_hb'] = sat.ab_hb.z_score(hb)
+        _z_adapt_max = max(_feat_z.values())
 
     # ── Raw alert level (before noise filter + persistence) ──────────────────
     raw = EPM_ALERT_OK
@@ -646,12 +652,15 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
         if sat.hst_detector is not None and sat.hst_detector.is_warmed_up():
             # Map HST [0,1] → z-scale: score=0.3 (typical normal) → z≈0,
             # score=0.7 → z≈4, score=0.9 → z≈8. Tune via --evidence-midpoint.
-            z_list.append((hst_score - 0.3) / 0.05)
+            _z_hst = (hst_score - 0.3) / 0.05
+            z_list.append(_z_hst)
+            _feat_z['hst'] = _z_hst
         p_fusion = _bayesian_fusion.fuse(z_list)
         if p_fusion >= P_FUSION_FAULT:
             raw = max(raw, EPM_ALERT_FAULT)
         elif p_fusion >= P_FUSION_WARN:
             raw = max(raw, EPM_ALERT_WARN)
+    sat.feat_z = dict(_feat_z)   # snapshot for live dashboard + attribution
 
     # ── Factory noise filter: only alert if high-band energy is present ───────
     # Bearing faults excite 2-8kHz; factory floor noise is mostly <500Hz.
@@ -841,7 +850,8 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             # Detect state transitions → audit trail + phone notifications
             if alert != prev_alert:
                 _log_alert_event(sat.name, mac_hex, alert, prev_alert,
-                                 frame['mic_kurtosis'], frame['mic_crest'], z_score)
+                                 frame['mic_kurtosis'], frame['mic_crest'], z_score,
+                                 dict(_feat_z))
                 if alert > prev_alert:   # notify on escalation only, not recovery
                     _fire_notification(sat.name, mac_hex,
                                        ['OK', 'WARN', 'FAULT'][min(alert, 2)],
@@ -1832,6 +1842,8 @@ header{display:flex;align-items:center;padding:0 22px;height:56px;background:var
 .c-pfault-top{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted);margin-bottom:4px}
 .c-pfbar{height:4px;border-radius:3px;background:var(--border);overflow:hidden}
 .c-pffill{height:100%;border-radius:3px;transition:width .5s,background .4s}
+.c-attr{font-size:.69rem;color:var(--muted);padding:4px 14px 5px;border-top:1px solid #0d2035;background:rgba(251,191,36,.04)}
+.attr-feat{color:#fbbf24;font-weight:600;font-family:monospace}
 .drift-chip{display:inline-block;font-size:.55rem;font-weight:600;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle;letter-spacing:.02em}
 .drift-stable{background:rgba(74,109,136,.18);color:#4a6d88}
 .drift-recent{background:rgba(245,158,11,.18);color:#f59e0b}
@@ -2014,8 +2026,8 @@ footer{text-align:center;padding:11px;color:var(--dim);font-size:.6rem;border-to
   </div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>Time</th><th>Machine</th><th>Transition</th><th>Kurtosis</th><th>Crest</th><th>Z-Score</th><th>MAC</th></tr></thead>
-      <tbody id="alert-tbody"><tr><td class="empty-cell" colspan="7">Switch to this tab to load alert history.</td></tr></tbody>
+      <thead><tr><th>Time</th><th>Machine</th><th>Transition</th><th>Kurtosis</th><th>Crest</th><th>Z-Score</th><th>Contributing Features</th><th>MAC</th></tr></thead>
+      <tbody id="alert-tbody"><tr><td class="empty-cell" colspan="8">Switch to this tab to load alert history.</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -2230,6 +2242,7 @@ function fmtRul(s){
   return '~'+Math.round(d)+' days';
 }
 function transCls(from,to){const r={OK:0,WARN:1,FAULT:2};return (r[to]||0)>(r[from]||0)?'esc':(r[to]||0)<(r[from]||0)?'rec':'war';}
+function fmtZ(v){return(v>=0?'+':'')+v.toFixed(1);}
 
 function toast(msg,ok=true){const t=$('toast');t.textContent=msg;t.className='in '+(ok?'ok-t':'err-t');setTimeout(()=>{t.className='';},3200);}
 
@@ -2307,6 +2320,11 @@ function cardHTML(s){
     +'<div class="c-pfault"><div class="c-pfault-top"><span>Fault Probability (Bayesian)</span>'
     +'<span id="PF_'+s.name+'" style="color:'+pfCol(s.p_fault||0)+'">'+fmtPf(s.p_fault||0)+'</span></div>'
     +'<div class="c-pfbar"><div class="c-pffill" id="PFF_'+s.name+'" style="width:'+Math.round((s.p_fault||0)*100)+'%;background:'+pfCol(s.p_fault||0)+'"></div></div></div>'
+    +(al!=='ok'&&s.top_contribs&&s.top_contribs.length
+      ?'<div class="c-attr">Driven by: '
+        +s.top_contribs.map(function(tc){return '<span class="attr-feat">'+tc[0]+'</span> ('+fmtZ(tc[1])+')';}).join(', ')
+        +'</div>'
+      :'')
     +'<div class="c-rec '+mc+'" id="MNT_'+s.name+'">'
     +'<div class="c-rec-t">🔧 '+s.maintenance+due+'</div>'
     +'<div class="c-rec-s">Warn: '+s.warn_frames+' · Fault: '+s.fault_frames+(s.last_fault_t?' · Last fault: '+fmtDt(s.last_fault_t):' ')+'</div>'
@@ -2512,10 +2530,10 @@ function updateExportList(sats){
 /* --- alert log --- */
 async function loadAlerts(){
   const tbody=$('alert-tbody');
-  tbody.innerHTML='<tr><td class="empty-cell" colspan="7">Loading…</td></tr>';
+  tbody.innerHTML='<tr><td class="empty-cell" colspan="8">Loading…</td></tr>';
   try{
     const r=await fetch('/api/alerts?n=500');const data=await r.json();
-    if(!data.length){tbody.innerHTML='<tr><td class="empty-cell" colspan="7">No alert transitions recorded yet. State changes appear here in real time.</td></tr>';return;}
+    if(!data.length){tbody.innerHTML='<tr><td class="empty-cell" colspan="8">No alert transitions recorded yet. State changes appear here in real time.</td></tr>';return;}
     tbody.innerHTML=data.map(ev=>{
       const dt=new Date(ev.time*1000);
       const dts=dt.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' '+dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -2523,7 +2541,7 @@ async function loadAlerts(){
         return '<tr class="ev-refresh">'
           +'<td style="font-size:.65rem;color:var(--muted);font-family:monospace;white-space:nowrap">'+dts+'</td>'
           +'<td style="font-weight:700">'+ev.satellite+'</td>'
-          +'<td colspan="4" style="font-size:.7rem;color:var(--muted);font-style:italic">'
+          +'<td colspan="5" style="font-size:.7rem;color:var(--muted);font-style:italic">'
           +'<span style="margin-right:6px">&#x21BA;</span>'+ev.detail+'</td>'
           +'<td style="font-size:.6rem;color:var(--muted);font-family:monospace">'+(ev.mac||'—')+'</td>'
           +'</tr>';
@@ -2532,7 +2550,7 @@ async function loadAlerts(){
         return '<tr class="ev-adapt">'
           +'<td style="font-size:.65rem;color:var(--muted);font-family:monospace;white-space:nowrap">'+dts+'</td>'
           +'<td style="font-weight:700">'+ev.satellite+'</td>'
-          +'<td colspan="4" style="font-size:.7rem;color:#10b981;font-family:monospace">'
+          +'<td colspan="5" style="font-size:.7rem;color:#10b981;font-family:monospace">'
           +'<span style="margin-right:6px">&#x25B6;</span>'+ev.detail+'</td>'
           +'<td style="font-size:.6rem;color:var(--muted);font-family:monospace">'+(ev.mac||'—')+'</td>'
           +'</tr>';
@@ -2545,11 +2563,12 @@ async function loadAlerts(){
         +'<td style="font-family:monospace;color:'+(ev.kurtosis>TH.k_fault?'var(--fault)':ev.kurtosis>TH.k_warn?'var(--warn)':'')+'">'+ev.kurtosis.toFixed(2)+'</td>'
         +'<td style="font-family:monospace">'+ev.crest.toFixed(2)+'</td>'
         +'<td style="font-family:monospace;color:'+(ev.z_score>3?'var(--fault)':ev.z_score>1.5?'var(--warn)':'')+'">'+ev.z_score.toFixed(1)+'</td>'
+        +'<td style="font-size:.68rem;color:#fbbf24;font-family:monospace">'+(ev.reason||'—')+'</td>'
         +'<td style="font-size:.6rem;color:var(--muted);font-family:monospace">'+(ev.mac||'—')+'</td>'
         +'</tr>';
     }).join('');
     alertsLoaded=true;
-  }catch(e){tbody.innerHTML='<tr><td class="empty-cell" colspan="7">Error: '+e.message+'</td></tr>';}
+  }catch(e){tbody.innerHTML='<tr><td class="empty-cell" colspan="8">Error: '+e.message+'</td></tr>';}
 }
 
 async function exportAlerts(){
@@ -2663,11 +2682,23 @@ setInterval(()=>{if($('pane-alerts').classList.contains('active'))loadAlerts();}
 
 # ─── Alert history ────────────────────────────────────────────────────────────
 
-def _log_alert_event(sat_name, mac_hex, new_alert, prev_alert, kurtosis, crest, z_score):
+def _log_alert_event(sat_name, mac_hex, new_alert, prev_alert,
+                     kurtosis, crest, z_score, feat_z=None):
     """Append a state-change event to the in-memory audit trail and SQLite DB."""
     labels = ['OK', 'WARN', 'FAULT']
     from_lbl = labels[min(prev_alert, 2)]
     to_lbl   = labels[min(new_alert, 2)]
+
+    # Build attribution reason: top-3 features by logit contribution
+    reason = f'K={kurtosis:.2f} CF={crest:.2f} z={z_score:.1f}'
+    if feat_z:
+        if _FUSION_AVAILABLE and _bayesian_fusion is not None:
+            top = _bayesian_fusion.attribute(feat_z, top_k=3)
+        else:
+            top = sorted(feat_z.items(), key=lambda x: x[1], reverse=True)[:3]
+        if top:
+            reason = '; '.join(f'{n}: {v:+.2f}' for n, v in top)
+
     event = {
         'time':      time.time(),
         'satellite': sat_name,
@@ -2677,16 +2708,14 @@ def _log_alert_event(sat_name, mac_hex, new_alert, prev_alert, kurtosis, crest, 
         'kurtosis':  round(kurtosis, 2),
         'crest':     round(crest, 2),
         'z_score':   round(z_score, 1),
+        'reason':    reason,
     }
     with _ALERT_HISTORY_LOCK:
         _ALERT_HISTORY.appendleft(event)
     # Persist to SQLite (non-blocking; autocommit connection)
     if _storage is not None:
         try:
-            _storage.log_alert(
-                sat_name, from_lbl, to_lbl, 0.0,
-                f'K={kurtosis:.2f} CF={crest:.2f} z={z_score:.1f}',
-            )
+            _storage.log_alert(sat_name, from_lbl, to_lbl, 0.0, reason)
         except Exception:
             pass
 
@@ -2921,6 +2950,17 @@ def _ab_summary(ab, z_warn: float = 4.0, z_fault: float = 6.0):
     }
 
 
+def _top_contribs(sat, k: int = 3) -> list:
+    """Return [[name, logit], ...] for top-k fault-driving features (JSON-serialisable)."""
+    fz = getattr(sat, 'feat_z', {})
+    if not fz:
+        return []
+    if _FUSION_AVAILABLE and _bayesian_fusion is not None:
+        return [[n, round(v, 2)] for n, v in _bayesian_fusion.attribute(fz, top_k=k)]
+    return [[n, round(v, 2)]
+            for n, v in sorted(fz.items(), key=lambda x: x[1], reverse=True)[:k]]
+
+
 def _build_status_json():
     now = time.time()
     with _sat_lock:
@@ -2986,6 +3026,9 @@ def _build_status_json():
                 'hb':       _ab_summary(getattr(s, 'ab_hb', None),
                                         Z_HB_SIGMA, Z_HB_SIGMA),
             },
+            'feat_z':       {k: round(v, 3)
+                             for k, v in getattr(s, 'feat_z', {}).items()},
+            'top_contribs': _top_contribs(s),
             'fault_type':       s.fault_type,
             'metrics':          m,
             'maint_log':        maint_rec,
@@ -3315,21 +3358,59 @@ tr:nth-child(even) td{{background:#f9fafb}}
         # Alert history (mini)
         W(f'<div class="sub-h">Alert History — {len(r["alerts"])} transitions</div>')
         if r['alerts']:
-            W('<table><thead><tr><th>Time</th><th>From</th><th>To</th><th>Kurtosis</th><th>Crest</th><th>Z</th></tr></thead><tbody>')
+            W('<table><thead><tr><th>Time</th><th>From</th><th>To</th><th>Kurtosis</th><th>Crest</th><th>Z</th><th>Contributing Features</th></tr></thead><tbody>')
             for ev in r['alerts'][:12]:
                 dt_s = datetime.datetime.fromtimestamp(ev['time']).strftime('%b %d  %H:%M:%S')
                 tc = 'fault' if ev['alert']=='FAULT' else 'warn' if ev['alert']=='WARN' else 'ok'
+                reason_s = esc(ev.get('reason', '—'))
                 W(f'<tr><td style="font-family:monospace;font-size:.72rem">{dt_s}</td>'
                   f'<td><span class="tag t-ok">{ev["prev"]}</span></td>'
                   f'<td><span class="tag t-{tc}">{ev["alert"]}</span></td>'
                   f'<td style="font-family:monospace">{ev["kurtosis"]:.2f}</td>'
                   f'<td style="font-family:monospace">{ev["crest"]:.2f}</td>'
-                  f'<td style="font-family:monospace">{ev["z_score"]:.1f}</td></tr>')
+                  f'<td style="font-family:monospace">{ev["z_score"]:.1f}</td>'
+                  f'<td style="font-size:.7rem;color:#d97706;font-family:monospace">{reason_s}</td></tr>')
             if len(r['alerts']) > 12:
-                W(f'<tr><td colspan="6" style="text-align:center;color:#9ca3af;font-size:.72rem">… {len(r["alerts"])-12} more events in Full Alert Log below</td></tr>')
+                W(f'<tr><td colspan="7" style="text-align:center;color:#9ca3af;font-size:.72rem">… {len(r["alerts"])-12} more events in Full Alert Log below</td></tr>')
             W('</tbody></table>')
         else:
             W('<p class="no-data">No alert transitions recorded — machine has been stable this session.</p>')
+
+        # Attribution — most frequently contributing features over alert history
+        _fw_evs = [ev for ev in r['alerts']
+                   if ev.get('alert') in ('FAULT', 'WARN') and ev.get('reason', '—') != '—']
+        if _fw_evs:
+            _feat_counts: dict = {}
+            for ev in _fw_evs:
+                for part in ev.get('reason', '').split(';'):
+                    part = part.strip()
+                    if ':' in part:
+                        fname = part.split(':')[0].strip()
+                        _feat_counts[fname] = _feat_counts.get(fname, 0) + 1
+            if _feat_counts:
+                _feat_desc = {
+                    'mic_kurt':  'Mic kurtosis — impulsive bearing impacts (early/mid fault)',
+                    'mic_crest': 'Mic crest factor — peak shock ratio (advanced fault)',
+                    'mic_rms':   'Mic RMS — broadband energy (sustained vibration)',
+                    'mic_hb':    'High-band energy 2-8 kHz — bearing defect resonance band',
+                    'hst':       'HST anomaly score — multivariate spectral deviation',
+                }
+                W('<div class="sub-h">Attribution — Most Frequent Fault Drivers</div>')
+                W('<p style="font-size:.76rem;color:#6b7280;margin:-4px 0 8px">'
+                  'Features most frequently contributing to WARN/FAULT decisions this session. '
+                  'Guides the technician toward which measurement to investigate first.</p>')
+                W('<table><thead><tr><th>Feature</th><th>Alert Count</th>'
+                  '<th>% of Alerts</th><th>Diagnostic Significance</th></tr></thead><tbody>')
+                for fname, cnt in sorted(_feat_counts.items(),
+                                         key=lambda x: x[1], reverse=True)[:5]:
+                    pct = 100 * cnt // max(len(_fw_evs), 1)
+                    desc = _feat_desc.get(fname, fname)
+                    W(f'<tr><td style="font-weight:700;color:#d97706;font-family:monospace">'
+                      f'{esc(fname)}</td>'
+                      f'<td style="font-family:monospace;text-align:center">{cnt}</td>'
+                      f'<td style="font-family:monospace;text-align:center">{pct}%</td>'
+                      f'<td style="font-size:.75rem">{esc(desc)}</td></tr>')
+                W('</tbody></table>')
 
         # Maintenance
         W('<div class="sub-h">Maintenance Record</div>')
@@ -3378,7 +3459,8 @@ tr:nth-child(even) td{{background:#f9fafb}}
     W(f'<h2>&#128203; Full Alert Audit Trail ({len(scope_alerts)} events)</h2>')
     if scope_alerts:
         W('<table><thead><tr><th>#</th><th>Timestamp (local)</th><th>Machine</th>'
-          '<th>From</th><th>To</th><th>Kurtosis</th><th>Crest</th><th>Z-Score</th><th>MAC</th></tr></thead><tbody>')
+          '<th>From</th><th>To</th><th>Kurtosis</th><th>Crest</th><th>Z-Score</th>'
+          '<th>Contributing Features</th><th>MAC</th></tr></thead><tbody>')
         for i, ev in enumerate(scope_alerts, 1):
             dt_s = datetime.datetime.fromtimestamp(ev['time']).strftime('%Y-%m-%d  %H:%M:%S')
             tc = 'fault' if ev['alert']=='FAULT' else 'warn' if ev['alert']=='WARN' else 'ok'
@@ -3390,7 +3472,10 @@ tr:nth-child(even) td{{background:#f9fafb}}
               f'<td style="font-family:monospace">{ev["kurtosis"]:.2f}</td>'
               f'<td style="font-family:monospace">{ev["crest"]:.2f}</td>'
               f'<td style="font-family:monospace">{ev["z_score"]:.1f}</td>'
-              f'<td style="font-family:monospace;font-size:.68rem;color:#9ca3af">{esc(ev.get("mac","—"))}</td></tr>')
+              f'<td style="font-size:.68rem;color:#d97706;font-family:monospace">'
+              f'{esc(ev.get("reason","—"))}</td>'
+              f'<td style="font-family:monospace;font-size:.68rem;color:#9ca3af">'
+              f'{esc(ev.get("mac","—"))}</td></tr>')
         W('</tbody></table>')
     else:
         W('<p class="no-data">No alert transitions recorded this session. System has remained stable since gateway startup.</p>')
