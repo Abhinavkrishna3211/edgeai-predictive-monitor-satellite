@@ -32,10 +32,15 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "nvs_flash.h"
+#include "nvs.h"
 
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
 #include "lwip/err.h"
+
+#include "mdns.h"
+#include "mbedtls/gcm.h"
+#include "esp_random.h"
 
 #include "epm_config.h"
 #include "epm_protocol.h"
@@ -48,6 +53,12 @@ static const char *TAG = "wifi_task";
 
 #define WIFI_CONNECTED_BIT  BIT0
 #define WIFI_MAX_RETRY      10
+
+/* Total plaintext length per frame: header + mic FFT + 3 × IMU FFT */
+#define EPM_PLAIN_LEN  ((size_t)( \
+    sizeof(epm_header_t) + \
+    (FFT_MIC_N / 2) * sizeof(float) + \
+    (FFT_IMU_N / 2) * sizeof(float) * 3))
 
 /* ---------- module state ---------- */
 
@@ -62,6 +73,15 @@ volatile uint8_t g_adapt_spec_avg_n  = SPEC_AVG_N;
  * mic_frame_t ~2 KB (512 floats), imu_frame_t ~12 KB (3 × 1024 floats). */
 static mic_frame_t s_mic;
 static imu_frame_t s_imu;
+
+/* AES-128-GCM encryption state — hardware-accelerated on ESP32-S3 via mbedtls */
+static mbedtls_gcm_context s_gcm_ctx;
+static uint8_t             s_aes_key[16];
+
+/* Plaintext / ciphertext staging buffers for encrypted frames (~14 KB each).
+ * Kept static so they never touch the task stack. */
+static uint8_t s_enc_pt[EPM_PLAIN_LEN];
+static uint8_t s_enc_ct[EPM_PLAIN_LEN];
 
 /* ---------- WiFi event sub-handlers ---------- */
 
@@ -114,6 +134,82 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+/* ---------- mDNS discovery ---------- */
+
+/* Query for the EPM gateway service via mDNS.
+ * Returns the IPv4 address in network byte order, or 0 if not found / timed out. */
+static uint32_t resolve_gateway_mdns(void)
+{
+    mdns_result_t *results = NULL;
+    esp_err_t err = mdns_query_ptr("_epm-gateway", "_tcp", 3000, 1, &results);
+    if (err != ESP_OK || !results) {
+        return 0;
+    }
+    uint32_t ip = 0;
+    mdns_ip_addr_t *addr = results->addr;
+    while (addr) {
+        if (addr->addr.type == IPADDR_TYPE_V4) {
+            ip = addr->addr.u_addr.ip4.addr;
+            break;
+        }
+        addr = addr->next;
+    }
+    mdns_query_results_free(results);
+    return ip;
+}
+
+/* ---------- PSK key management ---------- */
+
+static void load_psk_from_nvs(void)
+{
+    nvs_handle_t h;
+    if (nvs_open("epm_sec", NVS_READONLY, &h) == ESP_OK) {
+        size_t len = sizeof(s_aes_key);
+        esp_err_t err = nvs_get_blob(h, "psk", s_aes_key, &len);
+        nvs_close(h);
+        if (err == ESP_OK && len == sizeof(s_aes_key)) {
+            ESP_LOGI(TAG, "AES-128 key loaded from NVS (epm_sec/psk)");
+            return;
+        }
+    }
+#ifdef EPM_ENCRYPT_FRAMES
+    memcpy(s_aes_key, EPM_PSK, sizeof(s_aes_key));
+    ESP_LOGW(TAG, "AES key not in NVS — using build-time PSK "
+             "(provision via nvs_set_blob(\"epm_sec\",\"psk\",...) for production)");
+#else
+    memset(s_aes_key, 0, sizeof(s_aes_key));
+#endif
+}
+
+/* ---------- AES-128-GCM helpers ---------- */
+
+static void encrypt_init(void)
+{
+    load_psk_from_nvs();
+    mbedtls_gcm_init(&s_gcm_ctx);
+    int ret = mbedtls_gcm_setkey(&s_gcm_ctx, MBEDTLS_CIPHER_ID_AES, s_aes_key, 128);
+    if (ret != 0) {
+        ESP_LOGE(TAG, "mbedtls_gcm_setkey failed: -0x%04X", (unsigned)(-ret));
+    } else {
+        ESP_LOGI(TAG, "AES-128-GCM ready (ESP32-S3 hardware AES accelerator)");
+    }
+}
+
+/* Encrypt plaintext into ciphertext in-place; fills iv[12] and tag[16].
+ * Uses the ESP32-S3 hardware TRNG for nonce generation — no seeding needed. */
+static int encrypt_frame_data(const uint8_t *pt, size_t pt_len,
+                               uint8_t *ct, uint8_t iv[12], uint8_t tag[16])
+{
+    esp_fill_random(iv, 12);
+    return mbedtls_gcm_crypt_and_tag(
+        &s_gcm_ctx, MBEDTLS_GCM_ENCRYPT,
+        pt_len,
+        iv, 12,
+        NULL, 0,
+        pt, ct,
+        16, tag);
+}
+
 /* ---------- TCP helpers ---------- */
 
 static int tcp_connect(void)
@@ -122,9 +218,21 @@ static int tcp_connect(void)
         .sin_family = AF_INET,
         .sin_port   = htons(SERVER_PORT),
     };
-    if (inet_aton(SERVER_IP, &dest_addr.sin_addr) == 0) {
-        ESP_LOGE(TAG, "Invalid SERVER_IP: %s", SERVER_IP);
-        return -1;
+
+    /* Try mDNS discovery first; fall back to static SERVER_IP */
+    uint32_t mdns_ip = resolve_gateway_mdns();
+    if (mdns_ip != 0) {
+        dest_addr.sin_addr.s_addr = mdns_ip;
+        char ip_str[16];
+        esp_ip4addr_ntoa((esp_ip4_addr_t *)&mdns_ip, ip_str, sizeof(ip_str));
+        ESP_LOGI(TAG, "mDNS: discovered gateway at %s — SERVER_IP override not needed",
+                 ip_str);
+    } else {
+        ESP_LOGW(TAG, "mDNS: no result in 3 s — falling back to SERVER_IP %s", SERVER_IP);
+        if (inet_aton(SERVER_IP, &dest_addr.sin_addr) == 0) {
+            ESP_LOGE(TAG, "Invalid SERVER_IP: %s", SERVER_IP);
+            return -1;
+        }
     }
 
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -145,13 +253,17 @@ static int tcp_connect(void)
     }
 
     if (connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) != 0) {
-        ESP_LOGE(TAG, "connect() to %s:%d failed: errno %d",
-                 SERVER_IP, SERVER_PORT, errno);
+        char ip_s[16];
+        esp_ip4addr_ntoa((esp_ip4_addr_t *)&dest_addr.sin_addr.s_addr, ip_s, sizeof(ip_s));
+        ESP_LOGE(TAG, "connect() to %s:%d failed: errno %d", ip_s, SERVER_PORT, errno);
         close(sock);
         return -1;
     }
-
-    ESP_LOGI(TAG, "TCP connected to %s:%d", SERVER_IP, SERVER_PORT);
+    {
+        char ip_s[16];
+        esp_ip4addr_ntoa((esp_ip4_addr_t *)&dest_addr.sin_addr.s_addr, ip_s, sizeof(ip_s));
+        ESP_LOGI(TAG, "TCP connected to %s:%d", ip_s, SERVER_PORT);
+    }
     return sock;
 }
 
@@ -281,6 +393,32 @@ static void build_header(epm_header_t *hdr, uint32_t frame_id)
 /* Returns false on send failure — caller must drop connection and reconnect. */
 static bool send_frame(int sock, const epm_header_t *hdr)
 {
+#ifdef EPM_ENCRYPT_FRAMES
+    /* Pack plaintext: header || mic_fft || imu_x || imu_y || imu_z */
+    uint8_t *p = s_enc_pt;
+    memcpy(p, hdr,          sizeof(*hdr));              p += sizeof(*hdr);
+    memcpy(p, s_mic.fft_db, (FFT_MIC_N / 2) * sizeof(float));
+    p += (FFT_MIC_N / 2) * sizeof(float);
+    memcpy(p, s_imu.fft_x,  (FFT_IMU_N / 2) * sizeof(float));
+    p += (FFT_IMU_N / 2) * sizeof(float);
+    memcpy(p, s_imu.fft_y,  (FFT_IMU_N / 2) * sizeof(float));
+    p += (FFT_IMU_N / 2) * sizeof(float);
+    memcpy(p, s_imu.fft_z,  (FFT_IMU_N / 2) * sizeof(float));
+
+    uint8_t iv[12], tag[16];
+    if (encrypt_frame_data(s_enc_pt, EPM_PLAIN_LEN, s_enc_ct, iv, tag) != 0) {
+        ESP_LOGE(TAG, "AES-GCM encryption failed");
+        return false;
+    }
+
+    /* Wire: [payload_bytes=12+N+16][iv[12]][ciphertext[N]][tag[16]] */
+    uint32_t payload_bytes = (uint32_t)(12u + EPM_PLAIN_LEN + 16u);
+    int err = tcp_send_all(sock, &payload_bytes, sizeof(payload_bytes));
+    if (!err) err = tcp_send_all(sock, iv,       12);
+    if (!err) err = tcp_send_all(sock, s_enc_ct, EPM_PLAIN_LEN);
+    if (!err) err = tcp_send_all(sock, tag,      16);
+    return err == 0;
+#else
     uint32_t payload_bytes =
         (uint32_t)(sizeof(epm_header_t)
                    + (FFT_MIC_N / 2) * sizeof(float)
@@ -292,8 +430,8 @@ static bool send_frame(int sock, const epm_header_t *hdr)
     if (!err) err = tcp_send_all(sock, s_imu.fft_x,  (FFT_IMU_N / 2) * sizeof(float));
     if (!err) err = tcp_send_all(sock, s_imu.fft_y,  (FFT_IMU_N / 2) * sizeof(float));
     if (!err) err = tcp_send_all(sock, s_imu.fft_z,  (FFT_IMU_N / 2) * sizeof(float));
-
     return err == 0;
+#endif
 }
 
 /*
@@ -430,6 +568,14 @@ static void wifi_task_fn(void *arg)
 
     wait_for_wifi();
 
+    /* mDNS — must be initialised after WiFi brings up the network interface */
+    if (mdns_init() != ESP_OK) {
+        ESP_LOGW(TAG, "mdns_init() failed — will use static SERVER_IP as fallback");
+    }
+
+    /* AES-128-GCM — load PSK (NVS or build-time) and arm the hardware cipher */
+    encrypt_init();
+
     while (1) {
         if (sock < 0) {
             sock = connect_to_gateway();
@@ -509,7 +655,7 @@ void wifi_rf_init(void)
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\", target: %s:%d",
+    ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\", target: %s:%d (mDNS discovery first)",
              WIFI_SSID, SERVER_IP, SERVER_PORT);
 }
 
