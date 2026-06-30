@@ -45,7 +45,7 @@
 
 #include "epm_config.h"
 #include "epm_protocol.h"
-#include "led_task.h"
+#include "rgb_led_task.h"
 #include "wifi_task.h"
 #include "mic_capture.h"  /* snapshot_count(), snapshot_read_chunk() */
 
@@ -89,14 +89,14 @@ static uint8_t s_enc_ct[EPM_PLAIN_LEN];
 
 static void on_wifi_sta_start(void)
 {
-    led_set_state(LED_CONNECTING);
+    rgb_led_set_state(RGB_WIFI_CONN);
     ESP_LOGI(TAG, "STA started — connecting to \"%s\"...", WIFI_SSID);
     esp_wifi_connect();
 }
 
 static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
 {
-    led_set_state(LED_CONNECTING);
+    rgb_led_set_state(RGB_WIFI_CONN);
     xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     s_retry_cnt++;
     ESP_LOGW(TAG, "Disconnected reason=%d (attempt %d)"
@@ -116,7 +116,7 @@ static void on_got_ip(ip_event_got_ip_t *ev)
     ESP_LOGI(TAG, "Got IP: " IPSTR " (after %d attempt(s))",
              IP2STR(&ev->ip_info.ip), s_retry_cnt + 1);
     s_retry_cnt = 0;
-    led_set_state(LED_CONNECTING);
+    rgb_led_set_state(RGB_TCP_CONN);
     xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 }
 
@@ -354,7 +354,7 @@ static void drop_connection(int *sock)
 {
     close(*sock);
     *sock = -1;
-    led_set_state(LED_CONNECTING);
+    rgb_led_set_state(RGB_WIFI_CONN);
 }
 
 /* ---------- Frame helpers ---------- */
@@ -563,12 +563,14 @@ static bool read_gateway_alert(int sock, uint8_t *alert_out, bool *snap_out)
 static void update_led(uint8_t alert, uint32_t cal_frames)
 {
     if (cal_frames < LED_CAL_FRAMES) {
-        led_set_state(LED_CONNECTING);
-        return;
+        rgb_led_set_state(RGB_CALIBRATING); return;
     }
-    if (alert == EPM_ALERT_FAULT) { led_set_state(LED_FAULT); return; }
-    if (alert == EPM_ALERT_WARN)  { led_set_state(LED_WARN);  return; }
-    led_set_state(LED_OK);
+    if (!g_hst_warmed_up) {
+        rgb_led_set_state(RGB_LEARNING); return;
+    }
+    if (alert == EPM_ALERT_FAULT) { rgb_led_set_state(RGB_FAULT); return; }
+    if (alert == EPM_ALERT_WARN)  { rgb_led_set_state(RGB_WARN);  return; }
+    rgb_led_set_state(RGB_OK);
 }
 
 /* ---------- main task ---------- */
