@@ -72,7 +72,7 @@ extern "C" {
  * 41  imu_dc        float    4   (X-axis DC for reference)
  * 45  imu_clip      uint8    1
  * 46  imu_axes      uint8    1   (= 3 for KX134, 1 for stub compat)
- * 47  _pad          uint8    1
+ * 47  overflow_count uint8   1   I2S DMA overflows since last frame; saturates at 255
  * Total: 48 bytes
  */
 typedef struct __attribute__((packed)) {
@@ -90,8 +90,8 @@ typedef struct __attribute__((packed)) {
     float    imu_crest;     /* max(crest_x, crest_y, crest_z) */
     float    imu_dc;        /* X-axis DC offset */
     uint8_t  imu_clip;
-    uint8_t  imu_axes;      /* number of IMU FFT arrays in payload (3) */
-    uint8_t  _pad;
+    uint8_t  imu_axes;        /* number of IMU FFT arrays in payload (3) */
+    uint8_t  overflow_count;  /* I2S DMA overflow events since last frame; sat. at 255 */
 } epm_header_t;
 
 _Static_assert(sizeof(epm_header_t) == 48,

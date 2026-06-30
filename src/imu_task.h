@@ -25,6 +25,9 @@ QueueHandle_t imu_task_get_queue(void);
  */
 void imu_task_start(void);
 
+/** Returns the task handle (valid after imu_task_start()). Used by diagnostics_task. */
+TaskHandle_t imu_task_get_handle(void);
+
 #ifdef __cplusplus
 }
 #endif

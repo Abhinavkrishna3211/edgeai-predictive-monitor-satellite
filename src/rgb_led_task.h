@@ -49,6 +49,9 @@ typedef enum {
 /* Call once from app_main before task creation. */
 void rgb_led_task_init(void);
 
+/** Returns the task handle (set when task starts). Used by diagnostics_task. */
+TaskHandle_t rgb_led_task_get_handle(void);
+
 /* Set LED state. Safe from any task context. Non-blocking. */
 void rgb_led_set_state(rgb_led_state_t state);
 

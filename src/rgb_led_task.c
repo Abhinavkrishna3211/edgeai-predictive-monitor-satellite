@@ -122,6 +122,7 @@ typedef struct {
 static DRAM_ATTR anim_state_t g_anim;
 static TaskHandle_t           g_rgb_task_handle = NULL;
 static QueueHandle_t          g_state_queue     = NULL;
+TaskHandle_t rgb_led_task_get_handle(void) { return g_rgb_task_handle; }
 
 /* ── LEDC helpers ────────────────────────────────────────────────────────── */
 

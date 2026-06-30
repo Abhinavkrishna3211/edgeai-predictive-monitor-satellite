@@ -107,6 +107,12 @@ void   snapshot_init(void);
 size_t snapshot_count(void);
 size_t snapshot_read_chunk(size_t chunk_byte_offset, void *dst, size_t nbytes);
 
+/* ── I2S DMA overflow counter ────────────────────────────────────────────────
+ * Incremented inside the I2S event ISR each time a DMA overrun is detected.
+ * Call this from wifi_task / diagnostics_task; NOT from an ISR.
+ * Returns the total cumulative count since boot (never wraps in normal use). */
+uint32_t mic_capture_get_overflow_count(void);
+
 #ifdef __cplusplus
 }
 #endif

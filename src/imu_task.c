@@ -20,12 +20,37 @@
  * Replace generate_stub_axis() with KX134 FIFO burst-read when hw arrives.
  */
 
+/*
+ * HW-OPT: KX134 SPI DMA stub — driver fixes to apply when hardware arrives:
+ *
+ *   3a: CONFIG_SPI_MASTER_ISR_IN_IRAM=y in sdkconfig.defaults +
+ *       .intr_flags = ESP_INTR_FLAG_IRAM on spi_bus_add_device().
+ *       Required: SPI ISR must stay in IRAM when flash cache is off (WiFi TX).
+ *       Without it: 800 µs ISR delay → SPI DMA transaction overrun.
+ *
+ *   3b: KX134 FIFO burst-read buffer declared as:
+ *       static DMA_ATTR uint8_t s_kx134_fifo_buf[3072];
+ *       (3072 = 512 samples × 3 axes × 2 bytes/sample at ±16g mode)
+ *       DMA on ESP32-S3 cannot address PSRAM directly — buffer must be
+ *       in internal DRAM or DMA will silently corrupt data.
+ *
+ *   3c: SPI clock set to 8 MHz (KX134 max is 10 MHz SPI read).
+ *       Transfer time: 3072 × 8 bits / 8 000 000 bps = 3.07 ms per burst.
+ *       With SPEC_AVG_N=16 and IMU_FS_HZ=25600, burst happens every
+ *       (FFT_IMU_N × 1000 / IMU_FS_HZ) = 80 ms → transfer is 3.8 % of window.
+ *
+ *   3d: Use spi_device_queue_trans() with queue depth 2 instead of
+ *       spi_device_transmit() blocking call.  ISR callback posts a
+ *       semaphore; imu_task waits on the semaphore rather than busy-spinning.
+ *       This returns the SPI bus to the RTOS scheduler during the 3 ms burst.
+ */
 #warning "IMU task is a stub — replace with KX134 SPI driver when hardware arrives"
 
 #include <math.h>
 #include <string.h>
 
 #include "esp_random.h"   /* hardware TRNG — thread-safe, no global shared state */
+#include "esp_attr.h"     /* EXT_RAM_BSS_ATTR for PSRAM placement */
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -57,8 +82,16 @@ static float s_pwr_x[IMU_HALF] __attribute__((aligned(16)));
 static float s_pwr_y[IMU_HALF] __attribute__((aligned(16)));
 static float s_pwr_z[IMU_HALF] __attribute__((aligned(16)));
 
-static QueueHandle_t s_queue = NULL;
-static imu_frame_t   s_frame;          /* 12 KB — too large for task stack */
+static QueueHandle_t s_queue      = NULL;
+static TaskHandle_t  s_task_handle = NULL;
+TaskHandle_t imu_task_get_handle(void) { return s_task_handle; }
+
+/* HW-OPT: EXT_RAM_BSS_ATTR places s_frame (≈12 KB) in PSRAM.
+ * s_pwr_x/y/z (accumulation buffers) stay in fast internal DRAM.
+ * The FFT write path is: internal DRAM (pwr_acc) → PSRAM (s_frame.fft_*)
+ * once per SPEC_AVG_N frames — well within PSRAM access latency budget.
+ * Saves 12 KB of internal DRAM for stack / DMA headroom. */
+static EXT_RAM_BSS_ATTR imu_frame_t s_frame;
 
 /* ─── Stub signal generator ───────────────────────────────────────────────── */
 
@@ -246,5 +279,5 @@ void imu_task_start(void)
              FFT_IMU_N, SPEC_AVG_N, (float)IMU_FS_HZ / FFT_IMU_N, IMU_FS_HZ);
 
     xTaskCreatePinnedToCore(imu_task_fn, "imu_task", TASK_STACK_IMU, NULL,
-                            TASK_PRIO_IMU, NULL, 0);
+                            TASK_PRIO_IMU, &s_task_handle, 0);
 }
