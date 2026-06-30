@@ -302,7 +302,7 @@ def main():
     print(f'\n[trainer] Done.  Per-satellite models saved to {args.model_dir}/')
     print('  Models are auto-loaded by recv_verify.py when each satellite connects.')
     if use_autoencoder:
-        print('  NPU acceleration active on Arduino Uno Q (Qualcomm Hexagon).')
+        print('  Adreno 702 GPU inference active on Arduino Uno Q (OpenCL 2.0).')
 
 
 if __name__ == '__main__':

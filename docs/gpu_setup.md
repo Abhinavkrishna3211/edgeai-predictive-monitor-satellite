@@ -126,9 +126,8 @@ Expected output on Uno Q with Adreno 702:
 ## Why open-source matters here
 
 Every other industrial monitoring system using Qualcomm robotics SoCs is locked
-into the proprietary SNPE / QNN SDK (Snapdragon Neural Processing SDK). That SDK
-requires a Qualcomm developer account, a signed license agreement, and binaries that
-cannot be redistributed or audited.
+into proprietary vendor ML SDKs that require developer accounts, signed license
+agreements, and ship binaries that cannot be redistributed or audited.
 
 EPM uses only open-source tooling: ONNX Runtime (MIT) and Apache TVM (Apache 2.0).
 No proprietary SDK required, no license agreement, fully auditable, and the same

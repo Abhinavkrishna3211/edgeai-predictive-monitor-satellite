@@ -4,15 +4,9 @@ autoencoder.py — Spectral-aware neural autoencoder for EPM bearing anomaly det
 
 Designed to run on the Arduino Uno Q (QRB2210 SoC) via TFLite delegate.
 
-Hardware clarification — Arduino Uno Q (QRB2210):
-  The QRB2210 contains an Adreno 702 GPU (OpenCL 2.0, documented).
-  It does NOT have a Hexagon DSP / QNN-HTP NPU (not listed in the QRB2210
-  datasheet).  The reliable hardware-accelerated inference path on Uno Q is:
-
-      libQnnGpu.so (Adreno 702 via QNN GPU delegate)  ← primary
-      CPU TFLite (4 threads)                           ← always-available fallback
-
-  libQnnHtp.so and libhexagon_* are silently skipped if not found.
+Hardware — Arduino Uno Q (QRB2210):
+  Primary inference: Adreno 702 GPU @ 845 MHz, OpenCL 2.0 (QNN GPU delegate).
+  Fallback: CPU TFLite (4 threads) — always available.
 
 Feature vector (INPUT_DIM = 41):
   [0:9]   Statistical features:
@@ -274,14 +268,10 @@ class NpuInferencer:
     """
     TFLite inference with hardware-accelerated delegate auto-selection.
 
-    Delegate priority on Arduino Uno Q (QRB2210 — Adreno 702):
-      1. libQnnGpu.so  — Qualcomm QNN GPU delegate (Adreno 702, OpenCL 2.0) ← best
-      2. CPU (4 threads) — Always available, guaranteed fallback
-
-    The QRB2210 datasheet documents an Adreno 702 GPU; it does not list a
-    Hexagon DSP or QNN-HTP NPU.  libQnnHtp.so and libhexagon_* candidates are
-    left in the list as no-ops so this code also works on QCS6490-based boards
-    that do have Hexagon, without any code change.
+    Delegate priority on Arduino Uno Q (QRB2210 — Adreno 702 GPU, OpenCL 2.0):
+      1. libQnnGpu.so  — Qualcomm QNN GPU delegate (Adreno 702) ← primary
+      2. libQnnHtp.so  — QNN HTP delegate (for QCS6490-class boards, no-op on QRB2210)
+      3. CPU (4 threads) — always-available fallback
 
     The model is identical regardless of which delegate runs it — correctness is
     independent of the backend.  Only latency changes (GPU: ~2 ms, CPU: ~8 ms).
@@ -292,8 +282,8 @@ class NpuInferencer:
 
     _DELEGATE_CANDIDATES = [
         ('libQnnGpu.so',          'Qualcomm Adreno 702 GPU (QNN GPU delegate)'),
-        ('libQnnHtp.so',          'Qualcomm QNN-HTP (Hexagon — not on QRB2210)'),
-        ('libhexagon_nn_skel.so', 'Qualcomm Hexagon NN legacy (not on QRB2210)'),
+        ('libQnnHtp.so',          'Qualcomm QNN HTP delegate (QCS6490-class boards)'),
+        ('libhexagon_nn_skel.so', 'Qualcomm QNN NN legacy delegate'),
     ]
 
     def __init__(self, tflite_path: str, scaler_path: str, use_npu: bool = True):

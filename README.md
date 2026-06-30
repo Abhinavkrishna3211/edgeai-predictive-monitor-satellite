@@ -75,7 +75,7 @@ The gateway runs on the **MPU side** (Linux / Debian). The STM32 MCU side handle
 | CPU cores | 4× ARM Cortex-A53 @ 2.0 GHz |
 | RAM | **4 GB LPDDR4** |
 | Storage | 16 GB eMMC (expandable via USB) |
-| GPU | Adreno 702 @ 845 MHz, OpenCL 2.0 — optional TVM/OpenCL acceleration (no SNPE required) |
+| GPU | Adreno 702 @ 845 MHz, OpenCL 2.0 — optional TVM/OpenCL acceleration |
 | OS | Debian Linux (upstream kernel) |
 | WiFi | Wi-Fi 5 (802.11ac) 2.4 GHz + 5 GHz, onboard antenna |
 | Bluetooth | BT 5.1, onboard antenna |
@@ -505,10 +505,8 @@ OpenCL acceleration on the Adreno 702 GPU is available via Apache TVM
 (see [docs/gpu_setup.md](docs/gpu_setup.md) for build instructions).
 Both paths are fully open-source — no Qualcomm proprietary SDK required.
 
-> This is a genuine product differentiator. Most industrial monitoring systems
-> built on Qualcomm robotics SoCs are locked into the proprietary SNPE / QNN SDK.
 > EPM uses only MIT- and Apache 2.0-licensed tooling that can be audited,
-> redistributed, and deployed without a vendor agreement.
+> redistributed, and deployed without any vendor agreement or proprietary SDK.
 
 ### Provider selection
 
