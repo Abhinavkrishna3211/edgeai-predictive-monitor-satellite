@@ -77,3 +77,69 @@ CONFIG_SPIRAM_USE_CAPS_ALLOC=y
 # callback by up to 800 µs — visible as a LED glitch.
 CONFIG_LEDC_FADE_ISR_IN_IRAM=y
 CONFIG_LEDC_CTRL_FUNC_IN_IRAM=y
+
+# ── I2S ISR in IRAM ───────────────────────────────────────────────────────────
+#
+# HW-OPT: Keeps the I2S DMA interrupt handler in IRAM so DMA buffer completion
+# events are processed immediately even when the flash cache is disabled during
+# a WiFi TX burst.  Without this, an 800 µs cache-miss window can cause the
+# I2S DMA ISR to miss a buffer-full interrupt, resulting in a silent audio gap
+# and an incrementing overflow_count in the EPM frame header.
+CONFIG_I2S_ISR_IRAM_SAFE=y
+
+# ── SPI master ISR in IRAM ────────────────────────────────────────────────────
+#
+# HW-OPT: Keeps the SPI master interrupt handler in IRAM.  Required when the
+# KX134 SPI driver is active — a cache miss during a WiFi TX burst would delay
+# the SPI DMA completion ISR, causing an SPI transaction overrun.
+# Safe to include even while the IMU is a stub (flag has no effect on
+# a bus that is not initialised).
+CONFIG_SPI_MASTER_ISR_IN_IRAM=y
+
+# ── WiFi IRAM optimisation ────────────────────────────────────────────────────
+#
+# HW-OPT: Places the WiFi driver's TX/RX hot path and the 802.11 MAC interrupt
+# handler in IRAM.  Expected improvement: up to 20% higher WiFi throughput and
+# lower jitter on the 14 KB EPM frame sends.  Required because the WiFi driver
+# itself can be interrupted by other ISRs; having the handler in IRAM prevents
+# recursive cache misses.
+CONFIG_ESP_WIFI_IRAM_OPT=y
+CONFIG_ESP_WIFI_RX_IRAM_OPT=y
+
+# ── mbedTLS hardware acceleration ────────────────────────────────────────────
+#
+# HW-OPT: Routes AES-128-GCM encryption through the ESP32-S3 hardware AES
+# accelerator + GDMA engine instead of the software AES path.
+#
+#   Frame size   = 14 336 bytes (EPM_PLAIN_LEN)
+#   Software AES = ~30 cycles/byte → 14 336 × 30 / 240 000 000 ≈ 1.79 ms
+#                = 35.8 % CPU at 2.2 fps
+#   Hardware AES = GDMA offload, < 0.2 ms ≈ 3 % CPU at 2.2 fps
+#
+# CONFIG_MBEDTLS_AES_USE_INTERRUPT=y: AES engine triggers an interrupt on
+# completion rather than busy-waiting in the WiFi task, allowing the CPU to
+# handle other ISRs during the ~0.2 ms AES operation.
+CONFIG_MBEDTLS_HARDWARE_AES=y
+CONFIG_MBEDTLS_HARDWARE_SHA=y
+CONFIG_MBEDTLS_AES_USE_INTERRUPT=y
+
+# ── PSRAM: Octal mode ────────────────────────────────────────────────────────
+#
+# XIAO ESP32-S3 uses an Octal (8-line) PSRAM interface, not Quad.
+# CONFIG_SPIRAM_MODE_OCT=y activates the OPI (Octal Peripheral Interface)
+# driver which doubles the peak bandwidth vs Quad mode
+# (up to ~80 MB/s vs ~40 MB/s at 80 MHz OPI DDR).
+# Without this, the Octal PSRAM runs in compatibility Quad mode — slower and
+# consumes more transactions per PSRAM access.
+CONFIG_SPIRAM_MODE_OCT=y
+
+# ── FreeRTOS runtime statistics ──────────────────────────────────────────────
+#
+# Required for vTaskGetRunTimeStats() in diagnostics_task.
+# CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS enables the per-task CPU counter.
+# CONFIG_FREERTOS_USE_TRACE_FACILITY adds uxTaskGetSystemState() support.
+# CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS provides vTaskGetRunTimeStats().
+# All three are required together.
+CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS=y

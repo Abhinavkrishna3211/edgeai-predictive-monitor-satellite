@@ -43,11 +43,13 @@
 #include "esp_random.h"
 #include "esp_pm.h"
 
+#include "esp_attr.h"
+
 #include "epm_config.h"
 #include "epm_protocol.h"
 #include "rgb_led_task.h"
 #include "wifi_task.h"
-#include "mic_capture.h"  /* snapshot_count(), snapshot_read_chunk() */
+#include "mic_capture.h"  /* snapshot_count(), snapshot_read_chunk(), get_overflow_count() */
 
 /* ---------- module constants ---------- */
 
@@ -80,10 +82,14 @@ static imu_frame_t s_imu;
 static mbedtls_gcm_context s_gcm_ctx;
 static uint8_t             s_aes_key[16];
 
-/* Plaintext / ciphertext staging buffers for encrypted frames (~14 KB each).
- * Kept static so they never touch the task stack. */
-static uint8_t s_enc_pt[EPM_PLAIN_LEN];
-static uint8_t s_enc_ct[EPM_PLAIN_LEN];
+/* HW-OPT: DMA_ATTR places AES staging buffers in internal DRAM, aligned for
+ * GDMA access.  The ESP32-S3 AES accelerator uses GDMA to transfer plaintext
+ * and ciphertext — if these buffers were in PSRAM the GDMA would access them
+ * through the PSRAM cache, causing silently incorrect ciphertext on cache
+ * evictions that occur during concurrent WiFi GDMA operations.
+ * (~14 KB each; internal DRAM headroom checked at boot via heap_caps_get_free_size.) */
+static DMA_ATTR uint8_t s_enc_pt[EPM_PLAIN_LEN];
+static DMA_ATTR uint8_t s_enc_ct[EPM_PLAIN_LEN];
 
 /* ---------- WiFi event sub-handlers ---------- */
 
@@ -247,6 +253,17 @@ static int tcp_connect(void)
     setsockopt(sock, SOL_SOCKET,  SO_KEEPALIVE, &flag, sizeof(flag));
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,  &flag, sizeof(flag));
 
+    /* HW-OPT: keepalive tuning (5/2/3) — detects a silently dead gateway
+     * in 5 + 2×3 = 11 s vs the LWIP default which takes ~75 s to expire.
+     * Without this, a crashed gateway keeps the satellite stuck on send() for
+     * up to 75 s (SO_SNDTIMEO = 10 s, but keepalive fires first if set). */
+    int keepidle  = 5;   /* seconds idle before first probe */
+    int keepintvl = 2;   /* seconds between probes */
+    int keepcnt   = 3;   /* probes before connection declared dead */
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE,  &keepidle,  sizeof(keepidle));
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT,   &keepcnt,   sizeof(keepcnt));
+
     /* 10-second send timeout — avoids the 75-second lwIP default block
      * when the gateway is unreachable. */
     struct timeval sndto = {.tv_sec = 10, .tv_usec = 0};
@@ -273,12 +290,32 @@ static int tcp_send_all(int sock, const void *buf, size_t len)
 {
     const uint8_t *ptr = (const uint8_t *)buf;
     size_t remaining   = len;
-
     while (remaining > 0) {
         int sent = send(sock, ptr, remaining, 0);
         if (sent <= 0) {
-            /* sent == 0 means gateway closed connection; sent < 0 is a real error */
             ESP_LOGE(TAG, "send() %s: errno %d",
+                     sent == 0 ? "connection closed" : "failed", errno);
+            return -1;
+        }
+        ptr       += sent;
+        remaining -= (size_t)sent;
+    }
+    return 0;
+}
+
+/* HW-OPT: MSG_MORE batches intermediate send() calls into fewer TCP segments.
+ * With TCP_NODELAY set, each send() would otherwise flush immediately.
+ * MSG_MORE defers the push until the final send() (without MSG_MORE), reducing
+ * segment count from 6 per frame to 1 per frame for the non-encrypted path.
+ * Expected improvement: ~5 fewer ACK round-trips per frame at 2.2 fps. */
+static int tcp_send_more(int sock, const void *buf, size_t len)
+{
+    const uint8_t *ptr = (const uint8_t *)buf;
+    size_t remaining   = len;
+    while (remaining > 0) {
+        int sent = send(sock, ptr, remaining, MSG_MORE);
+        if (sent <= 0) {
+            ESP_LOGE(TAG, "send(MSG_MORE) %s: errno %d",
                      sent == 0 ? "connection closed" : "failed", errno);
             return -1;
         }
@@ -390,6 +427,14 @@ static void build_header(epm_header_t *hdr, uint32_t frame_id)
     hdr->imu_crest    = fmaxf(s_imu.crest_x, fmaxf(s_imu.crest_y, s_imu.crest_z));
     hdr->imu_dc       = s_imu.dc_x;  /* X-axis DC offset — gravity/tilt component */
     hdr->imu_clip     = s_imu.clip;
+
+    /* I2S DMA overflow count: delta since last frame, saturated at 255.
+     * Gateway uses this to flag frames that may have a gap in audio data. */
+    static uint32_t s_last_overflow = 0;
+    uint32_t cur_overflow = mic_capture_get_overflow_count();
+    uint32_t delta        = cur_overflow - s_last_overflow;
+    hdr->overflow_count   = (uint8_t)(delta > 255u ? 255u : delta);
+    s_last_overflow       = cur_overflow;
 }
 
 /* Returns false on send failure — caller must drop connection and reconnect. */
@@ -426,12 +471,13 @@ static bool send_frame(int sock, const epm_header_t *hdr)
                    + (FFT_MIC_N / 2) * sizeof(float)
                    + (FFT_IMU_N / 2) * sizeof(float) * 3);
 
-    int err = tcp_send_all(sock, &payload_bytes, sizeof(payload_bytes));
-    if (!err) err = tcp_send_all(sock, hdr,          sizeof(*hdr));
-    if (!err) err = tcp_send_all(sock, s_mic.fft_db, (FFT_MIC_N / 2) * sizeof(float));
-    if (!err) err = tcp_send_all(sock, s_imu.fft_x,  (FFT_IMU_N / 2) * sizeof(float));
-    if (!err) err = tcp_send_all(sock, s_imu.fft_y,  (FFT_IMU_N / 2) * sizeof(float));
-    if (!err) err = tcp_send_all(sock, s_imu.fft_z,  (FFT_IMU_N / 2) * sizeof(float));
+    /* HW-OPT: tcp_send_more for all-but-last segment — see tcp_send_more() above. */
+    int err = tcp_send_more(sock, &payload_bytes, sizeof(payload_bytes));
+    if (!err) err = tcp_send_more(sock, hdr,          sizeof(*hdr));
+    if (!err) err = tcp_send_more(sock, s_mic.fft_db, (FFT_MIC_N / 2) * sizeof(float));
+    if (!err) err = tcp_send_more(sock, s_imu.fft_x,  (FFT_IMU_N / 2) * sizeof(float));
+    if (!err) err = tcp_send_more(sock, s_imu.fft_y,  (FFT_IMU_N / 2) * sizeof(float));
+    if (!err) err = tcp_send_all( sock, s_imu.fft_z,  (FFT_IMU_N / 2) * sizeof(float));
     return err == 0;
 #endif
 }
@@ -713,6 +759,16 @@ void wifi_rf_init(void)
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    /* HW-OPT: cap TX power to 17 dBm to reduce peak current draw on the
+     * XIAO USB-C 3.3 V rail.  Negligible range loss at <10 m deployment.
+     * Unit: quarter-dBm.  WIFI_TX_POWER_QTR_DBM=68 → 17.0 dBm. */
+    if (esp_wifi_set_max_tx_power(WIFI_TX_POWER_QTR_DBM) == ESP_OK) {
+        ESP_LOGI(TAG, "WiFi TX power capped to %.1f dBm (%d q-dBm)",
+                 WIFI_TX_POWER_QTR_DBM / 4.0f, (int)WIFI_TX_POWER_QTR_DBM);
+    } else {
+        ESP_LOGW(TAG, "esp_wifi_set_max_tx_power failed — using default");
+    }
+
     ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\", target: %s:%d (mDNS discovery first)",
              WIFI_SSID, SERVER_IP, SERVER_PORT);
 }
@@ -728,10 +784,13 @@ bool wifi_wait_connected(TickType_t ticks_to_wait)
 }
 
 /* Phase 3: create TCP sender task — call after mic/imu tasks exist. */
+static TaskHandle_t s_task_handle = NULL;
+TaskHandle_t wifi_task_get_handle(void) { return s_task_handle; }
+
 void wifi_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q)
 {
     s_task_args.mic_q = mic_q;
     s_task_args.imu_q = imu_q;
     xTaskCreatePinnedToCore(wifi_task_fn, "wifi_task", TASK_STACK_WIFI,
-                            &s_task_args, TASK_PRIO_WIFI, NULL, 0);
+                            &s_task_args, TASK_PRIO_WIFI, &s_task_handle, 0);
 }

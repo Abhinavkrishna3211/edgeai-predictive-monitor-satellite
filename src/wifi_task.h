@@ -35,6 +35,9 @@ bool wifi_wait_connected(TickType_t ticks_to_wait);
  */
 void wifi_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q);
 
+/** Returns the task handle (valid after wifi_task_start()). Used by diagnostics_task. */
+TaskHandle_t wifi_task_get_handle(void);
+
 /*
  * Adaptive-sensing parameters — written by wifi_task when a v2 reply arrives,
  * read by dsp_task at the start of each averaging cycle.  uint8_t writes

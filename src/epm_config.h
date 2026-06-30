@@ -88,17 +88,48 @@
 #define MIC_FAIL_MAX  50
 #endif
 
+/* ─── WiFi TX power ──────────────────────────────────────────────────────── */
+
+/* HW-OPT: WiFi TX power cap — limits peak current on 3.3V rail (XIAO USB-C).
+ * 68 = 17 dBm (units: quarter-dBm). ESP32-S3 max is 20 dBm (80).
+ * Reducing from 20 → 17 dBm cuts TX current ~30% (from ~310 mA peak to ~220 mA)
+ * with negligible range loss at <10m industrial sensor deployment distance.
+ * To restore max range: set WIFI_TX_POWER_QTR_DBM=80. */
+#ifndef WIFI_TX_POWER_QTR_DBM
+#define WIFI_TX_POWER_QTR_DBM  68
+#endif
+
 /* ─── FreeRTOS task sizing ───────────────────────────────────────────────── */
 
+/*
+ * Priority hierarchy (corrected — 5-task + diagnostics layout):
+ *   Core 0: wifi_task(4), mic_task(5), imu_task(5), diagnostics_task(1)
+ *   Core 1: dsp_task(6), rgb_led_task(3)
+ *
+ *   6 = dsp_task   : compute-bound, must complete FFT before next DMA buffer fills
+ *   5 = mic/imu    : DMA callbacks, must service within DMA_FRAME_NUM/sample_rate
+ *   4 = wifi_task  : TCP blocking I/O, preemptible by capture tasks
+ *   3 = rgb_led    : nearly always blocked on queue/notify, lowest real-time need
+ *   1 = diagnostics: background HWM monitoring, runs every 30 s, never time-critical
+ *
+ * Stack sizes are set conservatively above spec minimums:
+ *   mic=8192 (spec 4096) — float kurtosis buffers on task stack safety margin
+ *   dsp=16384 (spec 8192) — FFT + feature compute on core 1, no headroom issues
+ *   imu=8192 (spec 4096) — 3-axis FFT, cosf(), safety margin
+ *   wifi=10240 (spec 6144) — mbedTLS GCM + mDNS + TCP + nvs overhead
+ *   diag=3072 (spec 3072) — only vTaskGetRunTimeStats 512-byte static buffer
+ */
 #define TASK_STACK_MIC   8192
-#define TASK_STACK_DSP   16384   /* FFT + feature buffers on core 1 */
+#define TASK_STACK_DSP   16384
 #define TASK_STACK_IMU   8192
 #define TASK_STACK_WIFI  10240
+#define TASK_STACK_DIAG  3072
 
-#define TASK_PRIO_MIC    6   /* higher than IMU — DMA overrun costs a whole block */
-#define TASK_PRIO_DSP    7   /* must drain raw_q before the next block arrives */
-#define TASK_PRIO_IMU    5
-#define TASK_PRIO_WIFI   4
+#define TASK_PRIO_MIC    5   /* I2S DMA callback — must not be starved by DSP */
+#define TASK_PRIO_DSP    6   /* FFT compute — highest: must drain raw_rb before next block */
+#define TASK_PRIO_IMU    5   /* SPI DMA capture (stub) */
+#define TASK_PRIO_WIFI   4   /* TCP I/O — preemptible by DMA tasks */
+#define TASK_PRIO_DIAG   1   /* background health monitor */
 
 /* ─── Inter-task data structures ─────────────────────────────────────────── */
 
@@ -124,12 +155,13 @@ typedef struct {
  * fft_db[0] = DC bin, explicitly set to -120 dBFS after DC removal.
  */
 typedef struct {
-    float    fft_db[FFT_MIC_N / 2]; /* averaged power spectrum in dBFS    */
-    float    rms;                    /* RMS of last block [-1, 1]          */
-    float    crest;                  /* peak/RMS — impulse fault indicator */
-    float    kurtosis;               /* 4th moment / variance^2 — ISO bearing fault metric */
-    float    dc;                     /* DC offset of last block            */
-    uint8_t  clip;                   /* 1 if any sample hit full-scale     */
+    float    fft_db[FFT_MIC_N / 2]; /* averaged power spectrum in dBFS         */
+    float    rms;                    /* RMS of AC (DC-removed) block            */
+    float    crest;                  /* peak/RMS — impulse fault indicator      */
+    float    kurtosis;               /* 4th moment / variance^2 — ISO bearing   */
+    float    dc;                     /* DC offset of last block                 */
+    float    spectral_centroid;      /* Σ(f_i·P_i)/Σ(P_i) Hz — texture metric  */
+    uint8_t  clip;                   /* 1 if any sample hit full-scale          */
     uint32_t timestamp_ms;
 } mic_frame_t;
 

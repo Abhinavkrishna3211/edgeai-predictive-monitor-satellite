@@ -24,6 +24,7 @@
 #include "driver/i2s_std.h"
 #include "driver/gpio.h"
 #include "esp_heap_caps.h"
+#include "esp_attr.h"
 #include "esp_log.h"
 #include <math.h>
 #include <string.h>
@@ -31,6 +32,26 @@
 static const char *TAG = "mic_capture";
 
 static i2s_chan_handle_t s_rx_chan = NULL;
+
+/* ── I2S DMA overflow tracking ───────────────────────────────────────────────
+ * HW-OPT: CONFIG_I2S_ISR_IRAM_SAFE=y keeps the ISR in IRAM so it stays
+ * reachable when the flash cache is disabled during WiFi TX bursts.
+ * Without it an 800 µs cache-miss window can cause the overflow ISR to miss
+ * a DMA underrun event, silently dropping an audio block. */
+static volatile uint32_t DRAM_ATTR s_i2s_overflow_count = 0;
+
+static IRAM_ATTR bool i2s_overflow_cb(i2s_chan_handle_t handle,
+                                       i2s_event_data_t *event, void *ctx)
+{
+    (void)handle; (void)event; (void)ctx;
+    s_i2s_overflow_count++;
+    return false; /* no higher-priority task wake needed */
+}
+
+uint32_t mic_capture_get_overflow_count(void)
+{
+    return s_i2s_overflow_count;
+}
 
 /* ── PSRAM pre-trigger ring buffer ──────────────────────────────────────────
  * 4 seconds × 16000 Hz × 2 bytes = 128 KB.  int16_t truncation (raw >> 16)
@@ -165,6 +186,21 @@ esp_err_t mic_capture_init(void)
         return err;
     }
 
+    /* HW-OPT: Register I2S overflow event callback so DMA underruns are
+     * counted rather than silently dropped.  Requires CONFIG_I2S_ISR_IRAM_SAFE=y
+     * in sdkconfig.defaults for IRAM placement of the ISR dispatch path. */
+    i2s_event_callbacks_t evt_cbs = {
+        .on_recv        = NULL,
+        .on_recv_q_ovf  = i2s_overflow_cb,
+        .on_send        = NULL,
+        .on_send_q_ovf  = NULL,
+    };
+    err = i2s_channel_register_event_callback(s_rx_chan, &evt_cbs, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "I2S event callback register failed: %s (overflow counting disabled)",
+                 esp_err_to_name(err));
+    }
+
     ESP_LOGI(TAG, "mic_capture init: %d Hz, block=%d samples, dma_desc=%d",
               MIC_SAMPLE_RATE_HZ, MIC_RAW_BLOCK_SAMPLES, MIC_DMA_DESC_NUM);
     return ESP_OK;
@@ -187,7 +223,16 @@ esp_err_t mic_capture_read_block(int32_t *out_raw, float *out_normalized,
         return ESP_ERR_INVALID_STATE;
     }
 
-    static int32_t raw_buf[MIC_RAW_BLOCK_SAMPLES];
+    /* HW-OPT: DMA_ATTR places raw_buf in internal DRAM with 4-byte alignment.
+     * DMA controller on ESP32-S3 cannot read from PSRAM directly — the buffer
+     * must be in internal DRAM to avoid a silent DMA corruption when PSRAM
+     * cache lines are being evicted during concurrent WiFi GDMA operations.
+     *
+     * DMA buffer size check (must not exceed 4092 bytes per descriptor):
+     *   dma_frame_num × slot_num × bit_width/8
+     *   = 512 × 1 × 32/8 = 2048 bytes ≤ 4092 ✓
+     * (MIC_RAW_BLOCK_SAMPLES/2 = 512 is set in mic_capture_init.) */
+    static DMA_ATTR int32_t raw_buf[MIC_RAW_BLOCK_SAMPLES];
     size_t want_bytes = block_len * sizeof(int32_t);
     size_t got_bytes  = 0;
 
