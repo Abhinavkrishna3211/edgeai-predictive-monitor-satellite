@@ -969,7 +969,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             if alert != prev_alert:
                 _log_alert_event(sat.name, mac_hex, alert, prev_alert,
                                  frame['mic_kurtosis'], frame['mic_crest'], z_score,
-                                 dict(_feat_z))
+                                 dict(sat.feat_z))
                 if alert > prev_alert:   # notify on escalation only, not recovery
                     _fire_notification(sat.name, mac_hex,
                                        ['OK', 'WARN', 'FAULT'][min(alert, 2)],
