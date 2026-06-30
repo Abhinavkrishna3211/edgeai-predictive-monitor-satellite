@@ -8,6 +8,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* Pull in wifi_creds.h if it exists (defines WIFI_SSID, WIFI_PASS, SERVER_IP,
  * SERVER_PORT).  This file is gitignored; credentials stay out of build flags
@@ -73,37 +74,10 @@
 
 /* ─── Alert LED ──────────────────────────────────────────────────────────── */
 
-/* ── Single built-in LED (default) ──────────────────────────────────────────
- * GPIO21 = built-in user LED on XIAO ESP32-S3 (active-low: LOW = ON).
- * Driven by a 100 ms esp_timer — 5 distinct patterns (see led_task.h).   */
-#define ALERT_LED_PIN   21
-
-/* ── External RGB LED upgrade ────────────────────────────────────────────────
- * When you connect a common-cathode RGB LED, set EPM_LED_RGB=1 either here
- * or via build_flags in platformio.ini (-DEPM_LED_RGB=1) and choose three
- * free GPIOs for R, G, B.  led_task.c will switch to colour-based signalling
- * automatically — no other code changes needed.
- *
- * Suggested wiring for XIAO ESP32-S3:
- *   GPIO 1 (D0/A0) → 220 Ω → Red   anode
- *   GPIO 2 (D1/A1) → 220 Ω → Green anode
- *   GPIO 3 (D2/A2) → 220 Ω → Blue  anode
- *   GND                   → Common cathode
- *
- * Colour map (5 states, full list in led_task.h):
- *   BOOT=White  CONNECTING=Blue  OK=Green  WARN=Yellow  FAULT=Red          */
-#ifndef EPM_LED_RGB
-#define EPM_LED_RGB   0   /* 0 = single built-in LED,  1 = external RGB LED */
-#endif
-
-#ifndef LED_PIN_R
-#define LED_PIN_R     1   /* GPIO for Red   (active-high, 3.3 V through 220 Ω) */
-#endif
-#ifndef LED_PIN_G
-#define LED_PIN_G     2   /* GPIO for Green */
-#endif
-#ifndef LED_PIN_B
-#define LED_PIN_B     3   /* GPIO for Blue  */
+/* Frames before HST z-score baseline is considered valid.
+ * wifi_task counts received frames; below this count RGB_CALIBRATING is shown. */
+#ifndef LED_CAL_FRAMES
+#define LED_CAL_FRAMES  30
 #endif
 
 /* ─── Fault thresholds ───────────────────────────────────────────────────── */
@@ -178,6 +152,13 @@ typedef struct {
  * The AI model on the Uno Q sees [fft_z | fft_x | fft_y | mic_fft] as one
  * concatenated feature vector.  Cross-axis correlations are learnable.
  */
+/* ─── Shared runtime state ───────────────────────────────────────────────── */
+
+/* Set by dsp_task when HST warm-up frame 250 is reached.
+ * Read by wifi_task to switch LED from RGB_LEARNING → alert-driven states.
+ * uint8_t-width write on Xtensa is atomic; volatile ensures visibility. */
+extern volatile bool g_hst_warmed_up;
+
 typedef struct {
     float    fft_x[FFT_IMU_N / 2];  /* X axis radial FFT in dBFS           */
     float    fft_y[FFT_IMU_N / 2];  /* Y axis radial FFT in dBFS           */

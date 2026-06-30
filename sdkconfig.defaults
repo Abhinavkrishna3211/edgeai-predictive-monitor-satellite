@@ -68,3 +68,12 @@ CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
 # never competes with internal SRAM.
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+
+# ── LEDC fade ISR in IRAM ─────────────────────────────────────────────────────
+#
+# Places the LEDC fade ISR and control functions in IRAM so they remain
+# accessible when the flash instruction cache is disabled during WiFi TX bursts.
+# Without these, a cache miss during a WiFi packet can delay the fade-end
+# callback by up to 800 µs — visible as a LED glitch.
+CONFIG_LEDC_FADE_ISR_IN_IRAM=y
+CONFIG_LEDC_CTRL_FUNC_IN_IRAM=y

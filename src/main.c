@@ -16,6 +16,8 @@
  * of 1024-pt — both tasks can use it concurrently without re-initialising.
  */
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "nvs_flash.h"
@@ -26,7 +28,7 @@
 #include "dsps_fft2r.h"
 
 #include "epm_config.h"
-#include "led_task.h"
+#include "rgb_led_task.h"
 #include "mic_task.h"
 #include "dsp_task.h"
 #include "imu_task.h"
@@ -62,8 +64,10 @@ void app_main(void)
     ESP_ERROR_CHECK(dsps_fft2r_init_fc32(NULL, FFT_MIC_N));
 #endif
 
-    /* --- LED task: start first so the board gives visual feedback during boot --- */
-    led_task_start();
+    /* --- RGB LED: init hardware and start task before any DSP tasks --- */
+    rgb_led_task_init();
+    xTaskCreatePinnedToCore(rgb_led_task, "rgb_led", 3072, NULL, 3, NULL, 1);
+    rgb_led_set_state(RGB_BOOT);
 
     /* --- Start WiFi RF before any I2S/DMA ---
      * I2S DMA interrupts disrupt the WiFi firmware's RF state-machine timing

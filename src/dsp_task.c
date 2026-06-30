@@ -35,7 +35,12 @@
 
 #include "epm_config.h"
 #include "dsp_task.h"
-#include "wifi_task.h"   /* g_adapt_overlap_pct, g_adapt_spec_avg_n */
+#include "wifi_task.h"     /* g_adapt_overlap_pct, g_adapt_spec_avg_n */
+#include "rgb_led_task.h"  /* rgb_led_set_state, RGB_OK */
+
+/* Set to true when 250 averaged frames have been processed (HST warm-up done).
+ * Read by wifi_task on core 0 — volatile ensures cross-core visibility. */
+volatile bool g_hst_warmed_up = false;
 
 static const char *TAG = "dsp_task";
 
@@ -61,9 +66,10 @@ static void dsp_task_fn(void *arg)
 {
     QueueHandle_t raw_q = (QueueHandle_t)arg;
 
-    int avg_cnt          = 0;
-    int local_spec_avg_n  = SPEC_AVG_N;
-    int local_overlap_pct = 0;
+    int      avg_cnt          = 0;
+    int      local_spec_avg_n  = SPEC_AVG_N;
+    int      local_overlap_pct = 0;
+    uint32_t hst_frame_count   = 0;
 
     float   last_rms      = 0.0f;
     float   last_crest    = 0.0f;
@@ -163,6 +169,13 @@ static void dsp_task_fn(void *arg)
         frame.timestamp_ms = s_blk.timestamp_ms;
 
         xQueueOverwrite(s_queue, &frame);
+
+        hst_frame_count++;
+        if (!g_hst_warmed_up && hst_frame_count >= 250) {
+            g_hst_warmed_up = true;
+            rgb_led_set_state(RGB_OK);
+            ESP_LOGI(TAG, "HST warmed up at frame %lu", (unsigned long)hst_frame_count);
+        }
     }
 }
 
