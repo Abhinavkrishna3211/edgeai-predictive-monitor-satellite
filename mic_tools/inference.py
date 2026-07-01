@@ -65,7 +65,7 @@ class InferenceEngine:
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"ONNX model not found: {model_path}")
 
-        available = {p.name for p in ort.get_all_providers()}
+        available = set(ort.get_all_providers())
         providers = [p for p in PROVIDER_PREFERENCE if p in available]
         if not providers:
             providers = ['CPUExecutionProvider']

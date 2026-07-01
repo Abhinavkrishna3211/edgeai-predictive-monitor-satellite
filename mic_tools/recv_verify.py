@@ -88,6 +88,14 @@ try:
 except ImportError:
     AdaptiveBaseline = None  # type: ignore[assignment,misc]
 
+# Optional: ONNX Runtime autoencoder inference (reconstruction-error channel)
+_AE_AVAILABLE = False
+try:
+    from inference import InferenceEngine
+    _AE_AVAILABLE = True
+except ImportError:
+    InferenceEngine = None  # type: ignore[assignment,misc]
+
 # Optional: SQLite-backed storage for alert events, maintenance log, and model state
 _STORAGE_AVAILABLE = False
 try:
@@ -189,7 +197,16 @@ HIGH_BAND_MIN  = 0.12   # 12% of total mic energy must be in 2-8kHz band
 MIC_FS_HZ = 16000
 IMU_FS_HZ = 25600   # KX134 ODR — must match FFT_IMU_N and epm_config.h
 
-_SERVER_START_T = time.time()   # used by dashboard uptime counter
+_SERVER_START_T  = time.time()   # used by dashboard uptime counter
+_led_last_update = 0.0           # monotonic epoch of last sysfs LED write
+
+# Autoencoder inference engine + per-channel reconstruction-error baseline tracker
+# Set at startup via --autoencoder; None when --autoencoder is not supplied.
+_ae_engine:    object | None = None   # InferenceEngine
+_ae_stats:     object | None = None   # numpy record with mean, std, mean_recon_err
+# Per-satellite adaptive reconstruction-error baseline (tracks healthy drift over time)
+# Keyed by mac_hex; values are AdaptiveBaseline instances.
+_ae_baselines: dict = {}
 
 # HST feature dimension: 7 mic-only stats; extend to 28 when IMU FIFO is real
 # (mirrors the 7 mic stats across imu_x, imu_y, imu_z for 4×7=28)
@@ -252,6 +269,41 @@ def _adaptive_avg_n(p_fault: float) -> int:
     if p_fault < 0.30: return 8
     if p_fault < 0.70: return 4
     return 2
+
+
+def _write_led(channel: str, value: int) -> None:
+    """Write brightness to a Linux sysfs LED channel.
+    Silently does nothing if the path does not exist (laptop mode).
+    On Arduino Uno Q: /sys/class/leds/{channel}/brightness exists.
+    """
+    try:
+        with open(f"/sys/class/leds/{channel}/brightness", "w") as fh:
+            fh.write(str(int(value)))
+    except (FileNotFoundError, PermissionError, OSError):
+        pass  # not on Uno Q hardware — silent no-op
+
+
+def led_set_status(worst_state: str) -> None:
+    """Reflect gateway AI state on the Uno Q's Linux-controlled RGB LED.
+    LED D27301 channels: red:user, green:user, blue:user
+    Called once per second with the worst satellite state across the fleet.
+    States:
+      OK      -> green solid  (all satellites healthy)
+      WARN    -> amber        (at least one satellite in warning)
+      FAULT   -> red solid    (bearing fault confirmed)
+      TRIPPED -> magenta      (interlock tripped — future use)
+    """
+    colours = {
+        "OK":      (0,   255, 0),
+        "WARN":    (255, 128, 0),
+        "FAULT":   (255, 0,   0),
+        "TRIPPED": (255, 0,   128),
+    }
+    r, g, b = colours.get(worst_state, (0, 0, 0))
+    _write_led("red:user",   r)
+    _write_led("green:user", g)
+    _write_led("blue:user",  b)
+
 
 # ─── Satellite registry ───────────────────────────────────────────────────────
 
@@ -763,6 +815,22 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
             _z_hst = (hst_score - _hst_offset) / 0.05
             z_list.append(_z_hst)
             _feat_z['hst'] = _z_hst
+        if _ae_engine is not None and _ae_stats is not None and _AB_AVAILABLE:
+            _ae_feats = np.array([
+                mic_rms, mic_crest, mic_kurtosis,
+                imu_rms, imu_crest, high_band_ratio, z_score,
+            ], dtype=np.float32)
+            _ae_input  = (_ae_feats - _ae_stats['mean']) / _ae_stats['std']
+            _ae_recon  = _ae_engine.run(_ae_input)[0]
+            _ae_err    = float(np.mean((_ae_input - _ae_recon) ** 2))
+            if mac_hex not in _ae_baselines:
+                _ae_baselines[mac_hex] = AdaptiveBaseline()
+            _ae_bl = _ae_baselines[mac_hex]
+            if raw == EPM_ALERT_OK:
+                _ae_bl.update(_ae_err, is_healthy=True)
+            _z_ae = _ae_bl.z_score(_ae_err) if _ae_bl.n_updates >= 30 else 0.0
+            z_list.append(_z_ae)
+            _feat_z['ae'] = _z_ae
         p_fusion = _bayesian_fusion.fuse(z_list)
         if p_fusion >= P_FUSION_FAULT:
             raw = max(raw, EPM_ALERT_FAULT)
@@ -1116,6 +1184,18 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 _save_rul_state(sat)
             if _should_save_baseline:
                 _save_baselines(sat)
+
+            # Uno Q sysfs LED — reflect worst fleet state, at most once per second
+            global _led_last_update
+            _now_mono = time.monotonic()
+            if _now_mono - _led_last_update >= 1.0:
+                with _sat_lock:
+                    _worst_val = max(
+                        (s.sent_alert for s in _satellites.values() if s.connected),
+                        default=EPM_ALERT_OK,
+                    )
+                led_set_status(["OK", "WARN", "FAULT"][min(_worst_val, 2)])
+                _led_last_update = _now_mono
 
             _display.put(frame, name)
 
@@ -3972,6 +4052,12 @@ def main():
                              'Must match EPM_PSK in wifi_creds.h or the NVS key on satellites. '
                              'Also readable from the EPM_PSK env-var. '
                              'Omit to run in plaintext mode (dev/debug only).')
+    parser.add_argument('--autoencoder', type=str, default=None,
+                        metavar='PATH',
+                        help='Path to ONNX autoencoder model (e.g. model/autoencoder.onnx). '
+                             'Adds reconstruction-error as a 4th Bayesian fusion channel. '
+                             'Stats sidecar <model>_stats.npz must exist alongside the model. '
+                             'Omit to run without neural autoencoder channel.')
     args = parser.parse_args()
 
     if args.crest_warn is not None:
@@ -3985,6 +4071,22 @@ def main():
     if _FUSION_AVAILABLE:
         _bayesian_fusion = BayesianFusion(
             prior=_FAULT_PRIOR, z_mid=_EVIDENCE_Z_MID, temperature=1.0)
+
+    # ── Autoencoder ONNX model ─────────────────────────────────────────────────
+    global _ae_engine, _ae_stats
+    if args.autoencoder is not None:
+        if not _AE_AVAILABLE:
+            sys.exit('[EPM] --autoencoder requires onnxruntime. '
+                     'Run: pip install onnxruntime>=1.17.0')
+        stats_path = args.autoencoder.replace('.onnx', '_stats.npz')
+        if not os.path.exists(stats_path):
+            sys.exit(f'[EPM] Stats sidecar not found: {stats_path}\n'
+                     '      Run train_autoencoder.py to generate it alongside the model.')
+        _ae_engine = InferenceEngine(args.autoencoder)
+        _ae_stats  = np.load(stats_path)
+        print(f'[EPM] Autoencoder: {args.autoencoder}')
+        print(f'[EPM]   healthy mean_recon_err={float(_ae_stats["mean_recon_err"]):.6f}'
+              f'  backend={_ae_engine.backend_label}')
 
     # ── Auth ──────────────────────────────────────────────────────────────────
     if args.auth:
@@ -4137,7 +4239,8 @@ def main():
         print(f"[EPM] BayesianFusion: multi-channel posterior P(fault|evidence).")
         print(f"[EPM]   prior={_FAULT_PRIOR:.3f}  z_mid={_EVIDENCE_Z_MID:.1f}  "
               f"WARN@p>{P_FUSION_WARN:.0%}  FAULT@p>{P_FUSION_FAULT:.0%}")
-        print(f"[EPM]   Channels: z_kurtosis, z_rms (+ z_hst when HST warmed up)")
+        _ae_ch = ' + z_ae (autoencoder)' if _ae_engine is not None else ''
+        print(f"[EPM]   Channels: z_kurtosis, z_rms (+ z_hst when HST warmed up){_ae_ch}")
     else:
         print("[EPM] BayesianFusion: bayesian_fusion.py not found — multi-channel fusion disabled.")
     print("Firewall rule for TCP receiver (elevated PowerShell, run once):")

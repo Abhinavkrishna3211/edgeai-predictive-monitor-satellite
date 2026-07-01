@@ -9,6 +9,46 @@ WP-06 applied 2026-06-28).
 
 ---
 
+## GAP-02 — Adreno 702 GPU inference — ONNX model needed
+
+**Severity**: LOW (gap in documented capability, not a safety issue)
+**Effort**: Small (model training + wiring)
+**Status**: IMPLEMENTED (2026-07-01) — MLP autoencoder trained on 30,152 healthy frames,
+exported to ONNX, wired as 4th Bayesian fusion channel via `--autoencoder` CLI arg.
+
+**Background**: The EPM gateway documentation referenced ONNX Runtime inference on the
+Uno Q's Adreno 702 GPU as a capability gap. The CPU path (CPUExecutionProvider, NEON
+on aarch64) is sufficient at sub-millisecond latency per frame.
+
+**Resolution**: `mic_tools/train_autoencoder.py` trains a 7→32→16→8→16→32→7 MLP
+autoencoder on healthy CSV logs and exports to ONNX with a sidecar `_stats.npz` file.
+`recv_verify.py` loads the model via `--autoencoder model/autoencoder.onnx` and feeds
+reconstruction error through a per-satellite `AdaptiveBaseline` to produce `z_ae`,
+added to the Bayesian fusion channel list alongside `z_kurtosis`, `z_rms`, `z_hst`.
+Silent no-op when `--autoencoder` is not supplied — backward compatible.
+
+---
+
+## GAP-01 — Uno Q sysfs RGB LED status indicator
+
+**Severity**: LOW (observability gap, not a detection or safety issue)
+**Effort**: Small
+**Status**: IMPLEMENTED in `recv_verify.py` (2026-07-01) — will activate automatically
+on Uno Q hardware, silent no-op on laptop.
+
+**Background**: The Arduino Uno Q board exposes two Linux-controlled RGB LEDs (D27301)
+under `/sys/class/leds/{red:user,green:user,blue:user}/brightness`. Reflecting the
+gateway AI inference state on those LEDs costs zero additional hardware and gives an
+immediate visual indicator without requiring the dashboard to be open.
+
+**Resolution**: Added `_write_led()` and `led_set_status()` to `recv_verify.py`.
+Called from the per-satellite frame loop, gated to at most once per second.
+Maps worst fleet state to: green (OK), amber (WARN), red (FAULT), magenta (TRIPPED).
+FileNotFoundError / PermissionError / OSError silently swallowed so laptop runs are
+unaffected.
+
+---
+
 ## WP-02 — HIGH_BAND_MIN threshold has no sweep-derived justification
 
 **Severity**: HIGH
