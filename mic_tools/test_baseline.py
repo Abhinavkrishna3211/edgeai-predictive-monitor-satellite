@@ -45,12 +45,17 @@ class TestWarmup(unittest.TestCase):
 
 
 class TestHealthyTracking(unittest.TestCase):
-    """5 000 N(2, 0.5) healthy frames → mean ≈ 2.0, std ≈ 0.5."""
+    """5 000 N(2, 0.5) healthy frames → mean ≈ 2.0, std ≈ 0.5.
+
+    Uses alpha=0.01 so the EMA converges within the test frame count.
+    Production alpha (5e-05) has half-life ~13 860 frames and is validated
+    by the simulation sweep (Phase 4 + Phase 10), not by this unit test.
+    """
 
     @classmethod
     def setUpClass(cls):
         rng = np.random.default_rng(42)
-        cls.ab = AdaptiveBaseline()
+        cls.ab = AdaptiveBaseline(alpha=0.01)
         for x in rng.normal(2.0, 0.5, 5000):
             cls.ab.update(float(x), True)
 
@@ -99,15 +104,19 @@ class TestUnhealthyIgnored(unittest.TestCase):
 class TestDriftTracking(unittest.TestCase):
     """Mean drifts toward a new healthy regime given enough EMA frames.
 
-    After 5 000 N(2, 0.5) frames and then 1 000 N(3, 0.5) frames:
+    Uses alpha=0.001 (half-life 693 frames) so drift is observable at 1 000 frames.
+    After 5 000 N(2, 0.5) frames (converged) and then 1 000 N(3, 0.5) frames:
       Expected mean ≈ 2.0 · (1-α)^1000 + 3.0 · (1-(1-α)^1000)
-                    ≈ 2.0 · 0.607       + 3.0 · 0.393  ≈  2.39
+                    ≈ 2.0 · 0.368       + 3.0 · 0.632  ≈  2.63
+
+    Production alpha (5e-05, half-life ~13 860 frames) is validated by the
+    simulation sweep (Phase 4 + Phase 10), not by this unit test.
     """
 
     @classmethod
     def setUpClass(cls):
         rng = np.random.default_rng(17)
-        cls.ab = AdaptiveBaseline()
+        cls.ab = AdaptiveBaseline(alpha=0.001)
         for x in rng.normal(2.0, 0.5, 5000):
             cls.ab.update(float(x), True)
         cls.mean_after_phase1 = cls.ab.mean
@@ -121,10 +130,10 @@ class TestDriftTracking(unittest.TestCase):
             f"{self.mean_after_phase1:.3f} + 0.15")
 
     def test_mean_not_jumped_all_the_way(self):
-        # With α=0.0005 and 1000 frames, convergence is slow by design
+        # With α=0.001 and 1000 frames (≈1.4 half-lives), mean ≈ 2.6 — well below 3.0
         self.assertLess(self.ab.mean, 2.8,
                         f"Mean {self.ab.mean:.3f} should not have reached 3.0 yet "
-                        f"(half-life ≈ 1386 frames)")
+                        f"(half-life = ln(2)/0.001 ≈ 693 frames)")
 
 
 class TestReset(unittest.TestCase):

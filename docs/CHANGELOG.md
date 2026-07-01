@@ -110,3 +110,37 @@ Tags: `HW-OPT` hardware optimisation · `FIX` correctness fix · `FEAT` new feat
 - **What:** 10 ADRs, performance baseline, hardware audit results, pin allocation, peripheral map, CHANGELOG, README created.
 - **Why:** Decisions without recorded justification become technical debt — future engineers cannot evaluate whether the reasoning still holds after hardware revisions or IDF upgrades. See `docs/README.md` for the update procedure.
 - **Impact:** All decisions traceable to formula, measurement, citation, or logical proof. No deferred or unresolved entries in any doc file.
+
+---
+
+## [2026-06-30] FIX+DOCS: Simulation sweep, weak-point audit, and three recv_verify.py fixes
+
+**Files:** `mic_tools/sim_sweep.py` (new), `mic_tools/recv_verify.py`, `docs/performance/` (new files), `docs/decisions/ADR-001..004` (updated)
+
+### Fixes applied to `recv_verify.py`
+
+- **WP-01 — Pre-damaged machine detection**: Added median-kurtosis check during calibration (`_sat_update_baseline`). If median kurtosis ≥ K_WARN during the first 30 frames, the satellite is flagged `pre_damaged=True` and adaptive thresholds are deferred. Absolute thresholds (K_WARN, K_FAULT) still fire. Without this guard, the adaptive baseline silently learns the damaged kurtosis as "normal", making the adaptive path permanently blind.
+
+- **WP-04 — HST z-score offset was hardcoded 0.3**: Changed `z_hst = (score - 0.3) / 0.05` to `z_hst = (score - detector._score_ema) / 0.05`. The 0.3 constant assumed the healthy HST score EMA always converges near 0.3; in practice it varies by bearing type and noise profile. Using the live EMA offset removes a systematic Bayesian fusion bias.
+
+- **WP-06 — ExponentialRUL K0 seeded from wrong prior**: After calibration, `rul_estimator.x[0]` is now overwritten with `log(max(bl_kurt_mean, 1.5))` so the Kalman filter starts from the actual measured healthy kurtosis, not the generic 3.0 prior. Eliminates spurious early RUL estimates when the machine's healthy kurtosis is above 3.0.
+
+**Verification**: Phase 1 baseline re-run (3 seeds) after fixes shows cohen_d 2.531–2.559 (avg 2.547), fp=0 — no regression. Baseline metrics match pre-fix run (avg 2.55) to within 0.4%.
+
+### Simulation sweep documents
+
+Seven phases of measurement were run via `mic_tools/sim_sweep.py`. All values are measured; no invented numbers:
+
+| Document | Phase | Key finding |
+|---|---|---|
+| `SIMULATION_BASELINE.md` | 1 | 3-seed baseline: cohen_d≈2.55, fp=0, detect@512, cpu≈5200 µs |
+| `SWEEP_RESULTS.md` | 2,3,4 | n_trees=10 beats n_trees=25 (+11% cohen_d, -63% CPU); z_mid=2.0 improves Bayesian (+34%); alpha=5e-05 detects 7 frames earlier AND catches contamination earlier |
+| `NUMERICAL_STABILITY.md` | 5 | dBFS floor 1e-6 never hit; float64 Kalman no precision loss; all 4 edge cases (zero/spike/clipped/-inf) handled safely |
+| `SCALE_TESTING.md` | 6 | 0 MB RSS drift over 3 fault cycles; 46–51 frames/s throughput constant from N=1 to N=50 |
+| `COMPARATIVE_VALIDATION.md` | 7 | HST vs IF: IF faster on static baseline; HST required for drift adaptation. Bayesian vs max(): Bayesian suppresses single-channel false positives (p_fusion=0.010 vs max_z=6.0 firing). RUL: both models have large errors in 15-min rapid scenario; Kalman advantage manifests in slow-progression faults. |
+| `WEAK_POINTS_AUDIT.md` | 8 | 9 weak points identified WP-01..09. 3 fixed (WP-01/04/06). 6 deferred. |
+| `KNOWN_ISSUES.md` | 9 | Deferred items: WP-02 (HIGH_BAND_MIN sweep needed), WP-03 (time-based CAL_FRAMES), WP-05 (ADWIN delta derivation), WP-07 (dashboard thread safety), WP-08 (hardware calibration), WP-09 (HST clip) |
+
+### ADR updates
+
+ADR-001/002/003/004 updated with measured performance data, honest contradictions where sweep data disagrees with original assumptions, and recommended parameter changes (n_trees 25→10, z_mid 3.0→2.0).
