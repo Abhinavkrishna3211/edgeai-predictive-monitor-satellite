@@ -40,6 +40,17 @@ docs/
 |---|---|
 | `performance/BASELINE.md` | Before/after tables with measured CPU%, stack HWM, heap free, FFT cycles |
 | `performance/HARDWARE_AUDIT_RESULTS.md` | Full Phase 0 audit report, per-phase changes, Phase 10 summary table |
+| `performance/PARAMETER_INVENTORY.md` | All 67 tunable parameters across the system with justification status |
+| `performance/SIMULATION_BASELINE.md` | 3-seed baseline: cohen_d≈2.55, fp=0, detect@512; RUL accuracy table |
+| `performance/SWEEP_RESULTS.md` | OVAT sweeps — HST hyperparameters, Bayesian fusion params, EMA alpha |
+| `performance/NUMERICAL_STABILITY.md` | dBFS floor audit, float64 Kalman precision, edge-case NaN/Inf propagation |
+| `performance/SCALE_TESTING.md` | Scale test N=1..50 satellites; long-duration stability; alert storm |
+| `performance/COMPARATIVE_VALIDATION.md` | HST vs IsolationForest; Bayesian vs max(); Exponential+Kalman vs linear |
+| `performance/WEAK_POINTS_AUDIT.md` | 9 weak points WP-01..09, ordered by severity (HIGH→LOW) |
+| `performance/KNOWN_ISSUES.md` | Deferred weak points (WP-02/03/05/07/08/09) with resolution paths |
+
+All numbers in the `performance/` directory are measured by `mic_tools/sim_sweep.py`.
+No values are invented or hand-picked.
 
 ---
 

@@ -53,5 +53,8 @@ cryptography>=42.0.0
 # without a hardcoded SERVER_IP.  Pure-Python, zero native dependencies.
 zeroconf>=0.131.0
 
+# ── HTTP dashboard ────────────────────────────────────────────────────────────
+flask>=3.0
+
 # ── Optional: serial port (legacy plot_mic.py) ────────────────────────────────
 # pyserial>=3.5
