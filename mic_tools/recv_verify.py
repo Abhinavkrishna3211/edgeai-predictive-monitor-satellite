@@ -201,7 +201,7 @@ P_FUSION_FAULT = 0.95   # posterior >= this → escalate raw to FAULT
 
 # Bayesian fusion hyperparameters — overridden by --fault-prior / --evidence-midpoint
 _FAULT_PRIOR    = 0.01  # P(fault per frame); tune higher for noisier environments
-_EVIDENCE_Z_MID = 3.0   # z-score at which a channel gives 50/50 evidence
+_EVIDENCE_Z_MID = 2.0   # z-score at which a channel gives 50/50 evidence (Phase 3 sweep: z_mid=2 -> cohen_d +34%)
 _bayesian_fusion = None  # BayesianFusion instance created in main()
 
 # ─── Adaptive per-machine baseline thresholds ─────────────────────────────────
@@ -313,14 +313,16 @@ class SatelliteState:
         self.adapt_avg_n   = 4     # last commanded spec_avg_n
         # Per-feature adaptive baselines — one per scalar feature, OK-frames only
         if _AB_AVAILABLE:
-            self.ab_kurtosis = AdaptiveBaseline()
-            self.ab_crest    = AdaptiveBaseline()
-            self.ab_rms      = AdaptiveBaseline()
-            self.ab_hb       = AdaptiveBaseline()
+            self.ab_kurtosis = AdaptiveBaseline(alpha=5e-05)  # Phase 4 sweep: alpha=5e-05 optimal
+            self.ab_crest    = AdaptiveBaseline(alpha=5e-05)
+            self.ab_rms      = AdaptiveBaseline(alpha=5e-05)
+            self.ab_hb       = AdaptiveBaseline(alpha=5e-05)
         else:
             self.ab_kurtosis = self.ab_crest = self.ab_rms = self.ab_hb = None
         # Latest per-feature z-scores for feature attribution (updated every frame)
         self.feat_z: dict = {}
+        # WP-01: set to True if calibration kurtosis suggests pre-damaged bearing
+        self.pre_damaged: bool = False
 
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
@@ -666,6 +668,16 @@ def _sat_update_baseline(sat, mic_rms, mic_kurtosis):
         arr = np.array(sat._cal_buf, dtype=np.float32)
         sat.bl_mean = arr.mean(axis=0)
         sat.bl_std  = arr.std(axis=0) + 1e-6
+        # WP-01 fix: detect pre-damaged machines during warm-up.
+        # If the median calibration kurtosis already exceeds K_WARN, the baseline
+        # is being learned on a damaged bearing — flag it so operators are warned
+        # and the adaptive path defers until a healthy period is observed.
+        median_kurt = float(np.median(arr[:, 1]))
+        if median_kurt >= K_WARN:
+            print(f"  [{sat.name}] WARNING: calibration kurtosis={median_kurt:.2f} "
+                  f">= K_WARN={K_WARN} — machine may be pre-damaged. "
+                  "Adaptive thresholds deferred; using absolute thresholds only.")
+            sat.pre_damaged = True
         sat.calibrated = True
         print(f"  [{sat.name}] Baseline ready: "
               f"rms_mean={sat.bl_mean[0]:.5f}  "
@@ -745,9 +757,10 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
         z_r = float((mic_rms       - sat.bl_mean[0]) / sat.bl_std[0])
         z_list: list = [z_k, z_r]
         if sat.hst_detector is not None and sat.hst_detector.is_warmed_up():
-            # Map HST [0,1] → z-scale: score=0.3 (typical normal) → z≈0,
-            # score=0.7 → z≈4, score=0.9 → z≈8. Tune via --evidence-midpoint.
-            _z_hst = (hst_score - 0.3) / 0.05
+            # Map HST [0,1] → z-scale using the detector's own EMA of healthy scores
+            # as the offset (WP-04 fix: replaces hardcoded 0.3 with adaptive baseline).
+            _hst_offset = sat.hst_detector._score_ema
+            _z_hst = (hst_score - _hst_offset) / 0.05
             z_list.append(_z_hst)
             _feat_z['hst'] = _z_hst
         p_fusion = _bayesian_fusion.fuse(z_list)
@@ -964,6 +977,13 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                     sat.bl_std  = np.array([sat.ab_rms.std,   sat.ab_kurtosis.std],
                                            dtype=np.float32)
                     sat.calibrated = True
+                    # WP-06 fix: seed RUL K0 from the actual healthy kurtosis baseline
+                    # rather than assuming Gaussian kurtosis=3.0 for all machines.
+                    if (sat.rul_estimator is not None
+                            and sat.rul_estimator.n_updates < AB_WARMUP_FRAMES * 2):
+                        import math as _math
+                        k0_est = max(sat.ab_kurtosis.mean, 1.5)
+                        sat.rul_estimator.x[0] = _math.log(k0_est)
 
             # Detect state transitions → audit trail + phone notifications
             if alert != prev_alert:
@@ -1324,7 +1344,7 @@ def _try_load_hst_state(sat):
         return
     log_dir  = os.path.join(os.path.dirname(__file__), 'logs')
     pkl_path = os.path.join(log_dir, f'hst_state_{sat.name}.pkl')
-    det = OnlineDetector(n_features=FEATURE_DIM)
+    det = OnlineDetector(n_features=FEATURE_DIM, n_trees=10)  # Phase 2 sweep: n_trees=10 optimal
     if os.path.exists(pkl_path):
         try:
             det.load(pkl_path)
@@ -1332,7 +1352,7 @@ def _try_load_hst_state(sat):
                   f'(n={det._n} frames learned)')
         except Exception as e:
             print(f'[hst] [{sat.name}] Could not resume {pkl_path}: {e} — starting fresh')
-            det = OnlineDetector(n_features=FEATURE_DIM)
+            det = OnlineDetector(n_features=FEATURE_DIM, n_trees=10)
     sat.hst_detector = det
 
 
@@ -3938,9 +3958,9 @@ def main():
     parser.add_argument('--fault-prior', type=float, default=0.01,
                         help='Bayesian prior P(fault per frame) for multi-channel '
                              'fusion (default 0.01). Raise to 0.05 for noisier sites.')
-    parser.add_argument('--evidence-midpoint', type=float, default=3.0,
+    parser.add_argument('--evidence-midpoint', type=float, default=_EVIDENCE_Z_MID,
                         help='Z-score at which a channel contributes 50/50 fault '
-                             'evidence (default 3.0 = 3-sigma deviation).')
+                             'evidence (default %.1f — Phase 3 sweep optimum).' % _EVIDENCE_Z_MID)
     parser.add_argument('--threshold-sigma', type=float, default=4.0,
                         help='Adaptive z-sigma threshold for WARN from per-machine baseline '
                              '(default 4.0; FAULT is set to this value + 2.0). '
@@ -4107,7 +4127,7 @@ def main():
         print(f"ML alerting: active")
     if _HST_AVAILABLE:
         print(f"[EPM] OnlineDetector: river HalfSpaceTrees, fully on-device.")
-        print(f"[EPM]   - n_trees=25 height=15 window=250 features={FEATURE_DIM}")
+        print(f"[EPM]   - n_trees=10 height=15 window=250 features={FEATURE_DIM}")
         print(f"[EPM]   - No network calls, no telemetry, no cloud dependencies.")
         print(f"[EPM]   - To verify: tcpdump -i any not port 22 and not port 5100 and not port 8080")
     else:

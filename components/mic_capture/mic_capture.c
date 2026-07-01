@@ -192,7 +192,7 @@ esp_err_t mic_capture_init(void)
     i2s_event_callbacks_t evt_cbs = {
         .on_recv        = NULL,
         .on_recv_q_ovf  = i2s_overflow_cb,
-        .on_send        = NULL,
+        .on_sent        = NULL,
         .on_send_q_ovf  = NULL,
     };
     err = i2s_channel_register_event_callback(s_rx_chan, &evt_cbs, NULL);

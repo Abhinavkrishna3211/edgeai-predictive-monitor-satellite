@@ -308,7 +308,7 @@ static int tcp_send_all(int sock, const void *buf, size_t len)
  * MSG_MORE defers the push until the final send() (without MSG_MORE), reducing
  * segment count from 6 per frame to 1 per frame for the non-encrypted path.
  * Expected improvement: ~5 fewer ACK round-trips per frame at 2.2 fps. */
-static int tcp_send_more(int sock, const void *buf, size_t len)
+static int __attribute__((unused)) tcp_send_more(int sock, const void *buf, size_t len)
 {
     const uint8_t *ptr = (const uint8_t *)buf;
     size_t remaining   = len;
@@ -653,7 +653,7 @@ static void wifi_task_fn(void *arg)
      * 80 MHz during idle gaps between frames.  Light sleep between tasks
      * further cuts radio modem draw by ~30%.  Requires CONFIG_PM_ENABLE=y and
      * CONFIG_FREERTOS_USE_TICKLESS_IDLE=y in sdkconfig.defaults. */
-    esp_pm_config_esp32s3_t pm_cfg = {
+    esp_pm_config_t pm_cfg = {
         .max_freq_mhz     = 240,
         .min_freq_mhz     = 80,
         .light_sleep_enable = true,

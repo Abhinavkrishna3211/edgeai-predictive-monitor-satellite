@@ -46,6 +46,7 @@
 #include "dsps_fft2r.h"
 #include "dsps_wind.h"
 #include "dsps_math.h"
+#include "dsps_dotprod.h"
 
 #include "epm_config.h"
 #include "dsp_task.h"

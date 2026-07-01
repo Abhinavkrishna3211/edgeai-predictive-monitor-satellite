@@ -6,7 +6,7 @@
  *   2. DC removal (mean subtracted in-place from s_norm)
  *   3. Time-domain stats via ESP-DSP SIMD:
  *      RMS    : dsps_dotprod_f32(s_norm, s_norm)  → sqrt(·/N)
- *      Crest  : dsps_abs_f32(s_norm) → max scan → peak/RMS
+ *      Crest  : fabsf() scalar loop → peak/RMS  (dsps_abs_f32 absent in this ESP-DSP release)
  *      Kurtosis: dsps_mul_f32(s_norm,s_norm) → dsps_dotprod_f32 → (Σx⁴/N)/(var²)
  *   4. Post raw_mic_block_t to ring buffer for dsp_task (core 1)
  *
@@ -29,6 +29,7 @@
 
 #include "dsps_fft2r.h"
 #include "dsps_math.h"
+#include "dsps_dotprod.h"
 
 #include "mic_capture.h"
 #include "epm_config.h"
@@ -39,7 +40,7 @@ static const char *TAG = "mic_task";
 /* ── Capture + compute buffers (static — never on the task stack) ────────── */
 
 /* HW-OPT: aligned(16) satisfies LX7 128-bit SIMD lane requirements for
- * dsps_dotprod_f32 / dsps_mul_f32 / dsps_abs_f32. */
+ * dsps_dotprod_f32 / dsps_mul_f32 / fabsf. */
 static float s_norm   [FFT_MIC_N] __attribute__((aligned(16)));
 static float s_scratch[FFT_MIC_N] __attribute__((aligned(16)));  /* temp for SIMD */
 
@@ -108,13 +109,13 @@ static void mic_task_fn(void *arg)
         dsps_dotprod_f32(s_norm, s_norm, &sum_sq, FFT_MIC_N);
         last_rms = sqrtf(sum_sq / FFT_MIC_N);
 
-        /* --- 3b. Crest factor: peak(|x|) / RMS (SIMD abs + scan) --- */
-        /* HW-OPT: dsps_abs_f32 uses SIMD absolute value; max scan is a
-         * 512-iteration scalar loop — fast enough at ~1 cycle/element on LX7. */
-        dsps_abs_f32(s_norm, s_scratch, FFT_MIC_N, 1, 1);
+        /* --- 3b. Crest factor: peak(|x|) / RMS (scalar abs + scan) --- */
+        /* dsps_abs_f32 is not present in this ESP-DSP release; scalar fabsf is
+         * fast enough (1 cycle/element on LX7, 512 iterations ≈ 0.2 µs). */
         float peak = 0.0f;
         for (int i = 0; i < FFT_MIC_N; i++) {
-            if (s_scratch[i] > peak) peak = s_scratch[i];
+            float a = fabsf(s_norm[i]);
+            if (a > peak) peak = a;
         }
         last_crest = (last_rms > 1e-8f) ? (peak / last_rms) : 0.0f;
 
