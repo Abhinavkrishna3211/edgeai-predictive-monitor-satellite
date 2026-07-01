@@ -6,6 +6,32 @@ Tags: `HW-OPT` hardware optimisation · `FIX` correctness fix · `FEAT` new feat
 
 ---
 
+## [2026-07-01] FEAT: MLP autoencoder ONNX inference channel
+
+**Files:** `mic_tools/train_autoencoder.py` (new), `mic_tools/recv_verify.py`,
+`mic_tools/inference.py`, `mic_tools/model/autoencoder.onnx` (generated),
+`docs/performance/KNOWN_ISSUES.md`
+
+- **What:** `train_autoencoder.py` trains a 7-feature MLP autoencoder (7→32→16→8→16→32→7, GELU, MSE) on healthy CSV log frames and exports to ONNX with a `_stats.npz` normalisation sidecar. `recv_verify.py` gains a `--autoencoder <path>` CLI arg that loads the model at startup and adds reconstruction error as a 4th Bayesian fusion channel (`z_ae`). Per-satellite `AdaptiveBaseline` tracks reconstruction-error drift so the channel self-calibrates as machine conditions evolve.
+- **Why:** Closes the "Adreno 702 GPU inference — ONNX model needed" gap (GAP-02 in KNOWN_ISSUES.md). A reconstruction-error channel is orthogonal to kurtosis and RMS — it detects distributional shifts that don't manifest as single-feature outliers.
+- **Training:** 30,152 healthy frames from simulation CSV logs (105 files). Final MSE loss 0.000423. Healthy mean reconstruction error 0.000423.
+- **Inference latency (laptop CPU):** p50 < 0.1 ms per frame (66k inferences/sec). On Uno Q aarch64 CPUExecutionProvider (NEON): estimated 1–3 ms.
+- **Backward compatible:** `--autoencoder` omitted → no-op. Existing deployments unaffected.
+- **Bug fix in `inference.py`:** `ort.get_all_providers()` returns `list[str]`, not objects with `.name` — changed `{p.name for p in ...}` to `set(...)`.
+
+---
+
+## [2026-07-01] FEAT: add Uno Q sysfs LED status indicator
+
+**Files:** `mic_tools/recv_verify.py`
+
+- **What:** `led_set_status()` writes to `/sys/class/leds/{channel}/brightness` via `_write_led()`. Called at most once per second with the worst satellite state across the fleet.
+- **Why:** Uno Q has two Linux-controlled RGB LEDs (D27301) on `/sys/class/leds/`. Reflecting AI inference state on the physical board costs zero hardware effort — sysfs paths are always present on Uno Q Ubuntu.
+- **Impact:** On laptop — silent no-op (FileNotFoundError caught and discarded). On Uno Q — LED reflects worst satellite state (green=OK, amber=WARN, red=FAULT, magenta=TRIPPED) updated once per second.
+- **Evidence:** `recv_verify.py` `_write_led()` / `led_set_status()`; verified: all four states + unknown state complete without crash on Windows laptop.
+
+---
+
 ## [Prior to audit — date from git log: dbbbdfa] BREAK: led_task removed, replaced by rgb_led_task
 
 **Files:** `src/rgb_led_task.c`, `src/rgb_led_task.h` (added); `src/led_task.c`, `src/led_task.h` (deleted)
