@@ -28,7 +28,7 @@ baseline and mask an escalating fault.
 import math
 
 WARMUP_N  = 30       # Welford warm-up length before EMA activates (matches CAL_FRAMES)
-EMA_ALPHA = 0.0005   # EMA weight per OK frame
+EMA_ALPHA = 5e-05    # EMA weight per OK frame (Phase 4 sweep: 5e-05 -> detect@241 vs 0.0005 -> detect@1444)
 
 
 class AdaptiveBaseline:

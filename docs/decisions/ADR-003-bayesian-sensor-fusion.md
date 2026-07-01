@@ -69,3 +69,59 @@ Worked numeric example (one strong, one weak):
 
 ## Validation
 `mic_tools/recv_verify.py` — `BayesianFusion` class implements the sigmoid likelihood product. `test_simulator.py` verifies `p_fault` crosses 0.5 between 30%–70% of a progressive fault simulation run.
+
+## Performance Validation (Phases 3 and 7b, 2026-06-30)
+
+**Phase 3 — Bayesian parameter sweep** (`mic_tools/sim_sweep.py --phase 3`):
+
+| Parameter | Current | Best (by Cohen's d) | Cohen's d |
+|---|---|---|---|
+| prior | 0.01 | 0.10 | 2.751 vs 2.165 (+27%) |
+| z_mid | 3.0 | 2.0 | 2.910 vs 2.165 (+34%) |
+| temperature | 1.0 | 0.5 | 2.596 vs 2.165 (+20%) |
+
+**Recommendation**: Lower z_mid from 3.0 to 2.0. This shifts the fusion sigmoid's inflection
+point, making each channel's evidence register more strongly at moderate z-scores. It improves
+detection Cohen's d by 34% with fp_rate=0 in all tested scenarios. The change requires
+re-running Phase 7 validation to confirm FP rate under high-ambient-noise scenarios.
+
+**Phase 7b — False-positive suppression comparison (corrected, 2026-07-01)**
+(`mic_tools/sim_sweep.py --phase 7`)
+
+Both methods compared at the **same production thresholds** (Z_WARN_SIGMA=4.0 for max(z),
+P_FUSION_WARN=0.70 for Bayesian). Uses production z_mid=2.0.
+
+Scenario A — progressive fault (3 seeds, detect frame):
+
+| Method | Avg detect frame | Notes |
+|---|---|---|
+| Bayesian fusion | 248 | Conservative; requires multi-channel corroboration |
+| max(z_scores) | 33 | Sensitive; fires on any single-channel exceedance |
+
+Scenario B — FP suppression: z_k=1.5, z_r=1.5, z_hst=6.0 (single HST spike; k and RMS healthy):
+
+| Method | Fires? | Value | Threshold |
+|---|---|---|---|
+| Bayesian fusion (z_mid=2.0) | No | p_fusion=0.1687 | P_FUSION_WARN=0.70 |
+| max(z_scores) | Yes | max_z=6.0 | Z_WARN_SIGMA=4.0 |
+
+**Interpretation**: max(z) detects the fault progression earlier (frame 33 vs 248) but fires on
+single-channel spikes that Bayesian correctly suppresses. Bayesian's advantage is specifically
+**false-positive suppression**: requiring z_k, z_r, and z_hst to corroborate each other prevents
+transient HST score spikes from generating alerts. In a real deployment, whether to trade detection
+latency for FP reduction depends on the cost of false alarms vs the cost of delayed detection.
+At z_mid=2.0, p_fusion=0.1687 for the FP scenario remains comfortably below P_FUSION_WARN=0.70,
+confirming the FP suppression property holds with the new production z_mid.
+
+**Note on earlier 7b result**: A prior run (2026-06-30) used z_mid=3.0 and WARN_Z=3.0 for max()
+instead of the production Z_WARN_SIGMA=4.0. The corrected comparison above uses fair thresholds.
+The FP suppression finding holds in both versions.
+
+**Combined-Config Validation (Phase 10, 2026-07-01)**:
+With z_mid=2.0 in the full production config (n_trees=10, z_mid=2.0, alpha=5e-05), the combined
+cohen_d is 3.725 vs 2.547 baseline (+46%), fp=0, detect@482 vs 512. z_mid=2.0 is confirmed as
+the production value.
+
+**Note on the ADR worked example**: The example uses α=2.0 and z=0.6 with two channels. The actual
+implementation uses `temperature=1.0` (α=1.0) and three channels (z_k, z_r, z_hst). The example
+illustrates the principle but does not match deployed parameter values.

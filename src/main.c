@@ -61,10 +61,6 @@ static void diagnostics_task_fn(void *arg)
     diag_args_t  *a     = (diag_args_t *)arg;
     TaskHandle_t  h_diag = xTaskGetCurrentTaskHandle();
 
-    /* Static buffer: vTaskGetRunTimeStats writes a text table (~400 bytes
-     * for 6 tasks).  Static keeps it off the 3072-byte task stack. */
-    static char s_stats[512];
-
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(30000));   /* 30 s health interval */
 
@@ -77,9 +73,18 @@ static void diagnostics_task_fn(void *arg)
             (unsigned long)uxTaskGetStackHighWaterMark(a->h_rgb)  * 4,
             (unsigned long)uxTaskGetStackHighWaterMark(h_diag)    * 4);
 
-        /* CPU runtime statistics (requires CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y) */
+        /* CPU runtime statistics — only compiled when the SMP FreeRTOS scheduler
+         * exposes configGENERATE_RUN_TIME_STATS.  On ESP32-S3 with SMP FreeRTOS
+         * (IDF 5.x default), this Kconfig option is unavailable; the block is
+         * omitted at compile time to keep the rest of diagnostics functional. */
+#ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
+        /* Static keeps the 512-byte text table off the 3072-byte task stack. */
+        static char s_stats[512];
         vTaskGetRunTimeStats(s_stats);
         ESP_LOGI("DIAG", "CPU runtime:\n%s", s_stats);
+#else
+        ESP_LOGI("DIAG", "CPU runtime stats: not available (SMP FreeRTOS)");
+#endif
 
         /* Heap health */
         ESP_LOGI("DIAG", "Heap free: internal=%lu PSRAM=%lu IRAM=%lu",

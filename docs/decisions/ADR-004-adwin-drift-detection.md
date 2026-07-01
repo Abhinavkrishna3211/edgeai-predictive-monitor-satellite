@@ -59,3 +59,24 @@ EPM-specific rule: ADWIN is only updated with scores from frames in OK state (no
 
 ## Validation
 `mic_tools/test_drift.py` — 7 tests: drift detection (artificial score stream with step shift), no-false-drift on stable signal, refresh resets ADWIN + Welford + EMA, OK-only policy (WARN/FAULT scores do not update ADWIN), save/load preserves drift state. All 7 pass.
+
+## Open Issue: delta not derived from actual score variance (WP-05, 2026-06-30)
+
+**Status**: Under investigation — deferred to KNOWN_ISSUES.md.
+
+`delta=0.002` was taken from the river library documentation without derivation from this
+system's actual HST score distribution. Phase 1 baseline (3 seeds) shows healthy HST scores
+converge to mean≈0.5 with sigma≈0.03–0.05. The theoretically appropriate delta for a
+desired false-alarm period of 2000 OK-state frames is:
+
+    delta_theory = sigma_score^2 / n_false_alarm = 0.03^2 / 2000 = 4.5e-7
+
+This is approximately 4000× smaller than the current 0.002, suggesting the current value
+gives a much higher theoretical false-alarm rate than intended. However, ADWIN's actual
+false-alarm rate depends on the autocorrelation structure of the score sequence, not just
+the variance, so empirical measurement is required before changing delta.
+
+**Resolution path**: Instrument `OnlineDetector` to count ADWIN detection events during
+10,000 healthy frames (no induced drift). If detections per 1000 frames > 1, lower delta.
+Document the measured false-alarm rate and the chosen delta derivation in this ADR.
+See `docs/performance/KNOWN_ISSUES.md#wp-05` for details.
