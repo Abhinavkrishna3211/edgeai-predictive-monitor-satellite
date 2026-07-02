@@ -90,6 +90,10 @@ class InferenceEngine:
             f'ONNX Runtime / {self._active_provider}',
         )
 
+    def is_ready(self) -> bool:
+        """Return True if an ONNX session is loaded and ready to run."""
+        return self._session is not None
+
     def run(self, x: np.ndarray) -> np.ndarray:
         """Run one inference pass. Input is auto-batched if 1-D."""
         if x.ndim == 1:
@@ -100,7 +104,19 @@ class InferenceEngine:
         )
         return out[0]
 
-    def benchmark(self, n: int = 200, model_label: str = 'autoencoder_v1') -> None:
+    def reconstruction_error(self, x: np.ndarray) -> float:
+        """Run one forward pass and return mean squared reconstruction error.
+
+        x can be 1-D (single sample) or 2-D (batch, features).
+        Returns a scalar float: mean over all elements of (x - x_hat)^2.
+        """
+        x_f = x.astype(np.float32)
+        if x_f.ndim == 1:
+            x_f = x_f[np.newaxis, :]
+        x_hat = self.run(x_f)
+        return float(np.mean((x_f - x_hat) ** 2))
+
+    def benchmark(self, n: int = 200, model_label: str = 'autoencoder_v1') -> dict:
         """Run n warm inferences and print latency + throughput stats."""
         in_shape = [
             s if isinstance(s, int) and s > 0 else 1
@@ -136,6 +152,12 @@ class InferenceEngine:
         print(f'[EPM] Latency: p50={p50:.1f}ms p95={p95:.1f}ms p99={p99:.1f}ms (n={n})')
         print(f'[EPM] Throughput: {throughput} inferences/sec, '
               f'headroom for {max_sats} satellites @ {fps_per_sat} fps each')
+        return {
+            'p50_ms':   p50,
+            'p95_ms':   p95,
+            'p99_ms':   p99,
+            'provider': self._active_provider,
+        }
 
 
 def main() -> None:

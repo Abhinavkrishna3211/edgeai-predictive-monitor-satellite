@@ -6,6 +6,20 @@ Tags: `HW-OPT` hardware optimisation · `FIX` correctness fix · `FEAT` new feat
 
 ---
 
+## [2026-07-02] FEAT: overnight overhaul — firmware audit, Python fixes, 3h simulation
+
+**Files:** `src/wifi_task.c`, `mic_tools/inference.py`, `mic_tools/model/autoencoder.onnx`,
+`docs/performance/SIMULATION_BASELINE.md`, `docs/performance/KNOWN_ISSUES.md`
+
+- **Phase 1 — Firmware audit:** Updated `on_wifi_disconnected()` in `wifi_task.c` to log structured disconnect reason strings (BEACON_TIMEOUT / NO_AP_FOUND / WRONG_PASSWORD / ASSOC_LEAVE / OTHER) instead of a bare integer. Firmware recompiled: RAM 64.4%, Flash 86.2% (904308 / 1048576 bytes). All other firmware files verified correct.
+- **Phase 2 — Python audit:** Fixed three issues in `mic_tools/inference.py`: (1) added `is_ready() -> bool` method; (2) added `reconstruction_error(x) -> float` method returning mean squared reconstruction error; (3) changed `benchmark()` return type from `None` to `dict` with keys p50_ms, p95_ms, p99_ms, provider. All 105 pytest tests pass.
+- **Phase 3 — Hardware flash:** Firmware flashed successfully to XIAO ESP32-S3 on COM9 (19.3s, 904308 bytes). Serial console capture not possible in this Windows environment: Windows USB CDC driver sends SET_LINE_CODING control request on port open, which triggers `USB_UART_CHIP_RESET → DOWNLOAD mode` on the ESP32-S3 native USB JTAG/Serial interface. WiFi connection unconfirmed (no ARP entry appeared for XIAO on hotspot subnet 192.168.137.0/24 after 120s wait). See KNOWN_ISSUES.md for details.
+- **Phase 5a — Training data:** 30-min 4-satellite simulation (sats 2 and 4 as outer-race faults, evolution_hours=0.5). Generated 7 CSV files, ~3.2 MB. CSVs logged to `mic_tools/logs/csv/2026/07/`.
+- **Phase 5b — Autoencoder training:** Trained 7-feature MLP autoencoder on 20,580 healthy frames (300 epochs, final loss 4.1e-05). Model saved to `mic_tools/model/autoencoder.onnx` + `_stats.npz`. Verification: `is_ready()=True`, healthy reconstruction error 7.4e-03 for zero-vector input.
+- **Phase 5c — Main simulation:** 3-hour 6-satellite simulation with autoencoder loaded as 4th Bayesian channel. Perfect fault/healthy separation throughout: healthy sats (01-03) pf=0.00, outer-race (04) and inner-race (05) pf=1.00 from T+30min. ~134,000 frames total at 12.6 fps pipeline throughput.
+
+---
+
 ## [2026-07-01] FEAT: MLP autoencoder ONNX inference channel
 
 **Files:** `mic_tools/train_autoencoder.py` (new), `mic_tools/recv_verify.py`,

@@ -194,6 +194,7 @@ def _run_satellite(sat_id: int, host: str, port: int,
         print(f'{tag}   lam={sev_fn.lam:.5f} s^-1  '
               f'T_fail={sev_fn.evolution_sec/3600:.2f} h')
 
+    start_t   = time.time()   # set once — severity ramp is absolute, not per-connection
     connect_t = None
 
     while True:
@@ -214,7 +215,7 @@ def _run_satellite(sat_id: int, host: str, port: int,
                 elif fault_mode == 'warn':
                     severity = 0.50
                 elif fault_mode in ('fault', 'ramp'):
-                    elapsed  = time.time() - connect_t
+                    elapsed  = time.time() - start_t
                     severity = sev_fn(elapsed)
                 else:
                     severity = 0.0

@@ -157,6 +157,41 @@ averaged fault spectra. Update `fault_models.py` with measured `resonance_hz` an
 
 ---
 
+## HW-01 — Windows USB JTAG serial console triggers download mode on port open
+
+**Severity**: LOW (development / debugging inconvenience; production operation unaffected)
+**Effort**: Small (workaround available; root cause is Windows driver behaviour)
+**Status**: Documented 2026-07-02 — no code change required for production
+
+**Background**: The XIAO ESP32-S3 exposes its serial console via the ESP32-S3's native USB
+Serial JTAG (USJ) peripheral on GPIO19/GPIO20. On Windows, the generic `usbser.sys` driver
+sends a CDC `SET_LINE_CODING` control request when the COM port is opened. The ESP32-S3 USJ
+hardware controller interprets this as a request to reset into ROM download mode
+(`rst:0x15 USB_UART_CHIP_RESET, boot:0x2 DOWNLOAD`). This prevents reading the firmware's
+`ESP_LOGI/LOGW/LOGE` output from Windows, even with `--rts 0 --dtr 0` in miniterm.
+
+The ESP-IDF sdkconfig configures `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` (UART0 on GPIO43/44)
+as primary console and `CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y` as secondary.
+On macOS/Linux the secondary USJ console works correctly without triggering download mode.
+
+**Impact**: On Windows development machines, firmware serial output cannot be read via
+COM9/PIO monitor. The board IS running (USB VID=303A PID=1001 enumerates correctly). This
+prevented Phase 3 WiFi connectivity verification in the overnight overhaul session.
+
+**Workarounds**:
+1. Use a USB-to-UART adapter connected to GPIO43 (TX) / GPIO44 (RX) to read primary console.
+2. Use Zadig to replace `usbser.sys` with `WinUSB` or `libusbK` driver — this prevents the
+   CDC control request from reaching the ESP32-S3 hardware. Run once per board.
+3. Change firmware to `CONFIG_ESP_CONSOLE_USB_CDC=y` (TinyUSB CDC) which does not trigger
+   download mode on Windows port open. Requires rebuild.
+4. Use macOS or Linux for firmware monitoring.
+
+**Resolution path**: Add a note to the project README pointing developers to Zadig as the
+one-time setup step for Windows serial monitoring. No firmware change needed for the
+production monitoring system (gateway runs on Uno Q Linux; console is a dev-time concern).
+
+---
+
 ## WP-09 — HST clip to [0,1] may suppress extreme-kurtosis fault scores
 
 **Severity**: LOW

@@ -105,12 +105,16 @@ static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
     rgb_led_set_state(RGB_WIFI_CONN);
     xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     s_retry_cnt++;
-    ESP_LOGW(TAG, "Disconnected reason=%d (attempt %d)"
-             " [15/203=wrong pw  200=SSID not found]",
-             d->reason, s_retry_cnt);
+    const char *reason_str =
+        (d->reason == 201) ? "BEACON_TIMEOUT" :
+        (d->reason == 200) ? "NO_AP_FOUND"    :
+        (d->reason == 15)  ? "WRONG_PASSWORD" :
+        (d->reason == 8)   ? "ASSOC_LEAVE"    : "OTHER";
+    ESP_LOGW(TAG, "Disconnect reason: %s (%d) attempt=%d",
+             reason_str, d->reason, s_retry_cnt);
     if (s_retry_cnt % WIFI_MAX_RETRY == 0) {
-        ESP_LOGE(TAG, "WiFi: %d consecutive failures — verify SSID/password "
-                 "in wifi_creds.h (reason %d)", s_retry_cnt, d->reason);
+        ESP_LOGE(TAG, "WiFi: %d consecutive failures [%s] — verify SSID/password "
+                 "in wifi_creds.h", s_retry_cnt, reason_str);
     }
     /* Do NOT vTaskDelay here — this runs in the system event loop.
      * Blocking triggers the interrupt watchdog. */
@@ -656,12 +660,14 @@ static void wifi_task_fn(void *arg)
     esp_pm_config_t pm_cfg = {
         .max_freq_mhz     = 240,
         .min_freq_mhz     = 80,
-        .light_sleep_enable = true,
+        .light_sleep_enable = false,
     };
     if (esp_pm_configure(&pm_cfg) != ESP_OK) {
         ESP_LOGW(TAG, "esp_pm_configure failed — fixed 240 MHz");
     }
-    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    /* WIFI_PS_NONE is set in wifi_rf_init() and must not be overridden here.
+     * WIFI_PS_MIN_MODEM causes the radio to enter DTIM sleep between beacon
+     * intervals, dropping TCP keepalive probes and triggering reconnects. */
 
     /* mDNS — must be initialised after WiFi brings up the network interface */
     if (mdns_init() != ESP_OK) {

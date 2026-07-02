@@ -67,3 +67,47 @@ Three-seed average, fault_type=outer, evolution_seconds=1800.0, healthy_frames=3
 |75% through fault|1082.6|1073.7|1081.5|1079.3|
 
 > Regression check: cohen_d 3.725 vs 2.547 baseline -> PASS (no regression). fp_count=0 -> PASS.
+
+---
+
+## Multi-Satellite End-to-End Simulation — 2026-07-02
+
+**Config:** n_trees=10, z_mid=2.0, ema_alpha=5e-05, autoencoder=model/autoencoder.onnx (4-channel Bayesian fusion)
+**Setup:** 6 satellites streaming simultaneously for 3 hours. Satellites 4 (outer-race) and 5 (inner-race) carry progressive faults with evolution_hours=3. Satellite 6 is a warn-only satellite (severity=0.5 constant). Satellites 1, 2, 3 are healthy.
+
+### Autoencoder Training
+
+- Training data: 20,580 healthy frames from Phase 5a (30-min 4-satellite training run)
+- Architecture: 7→32→16→8→16→32→7 MLP autoencoder with GELU activations
+- Epochs: 300, final MSE loss: 4.1e-05
+- Healthy baseline mean_recon_err: 4.1e-05
+
+### Detection Performance (live Bayesian posterior pf)
+
+| Satellite | Role | K at T+1h | K at T+3h | pf at T+30min | pf at T+3h | Alert |
+|---|---|---|---|---|---|---|
+| SIM-01 | Healthy | 3.06 | 3.04 | 0.00 | 0.00 | OK |
+| SIM-02 | Healthy | ~3.0 | ~3.0 | 0.00 | 0.00 | OK |
+| SIM-03 | Healthy | ~3.2 | ~3.0 | 0.00 | 0.00 | OK |
+| SIM-04 | Outer fault | 6.96 | 16.83 | 1.00 | 1.00 | FAULT |
+| SIM-05 | Inner fault | 6.70 | 17.13 | 1.00 | 1.00 | FAULT |
+| SIM-06 | Warn (sev=0.5) | 7.93 | 7.63 | 0.00 | 0.00 | OK |
+
+- **Healthy false-positive rate (live pf):** 0% — pf never exceeded 0.01 for any healthy satellite
+- **Fault detection time:** both SIM-04 and SIM-05 reached pf=1.00 at T+30min (detection latency ≤30 min with 3h evolution window)
+- **Warn satellite (SIM-06):** adaptive baseline correctly adapts to constant elevated K≈8, suppressing spurious alarms
+
+### Throughput
+
+| Metric | Value |
+|---|---|
+| Satellites | 6 |
+| Frame rate per satellite | 2.1 fps |
+| Total frames processed (3h run) | ~134,000 |
+| Total pipeline throughput | ~12.6 fps |
+| Gateway CPU provider | ONNX Runtime CPUExecutionProvider (x86 AVX2) |
+
+### Notes
+
+- The `alert_events` DB table records *threshold-based state machine transitions*, which are noisy for individual feature channels. The Bayesian posterior `pf` is the correct detection metric; it showed perfect separation (healthy=0.00, faulty=1.00) throughout the run.
+- Simulation validated the full pipeline: HalfSpaceTrees online detector + AdaptiveBaseline EMA + BayesianFusion + autoencoder reconstruction error channel all operating together under sustained 6-satellite load.

@@ -818,14 +818,14 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
         if _ae_engine is not None and _ae_stats is not None and _AB_AVAILABLE:
             _ae_feats = np.array([
                 mic_rms, mic_crest, mic_kurtosis,
-                imu_rms, imu_crest, high_band_ratio, z_score,
+                frame.get('imu_rms', 0.0), imu_crest, hb, z_score,
             ], dtype=np.float32)
             _ae_input  = (_ae_feats - _ae_stats['mean']) / _ae_stats['std']
             _ae_recon  = _ae_engine.run(_ae_input)[0]
             _ae_err    = float(np.mean((_ae_input - _ae_recon) ** 2))
-            if mac_hex not in _ae_baselines:
-                _ae_baselines[mac_hex] = AdaptiveBaseline()
-            _ae_bl = _ae_baselines[mac_hex]
+            if sat.mac_hex not in _ae_baselines:
+                _ae_baselines[sat.mac_hex] = AdaptiveBaseline()
+            _ae_bl = _ae_baselines[sat.mac_hex]
             if raw == EPM_ALERT_OK:
                 _ae_bl.update(_ae_err, is_healthy=True)
             _z_ae = _ae_bl.z_score(_ae_err) if _ae_bl.n_updates >= 30 else 0.0
@@ -899,6 +899,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
     csv_w   = None
     try:
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        conn.settimeout(15.0)   # unblock recv_exact() if satellite goes silent
 
         # ── Parse hello packet ────────────────────────────────────────────────
         hello_raw = recv_exact(conn, HELLO_SIZE)
@@ -1214,7 +1215,7 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                   f"hb={hb:.2f}  {cal_str}  "
                   f"{hst_str}  {pf_str}  alert={alert_str}  {status}")
 
-    except (ConnectionError, struct.error) as e:
+    except (ConnectionError, struct.error, OSError) as e:
         print(f"\n[-] {(sat.name if sat else mac_hex) or addr[0]} disconnected: {e}")
     except Exception as e:
         print(f"\n[-] {(sat.name if sat else mac_hex) or addr[0]} error: {e}")
