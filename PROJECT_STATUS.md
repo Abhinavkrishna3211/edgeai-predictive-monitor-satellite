@@ -511,3 +511,69 @@ Implement the bounded-reset mitigation in `wifi_task.c`'s reconnect loop
 (prompt handed to the user for a fresh the AI coding assistant session). After that's in
 and flashed, re-run a multi-hour soak with `EPM_HEAP_TRACE=1` again to
 confirm stuck windows are now bounded to ~90s instead of open-ended.
+
+## Session 10 — Phase 0 CLOSED: bounded-reset fix validated on real 3-hour soak (2026-07-04)
+
+Flashed the Session 9 mitigation (75s bounded WiFi-reset escape hatch in
+`wifi_task_fn`'s reconnect loop) and ran a 3-hour validation soak
+(`heap_soak_log_v2.txt`, 178.5 min, `EPM_HEAP_TRACE=1`). Independently
+verified (note: this log is UTF-16LE-encoded — `iconv -f UTF-16LE -t UTF-8`
+before grepping, plain grep silently returns 0 matches otherwise).
+
+**Fix confirmed working:** one genuine heap-fragmentation event at t=34.0min
+(frame 1981) — heap at drop: free=2884B, largest=1280B (matches Session 9's
+3516/1024 signature exactly). The escape hatch fired after 84 seconds
+(vs the original 7-19 *minutes*), forced `esp_wifi_disconnect()`, and the
+heap fully defragmented within ~2 seconds (free=26248B, largest=17408B).
+Normal operation resumed immediately and stayed healthy for ~15 more
+minutes (frames 1981-3077). `forced_reset` fired 80 times total across the
+run; only the first was a genuine fragmentation event — the other 79 (all
+from frame 3078 onward, all showing an already-healthy heap ~29024/18432)
+were the escape hatch correctly but harmlessly firing every ~96s because
+the *gateway* was unreachable, not because of heap state.
+
+**Root cause of the post-frame-3077 outage: NOT a gateway crash — the
+Windows Mobile Hotspot itself went off.** Grepping disconnect reasons in
+that window: 39× `NO_AP_FOUND`, 1× `ASSOC_LEAVE`, 5× `OTHER` — the ESP32
+was correctly failing to find an access point that was no longer there.
+This matches Windows Mobile Hotspot's default "turn off automatically when
+no devices are connected" behavior (or the host laptop sleeping). User
+confirmed on physical inspection: the hotspot was indeed off. Not a
+firmware or gateway bug — a test-environment gotcha for future unattended
+soaks: disable that Windows setting (Settings > Network & Internet >
+Mobile hotspot > "Turn off hotspot automatically") or keep the host awake,
+or the satellite will correctly-but-uselessly loop `NO_AP_FOUND` once the
+AP disappears mid-soak.
+
+**Phase 0 is now closed.** Root cause found (fragmentation, Session 9),
+fix implemented and flashed (Session 9/10), fix validated against a real
+3-hour hardware run with a genuine fragmentation event captured and
+recovered exactly as designed (Session 10). Connectivity can now be
+considered solid.
+
+**Residual, low-priority cleanup (not urgent):** the escape hatch still
+fires every ~96s when the gateway is unreachable for an extended period,
+even though the heap is healthy — harmless (just an unnecessary WiFi
+reassociation cycle) but noisy in the log. Future fix: skip
+`esp_wifi_disconnect()` in the escape hatch when `largest` is already above
+some healthy threshold (e.g. 8-10 KB) — only reset when fragmentation is
+the actual suspected cause.
+
+### Next steps (in rough priority order)
+
+1. Optional: the harmless-but-noisy repeated-reset cleanup above.
+2. Mic subsystem audit completed this session (separate from Phase 0) —
+   found the pipeline itself is sound, but flagged two real gaps ahead of
+   calling this "industrial-ready": (a) `MIC_SAMPLE_RATE_HZ=16000` was
+   picked as a placeholder and never empirically validated against the
+   mic's real usable ceiling or the project's own cited 2-10kHz bearing
+   resonance range — test plan written, needs hardware; (b) the live fault
+   classifier (`_classify_fault_type` in recv_verify.py) does NOT use
+   `bearing_math.py`'s BPFO/BPFI/BSF computation or any envelope/
+   demodulation analysis — it's broadband-statistics anomaly detection
+   with diagnostic-sounding labels, not physics-verified fault-type
+   diagnosis. No live shaft-speed reference either. This is a bigger,
+   deliberate feature decision, not a quick fix.
+3. Real KX134 IMU integration (stub TODOs 3a-3d in imu_task.c).
+4. Model/accuracy tuning (KNOWN_ISSUES.md WP-02/03/05/08/09) — all still
+   simulation-tuned, never validated against a real recorded bearing fault.
