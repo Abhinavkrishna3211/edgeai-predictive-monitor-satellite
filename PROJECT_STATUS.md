@@ -1,7 +1,7 @@
 # EPM Project Status — Full Multi-Session Log
 
 **Repo:** `edgeai-predictive-monitor-satellite`
-**Last updated:** 2026-07-03
+**Last updated:** 2026-07-04
 
 ## What the project is
 
@@ -372,3 +372,81 @@ Recommended workflow: new the AI coding assistant session, Sonnet model with pla
 mechanical steps above; escalate to Opus only if a captured log doesn't match the
 route-loss hypothesis, and scope that escalation to the specific log plus
 `wifi_task.c` / `epm_config.h` / `main.c` — not a full-repo review.
+
+## Session 8 — the planning tool audit verification + Phase 1 fixes committed (2026-07-04)
+
+A read-only overnight Opus audit produced `MASTERPLAN.md` and `ARCHITECTURE.md`.
+A separate the planning tool session verified every specific, checkable claim in both files
+directly against source (mDNS removal, imu priority traced to the actual
+`xTaskCreatePinnedToCore` call, `overflow_count` traced to the exact
+`struct.unpack_from` tuple, Flask/http.server, git history on `wifi_creds.h`) —
+everything held up. The audit's Phase 0 correctly identified its own premise
+(a leak in the removed `resolve_gateway_mdns()` path) as stale; the current
+reconnect path has no statically visible leak.
+
+**New data point:** an unattended overnight run (XIAO idle, no rig) ran cleanly
+for 7+ hours — heap oscillated 12356-26200 bytes (not draining), contradicting
+the earlier 9-minute failure. Also traced why kurtosis/z-score/HST/alert looked
+"frozen" for hours: `mic_task.c`'s `if (var > 1e-12f)` guard on the kurtosis
+update is working as intended — with a genuinely silent mic (rig was just
+sitting on the table, confirmed by user), it correctly holds its last real
+value rather than computing garbage on near-zero variance. Not a bug, but a
+UX gap worth fixing later: the dashboard can't distinguish "nothing new to
+report" from "still actively confirming FAULT."
+
+**Phase 1 - all done, all committed (9 commits, `6b52b42`..`98b16b2`):**
+- Fixed stale docs: `main.c`/`epm_config.h` task tables said imu priority
+  5/stack 8192; actually 3/3072 since Session 7's retune.
+- Rewrote `sdkconfig.defaults`'s PSRAM comment (still said "DISABLED -
+  boot-loop investigation pending" directly above the working `CONFIG_SPIRAM=y`).
+- Dropped dead `espressif/mdns` (`idf_component.yml`) and `flask>=3.0`
+  (`requirements.txt` - dashboard is stdlib `http.server`, no Flask usage
+  anywhere, confirmed by grep).
+- Deleted dead `src/test_blink.c` (untracked, build-excluded).
+- Wired `overflow_count` through: `HEADER_FMT`'s trailing pad byte was
+  silently dropping it gateway-side even though firmware always sent it.
+  Now unpacked, in `parse_frame`'s returned dict, logged to CSV, and a
+  console warning fires on nonzero. Updated `satellite_sim.py` to match the
+  new format (added the missing `struct.pack` argument).
+- Added the Phase 0 heap-drain instrumentation to `wifi_task.c`: heap_caps
+  free-size + largest-free-block logged at connect/send_frame/alert/drop,
+  tagged with `frame_id`. Off by default - enable via `-DEPM_HEAP_TRACE=1`
+  in `platformio.ini` build_flags (currently commented out).
+- Found + fixed: 32 files (`README.md`, `docs/`, `mic_tools/*`) had turned
+  into full-file diffs from CRLF line-ending conversion with **zero** actual
+  content change (`git diff --stat -w` was empty) - reverted them and added
+  `.gitattributes` (`* text=auto eol=lf`) so this stops recurring.
+- Found + fixed: `.gitignore`'s `.claude/` / `build_log_stackfix.txt` entries
+  didn't land in the first commit (a file-tool/shell sync timing issue) -
+  caught by cross-checking `git show HEAD:<file>` against every edit before
+  calling the work done, not just trusting the edit calls succeeded. The
+  SAME sync issue hit this very PROJECT_STATUS.md update too (this Session 8
+  section didn't land in the shell-visible copy on the first attempt either)
+  - worth remembering for future sessions: always verify file-tool edits
+    against the shell view before git-committing, don't assume they matched.
+- pytest 91/91 passing throughout (`test_drift.py`/`test_online_detector.py`
+  can't be collected in the the planning tool sandbox - `river` fails to build there;
+  environment limitation, not a code issue).
+
+**Still open, untouched:** `find_xiao_port.ps1` and `partitions_8mb.csv` (the
+unused OTA partition variant) remain untracked - low priority, no decision
+made yet.
+
+### Next action - Phase 0 soak test (blocking, needs physical hardware)
+
+The the planning tool session has no hardware access, so this must run in a local
+the AI coding assistant session pointed at this same repo folder:
+1. Uncomment `-DEPM_HEAP_TRACE=1` in `platformio.ini`.
+2. Flash, run 30+ min (longer is better) with the board just sitting there -
+   no test rig needed; this only exercises the WiFi/TCP/encryption/reconnect
+   path, not fault detection.
+3. Capture the full serial log (`HEAPTRACE` lines interleaved with normal
+   output).
+4. Revert the flag afterward.
+5. Bring the log back for diagnosis - Opus, Plan mode recommended for
+   reading the free-size vs. largest-free-block trend against `frame_id`
+   (distinguishes true leak vs. fragmentation, per-frame vs. per-reconnect).
+
+Only after that's resolved: (b) reconnect-frequency hardening if still
+needed, (c) real KX134 IMU integration (stub TODOs 3a-3d already in
+`imu_task.c`), (d) model/accuracy tuning (`KNOWN_ISSUES.md` WP-02/03/05/08/09).
