@@ -86,10 +86,7 @@ static float s_ones_half[FFT_HALF] __attribute__((aligned(16)));  /* all-1 for �
 
 /* ── FFT output buffer in PSRAM ──────────────────────────────────────────── */
 
-/* HW-OPT: EXT_RAM_BSS_ATTR places s_mag_db (2 KB) in PSRAM, saving internal
- * DRAM.  It is written once per SPEC_AVG_N frames (not in the hot compute
- * loop) so PSRAM access latency is not a bottleneck.  The FFT working
- * buffers above (s_pwr_acc, s_fft, etc.) remain in fast internal DRAM. */
+/* s_mag_db in PSRAM: confirmed working (8 MB free, SESSION_7). */
 static EXT_RAM_BSS_ATTR float s_mag_db[FFT_HALF];
 
 /* ── Frame output buffer (static to keep 2 KB off the task stack) ─────────── */

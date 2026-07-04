@@ -86,11 +86,7 @@ static QueueHandle_t s_queue      = NULL;
 static TaskHandle_t  s_task_handle = NULL;
 TaskHandle_t imu_task_get_handle(void) { return s_task_handle; }
 
-/* HW-OPT: EXT_RAM_BSS_ATTR places s_frame (≈12 KB) in PSRAM.
- * s_pwr_x/y/z (accumulation buffers) stay in fast internal DRAM.
- * The FFT write path is: internal DRAM (pwr_acc) → PSRAM (s_frame.fft_*)
- * once per SPEC_AVG_N frames — well within PSRAM access latency budget.
- * Saves 12 KB of internal DRAM for stack / DMA headroom. */
+/* s_frame in PSRAM: confirmed working (8 MB free, SESSION_7). */
 static EXT_RAM_BSS_ATTR imu_frame_t s_frame;
 
 /* ─── Stub signal generator ───────────────────────────────────────────────── */

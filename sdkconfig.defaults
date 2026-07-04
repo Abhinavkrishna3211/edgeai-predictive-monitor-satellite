@@ -8,12 +8,21 @@
 # Default 3584 overflows → corrupted TCB on vTaskDelete.
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 
-# Legacy SMP FreeRTOS arms TG1WDT (CPU1 tick monitor) during early boot before
-# FreeRTOS starts CPU1.  WiFi RF init (phy_enable, ~140 ms) disrupts the
-# IPC-based CPU1 tick ISR feed.  Total gap from boot arm → first CPU1 tick
-# after WiFi init exceeds the default 2×300 ms = 600 ms window → TG1WDT_SYS_RST.
-# 1200 ms gives 2×600 ms = 1200 ms headroom, covering all of WiFi startup.
-CONFIG_ESP_INT_WDT_TIMEOUT_MS=1200
+# Interrupt WDT timeout for WiFi RF PHY calibration.
+#
+# ESP32-S3 WiFi PHY full calibration (runs in ISR context on Core 0) takes:
+#   ~200 ms   — partial calibration (NVS cache hit, subsequent boots)
+#   ~1500 ms  — FULL calibration   (first boot after flash erase, empty phy_init partition)
+#
+# With an empty phy_init partition the driver always does full calibration.
+# 1200 ms was too short — the IWDT fired every boot, causing an infinite crash loop
+# (confirmed by UART log: "Interrupt wdt timeout on CPU0" immediately after
+# "I (417) net80211: net80211 rom version").
+#
+# 2000 ms gives enough headroom for full calibration on first boot.
+# After the first successful boot the PHY data is stored in NVS and
+# subsequent boots use the fast partial path (<200 ms).
+CONFIG_ESP_INT_WDT_TIMEOUT_MS=2000
 
 # ── Compiler optimisation ────────────────────────────────────────────────────
 
@@ -63,11 +72,22 @@ CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
 
 # ── PSRAM ─────────────────────────────────────────────────────────────────────
 #
-# MALLOC_CAP_SPIRAM is required for the 4-second pre-trigger ring buffer
-# allocated in mic_capture.c. heap_caps_malloc is used so the ring buffer
-# never competes with internal SRAM.
+# PSRAM ENABLED — confirmed working (Session 7). 8 MB Octal PSRAM initialises
+# cleanly at boot; heap_caps_get_free_size(MALLOC_CAP_SPIRAM) reports ~8.2 MB
+# free at runtime. The earlier OPI boot-loop (bootloader panic on PSRAM init)
+# is resolved — see PROJECT_STATUS.md Session 7 for the fix history. No
+# bootloader-level workaround is needed; the four settings below are the
+# complete, sufficient PSRAM configuration for this board.
+#
+# EXT_RAM_BSS_ATTR has been restored on the buffers that were temporarily
+# moved to internal DRAM during the PSRAM outage:
+#   dsp_task.c   → s_mag_db[FFT_HALF]       (2 KB)
+#   imu_task.c   → s_frame (imu_frame_t)    (12 KB)
+#
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
 
 # ── LEDC fade ISR in IRAM ─────────────────────────────────────────────────────
 #
@@ -143,3 +163,27 @@ CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
 CONFIG_FREERTOS_USE_TRACE_FACILITY=y
 CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS=y
+
+# ── Flash size: 8MB (XIAO ESP32-S3 physical flash) ──────────────────────────
+# Stale sdkconfig.xiao_esp32s3 had CONFIG_ESPTOOLPY_FLASHSIZE_2MB=y which
+# caused "WARNING: Flash memory size mismatch: Expected 8MB, found 2MB" on
+# every flash and limited the app address space to 2MB. Physical chip is 8MB.
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="8MB"
+
+# ── Partition table: 8MB single-app layout (SIMPLIFIED — OTA disabled) ───────
+# Using single-app factory layout to avoid OTA bootloader boot-loop.
+# OTA partition table (partitions_8mb.csv) caused boot-loop: the JTAG upload
+# does NOT flash ota_data_initial.bin at 0x10000, leaving the otadata region
+# at all-0xFF. Switching to factory-app avoids the OTA state machine entirely.
+# To restore OTA later: switch back to partitions_8mb.csv AND ensure esptool
+# flashes ota_data_initial.bin at 0x10000 (see flasher_args.json).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_simple_8mb.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0x8000
+
+# ── LWIP hostname ─────────────────────────────────────────────────────────────
+# Change from IDF default "espressif" to a project-specific name for mDNS
+# and network debugging. Shows in ARP tables and mDNS browser as "epm-sat".
+CONFIG_LWIP_LOCAL_HOSTNAME="epm-sat"
+                                                                                                                                                                                                                                                                        
