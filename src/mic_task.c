@@ -53,8 +53,15 @@ TaskHandle_t mic_task_get_handle(void) { return s_task_handle; }
 /* HW-OPT: DRAM_ATTR guarantees internal DRAM placement.  PSRAM cannot be used
  * as ring buffer storage — the esp_ringbuf implementation accesses header bytes
  * inside the ISR-driven xRingbufferReceive path, which must be in DRAM when
- * the flash cache is off during WiFi TX bursts. */
-static DRAM_ATTR uint8_t       s_rb_storage[8192];
+ * the flash cache is off during WiFi TX bursts.
+ *
+ * Size rationale for RINGBUF_TYPE_NOSPLIT:
+ *   FreeRTOS NOSPLIT limits usable space to (buf_len/2 - header) per item.
+ *   sizeof(raw_mic_block_t) = 4120 bytes; item header = 8 bytes.
+ *   Minimum buf_len = (4120 + 8) × 2 = 8256 bytes.
+ *   Using 10240 (10 KB) gives ~5112 bytes/slot → 2 items in flight (headroom
+ *   for one dsp_task processing cycle while mic_task fills the next block). */
+static DRAM_ATTR uint8_t       s_rb_storage[10240];
 static StaticRingbuffer_t      s_rb_mem;
 static RingbufHandle_t         s_raw_rb = NULL;
 
@@ -144,7 +151,7 @@ static void mic_task_fn(void *arg)
          * drop the oldest data path — identical behaviour to xQueueOverwrite
          * but avoids an extra memcpy on the receive side. */
         if (xRingbufferSend(s_raw_rb, &s_blk, sizeof(s_blk), 0) != pdTRUE) {
-            ESP_LOGD(TAG, "raw_rb full — block dropped (dsp_task backlogged)");
+            ESP_LOGD(TAG, "raw_rb full — dropping block (dsp_task backlogged)");
         }
     }
 }
@@ -163,8 +170,9 @@ void mic_task_start(void)
     ESP_ERROR_CHECK(mic_capture_init());
 
     ESP_LOGI(TAG, "mic_task starting (capture core 0, SIMD stats): "
-             "block=%d samples, Fs=%d Hz, ringbuf=%u bytes",
-             FFT_MIC_N, MIC_FS_HZ, (unsigned)sizeof(s_rb_storage));
+             "block=%d samples, Fs=%d Hz, ringbuf=%u bytes, blk_sz=%u",
+             FFT_MIC_N, MIC_FS_HZ, (unsigned)sizeof(s_rb_storage),
+             (unsigned)sizeof(raw_mic_block_t));
 
     xTaskCreatePinnedToCore(mic_task_fn, "mic_task", TASK_STACK_MIC, NULL,
                             TASK_PRIO_MIC, &s_task_handle, 0);

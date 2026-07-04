@@ -157,8 +157,18 @@ static void anim_continue(anim_state_t *a)
 {
     if (a->phase == 0) {
         anim_program_step(a);
+    } else {
+        /* phase == 1: ISR asked us to start the hold (zero-delta fade).
+         * Must be done here in task context — ledc_set_fade_with_time
+         * acquires a mutex and cannot be called from the fade-done ISR. */
+        const led_step_t *s = &a->pattern[a->step];
+        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_R, s->r, s->hold_ms);
+        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_G, s->g, s->hold_ms);
+        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_B, s->b, s->hold_ms);
+        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_R, LEDC_FADE_NO_WAIT);
+        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_G, LEDC_FADE_NO_WAIT);
+        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_B, LEDC_FADE_NO_WAIT);
     }
-    /* phase == 1: hold already running in hardware, nothing to do */
 }
 
 static void anim_start_for_state(rgb_led_state_t state)
@@ -189,20 +199,16 @@ static IRAM_ATTR bool rgb_fade_done_isr(const ledc_cb_param_t *param, void *user
     const led_step_t *s = &a->pattern[a->step];
 
     if (a->phase == 0 && s->hold_ms > 0) {
-        /* Fade done; start hold phase (zero-delta fade = hardware hold). */
+        /* Fade done; signal task to start hold phase.
+         * ledc_set_fade_with_time() is NOT ISR-safe — it acquires a mutex
+         * (_ledc_fade_hw_acquire → xQueueSemaphoreTake).  Calling it here
+         * blocks CPU0 in vListInsert() and triggers the interrupt WDT. */
         a->phase = 1;
-        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_R, s->r, s->hold_ms);
-        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_G, s->g, s->hold_ms);
-        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_B, s->b, s->hold_ms);
-        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_R, LEDC_FADE_NO_WAIT);
-        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_G, LEDC_FADE_NO_WAIT);
-        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_B, LEDC_FADE_NO_WAIT);
-        return false;
+    } else {
+        /* Hold done (or no hold): advance step. Task will program next. */
+        a->phase = 0;
+        a->step  = s->loop ? 0 : (uint8_t)(a->step + 1);
     }
-
-    /* Hold done (or no hold): advance step and notify task to program next. */
-    a->phase = 0;
-    a->step  = s->loop ? 0 : (uint8_t)(a->step + 1);
 
     BaseType_t woken = pdFALSE;
     vTaskNotifyGiveFromISR(g_rgb_task_handle, &woken);

@@ -236,11 +236,11 @@ esp_err_t mic_capture_read_block(int32_t *out_raw, float *out_normalized,
     size_t want_bytes = block_len * sizeof(int32_t);
     size_t got_bytes  = 0;
 
-    // Blocking read — fine for Stage 1. portMAX_DELAY is safe here since
-    // the DMA ring keeps filling in the background; we're not at risk of
-    // deadlocking the I2S peripheral itself, only of falling behind it
-    // (which is exactly what we're instrumenting via mic_capture_compute_stats).
-    esp_err_t err = i2s_channel_read(s_rx_chan, raw_buf, want_bytes, &got_bytes, portMAX_DELAY);
+    /* 500 ms timeout: at 16 kHz and 1024-sample blocks, one block takes 64 ms.
+     * portMAX_DELAY would block mic_task forever if DMA stalls — use a finite
+     * timeout so mic_task_fn can log the failure and dsp_task can report it. */
+    esp_err_t err = i2s_channel_read(s_rx_chan, raw_buf, want_bytes, &got_bytes,
+                                      pdMS_TO_TICKS(500));
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "i2s_channel_read failed: %s", esp_err_to_name(err));
         return err;
