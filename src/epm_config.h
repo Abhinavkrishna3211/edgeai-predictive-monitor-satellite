@@ -83,7 +83,7 @@
 /* ─── Fault thresholds ───────────────────────────────────────────────────── */
 
 /* Consecutive mic_capture_read_block failures before escalating to LOGE.
- * At ~62 ms/block (FFT_MIC_N=1024, Fs=16 kHz) this gives ~3 s before alarm. */
+ * At ~64 ms/block (FFT_MIC_N=1024, Fs=16 kHz) this gives ~3.2 s before alarm. */
 #ifndef MIC_FAIL_MAX
 #define MIC_FAIL_MAX  50
 #endif
@@ -103,31 +103,39 @@
 
 /*
  * Priority hierarchy (corrected — 5-task + diagnostics layout):
- *   Core 0: wifi_task(4), mic_task(5), imu_task(5), diagnostics_task(1)
+ *   Core 0: wifi_task(4), mic_task(5), imu_task(3), diagnostics_task(1)
  *   Core 1: dsp_task(6), rgb_led_task(3)
  *
  *   6 = dsp_task   : compute-bound, must complete FFT before next DMA buffer fills
- *   5 = mic/imu    : DMA callbacks, must service within DMA_FRAME_NUM/sample_rate
+ *   5 = mic_task   : DMA callbacks, must service within DMA_FRAME_NUM/sample_rate
  *   4 = wifi_task  : TCP blocking I/O, preemptible by capture tasks
- *   3 = rgb_led    : nearly always blocked on queue/notify, lowest real-time need
+ *   3 = imu/rgb_led: imu_task is kept below wifi_task so the WiFi/TCP stack is
+ *                    never starved; rgb_led is nearly always blocked on queue/notify
  *   1 = diagnostics: background HWM monitoring, runs every 30 s, never time-critical
  *
  * Stack sizes are set conservatively above spec minimums:
- *   mic=8192 (spec 4096) — float kurtosis buffers on task stack safety margin
- *   dsp=16384 (spec 8192) — FFT + feature compute on core 1, no headroom issues
- *   imu=8192 (spec 4096) — 3-axis FFT, cosf(), safety margin
- *   wifi=10240 (spec 6144) — mbedTLS GCM + mDNS + TCP + nvs overhead
- *   diag=3072 (spec 3072) — only vTaskGetRunTimeStats 512-byte static buffer
+ *   mic=8192  (spec 4096) — float kurtosis buffers on task stack safety margin
+ *   dsp=6144  (HWM 2004) — FFT compute on core 1; was 16384 but 93% wasted;
+ *                          6144 = 3× measured peak; saves 10240 bytes of heap
+ *   imu=3072  (HWM 968)  — 3-axis FFT stub; was 8192 but 88% wasted;
+ *                          3072 = 3× measured peak; saves 5120 bytes of heap
+ *   wifi=16384 (was 10240) — mbedTLS GCM + TCP + NVS; old 10240 overflowed at 91%;
+ *                            16 KB needs heap freed by DSP/IMU reductions to allocate
+ *   diag=3072 (spec 3072) — only vTaskGetRunTimeStats 1024-byte static buffer
+ *
+ * DSP+IMU reduction frees 15360 bytes of heap so wifi_task's 16640-byte
+ * (stack+TCB) allocation succeeds. Without this, xTaskCreatePinnedToCore()
+ * fails silently leaving s_task_handle=NULL and no data is ever sent.
  */
 #define TASK_STACK_MIC   8192
-#define TASK_STACK_DSP   16384
-#define TASK_STACK_IMU   8192
-#define TASK_STACK_WIFI  10240
+#define TASK_STACK_DSP   6144
+#define TASK_STACK_IMU   3072
+#define TASK_STACK_WIFI  16384
 #define TASK_STACK_DIAG  3072
 
 #define TASK_PRIO_MIC    5   /* I2S DMA callback — must not be starved by DSP */
 #define TASK_PRIO_DSP    6   /* FFT compute — highest: must drain raw_rb before next block */
-#define TASK_PRIO_IMU    5   /* SPI DMA capture (stub) */
+#define TASK_PRIO_IMU    3   /* SPI DMA capture — below wifi_task(4) so WiFi stack is never starved */
 #define TASK_PRIO_WIFI   4   /* TCP I/O — preemptible by DMA tasks */
 #define TASK_PRIO_DIAG   1   /* background health monitor */
 
@@ -198,6 +206,4 @@ typedef struct {
     float    rms_x, rms_y, rms_z;   /* per-axis RMS                        */
     float    crest_x, crest_y, crest_z; /* per-axis crest factor           */
     float    dc_x;                   /* X-axis DC offset (gravity component)*/
-    uint8_t  clip;                   /* 1 if any axis clipped               */
-    uint32_t timestamp_ms;
-} imu_frame_t;
+    uint8_t  clip;                   /* 

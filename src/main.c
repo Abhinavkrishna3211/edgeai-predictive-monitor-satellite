@@ -5,15 +5,15 @@
  *
  *   Core 0 — Radio and peripheral capture (time-critical I/O)
  *   ┌────────────────────────────────────────────────────────┐
- *   │ wifi_task        priority 4   stack 10240              │
+ *   │ wifi_task        priority 4   stack 16384              │
  *   │ mic_task         priority 5   stack 8192  (I2S DMA)    │
- *   │ imu_task         priority 5   stack 8192  (SPI DMA)    │
+ *   │ imu_task         priority 3   stack 3072  (SPI DMA)    │
  *   │ diagnostics_task priority 1   stack 3072  (health mon) │
  *   └────────────────────────────────────────────────────────┘
  *
  *   Core 1 — Compute (no radio interference)
  *   ┌────────────────────────────────────────────────────────┐
- *   │ dsp_task       priority 6   stack 16384  (FFT compute) │
+ *   │ dsp_task       priority 6   stack 6144   (FFT compute) │
  *   │ rgb_led_task   priority 3   stack 3072   (LEDC HW)     │
  *   └────────────────────────────────────────────────────────┘
  *
@@ -64,22 +64,22 @@ static void diagnostics_task_fn(void *arg)
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(30000));   /* 30 s health interval */
 
-        /* Stack watermarks — minimum ever-free stack words × 4 bytes.
+        /* Stack watermarks — minimum ever-free bytes (IDF 5.x returns bytes).
          * A value approaching 0 signals an imminent stack overflow. */
         ESP_LOGI("DIAG", "Stack HWM (bytes free): mic=%lu dsp=%lu wifi=%lu rgb=%lu diag=%lu",
-            (unsigned long)uxTaskGetStackHighWaterMark(a->h_mic)  * 4,
-            (unsigned long)uxTaskGetStackHighWaterMark(a->h_dsp)  * 4,
-            (unsigned long)uxTaskGetStackHighWaterMark(a->h_wifi) * 4,
-            (unsigned long)uxTaskGetStackHighWaterMark(a->h_rgb)  * 4,
-            (unsigned long)uxTaskGetStackHighWaterMark(h_diag)    * 4);
+            (unsigned long)uxTaskGetStackHighWaterMark(a->h_mic),
+            (unsigned long)uxTaskGetStackHighWaterMark(a->h_dsp),
+            (unsigned long)uxTaskGetStackHighWaterMark(a->h_wifi),
+            (unsigned long)uxTaskGetStackHighWaterMark(a->h_rgb),
+            (unsigned long)uxTaskGetStackHighWaterMark(h_diag));
 
         /* CPU runtime statistics — only compiled when the SMP FreeRTOS scheduler
          * exposes configGENERATE_RUN_TIME_STATS.  On ESP32-S3 with SMP FreeRTOS
          * (IDF 5.x default), this Kconfig option is unavailable; the block is
          * omitted at compile time to keep the rest of diagnostics functional. */
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
-        /* Static keeps the 512-byte text table off the 3072-byte task stack. */
-        static char s_stats[512];
+        /* Static keeps the 1024-byte text table off the 3072-byte task stack. */
+        static char s_stats[1024];
         vTaskGetRunTimeStats(s_stats);
         ESP_LOGI("DIAG", "CPU runtime:\n%s", s_stats);
 #else
