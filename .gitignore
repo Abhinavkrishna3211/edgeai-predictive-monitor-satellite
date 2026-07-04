@@ -37,3 +37,7 @@ mic_tools/model/
 *.orig
 *.swp
 *.tmp
+
+# ── the AI coding assistant / session artifacts (not part of source) ────
+.claude/
+build_log_stackfix.txt
