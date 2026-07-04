@@ -450,3 +450,64 @@ the AI coding assistant session pointed at this same repo folder:
 Only after that's resolved: (b) reconnect-frequency hardening if still
 needed, (c) real KX134 IMU integration (stub TODOs 3a-3d already in
 `imu_task.c`), (d) model/accuracy tuning (`KNOWN_ISSUES.md` WP-02/03/05/08/09).
+
+## Session 9 — Phase 0 CONFIRMED: heap fragmentation, not a leak (2026-07-04)
+
+2-hour instrumented soak test (`-DEPM_HEAP_TRACE=1`) run via a local the AI coding assistant
+Code session with hardware access. Monitor attached at frame 276 (board had
+already been running ~4 min), captured to `heap_soak_log.txt` through frame
+6609 (~125.5 min firmware uptime, 12,500 HEAPTRACE lines, 3 drop/connect
+event pairs).
+
+**Results:**
+| Event | Frame | Time | free | largest |
+|---|---|---|---|---|
+| drop | 2441 | t=36.8min | 3,516 B | 1,024 B |
+| connect | 2442 | t=55.9min (stuck 19min) | 26,672 B | 17,408 B |
+| drop | 2788 | t=61.2min | 3,516 B | 1,280 B |
+| connect | 2789 | t=68.1min (stuck 7min) | 26,080 B | 17,408 B |
+| drop | 4023 | t=86.7min | 28,504 B | 18,432 B |
+| connect | 4024 | t=86.7min (~2s, no stuck loop) | 26,664 B | 17,408 B |
+
+**Root cause confirmed: heap fragmentation, not a monotonic leak.** Total
+free memory fully recovers (26-28 KB) — it is not draining forever, which
+is why the earlier 7-hour idle run looked "healthy." What actually degrades
+is the *largest contiguous free block*: it drops to ~1-1.3 KB (too small for
+lwIP/mbedTLS to stand up a fresh connection) while total free is still
+~3.5 KB. Frame 4023's drop shows this precisely — heap was already healthy
+(28,504 B free / 18,432 B largest) at drop time, so that reconnect took ~2s
+with no stuck loop at all; it was never a heap event.
+
+**The recovery mechanism, both times it got unstuck:** a genuine WiFi-radio-
+level disconnect (reasons 1/203/205) forced a full `esp_wifi` stack
+stop/start cycle, and THAT is what actually defragments the heap back into
+one large contiguous block (free jumped ~7-8x, largest jumped ~14-17x each
+time). The app-level `drop_connection()`/`connect_to_gateway()` TCP-only
+reconnect loop never triggers this — it just retries `tcp_connect()` against
+an already-fragmented heap. So the stuck duration is entirely luck-dependent
+on an unrelated radio-level disconnect happening to bail it out. This is
+exactly why the original 9-minute test never recovered: it simply didn't get
+that lucky break within the observation window. Same failure mode, not a
+fluke — confirmed across a 125-minute window with 2 independent occurrences.
+
+**Fix identified (mitigation, not yet implemented):** in `wifi_task_fn`'s
+reconnect loop, track consecutive `connect_to_gateway()` failures / elapsed
+stuck time. After ~60-90s of failures (well under the 7-19 min observed
+stuck windows), force a full WiFi-level reset (`esp_wifi_disconnect()` +
+reconnect, integrating with whatever `on_wifi_disconnected()` already does)
+rather than only retrying `tcp_connect()`. This bounds the outage to ~90s
+instead of indefinite, without needing to know the exact fragmentation
+source.
+
+**Not yet done — deeper root cause:** *why* the heap fragments during normal
+operation (which specific lwIP/mbedTLS/WiFi-driver allocation pattern is
+responsible) is still unknown. The bounded-reset fix is a mitigation the
+system can ship with; finding and fixing the actual fragmentation source is
+a separate, deeper investigation for later.
+
+### Next action
+
+Implement the bounded-reset mitigation in `wifi_task.c`'s reconnect loop
+(prompt handed to the user for a fresh the AI coding assistant session). After that's in
+and flashed, re-run a multi-hour soak with `EPM_HEAP_TRACE=1` again to
+confirm stuck windows are now bounded to ~90s instead of open-ended.
