@@ -163,7 +163,7 @@ _FACTORY_NAME       = 'EPM Industrial Monitor'  # set by --factory-name
 EPM_MAGIC   = 0xEA1DF00D
 HELLO_MAGIC = 0xEA1D0000
 
-HEADER_FMT  = '<IIIHHffffBfffBBx'   # 48 bytes — added mic_kurtosis float
+HEADER_FMT  = '<IIIHHffffBfffBBB'   # 48 bytes — added mic_kurtosis float; last B is overflow_count
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
 assert HEADER_SIZE == 48, f"Header size {HEADER_SIZE}"
 
@@ -479,15 +479,38 @@ _display = _DisplayState()
 # ─── Network helpers ──────────────────────────────────────────────────────────
 
 def get_local_ip() -> str:
-    """Return the primary non-loopback IPv4 address of this host."""
+    """Return the best local IPv4 address for gateway advertisement.
+
+    Prefers hotspot/ICS subnets (192.168.137.x) over the default-route
+    interface so that mDNS advertisements reach satellites on the mobile
+    hotspot rather than the upstream LAN.
+    """
+    import ipaddress, socket as _sock
+    candidates: list[str] = []
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        for iface_addrs in socket.getaddrinfo(socket.gethostname(), None):
+            addr = iface_addrs[4][0]
+            try:
+                ip = ipaddress.IPv4Address(addr)
+                if not ip.is_loopback and not ip.is_link_local:
+                    candidates.append(addr)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # Prefer Windows Mobile Hotspot / ICS subnet 192.168.137.x
+    for c in candidates:
+        if c.startswith('192.168.137.'):
+            return c
+    # Fall back to default-route interface
+    try:
+        s = _sock.socket(_sock.AF_INET, _sock.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80))
         ip = s.getsockname()[0]
         s.close()
         return ip
     except Exception:
-        return '127.0.0.1'
+        return candidates[0] if candidates else '127.0.0.1'
 
 
 # ─── AES-128-GCM frame decryption ─────────────────────────────────────────────
@@ -570,7 +593,7 @@ def parse_frame(raw, exp_mic_bins, exp_imu_bins):
      mic_bins, imu_bins,
      mic_rms, mic_crest, mic_dc, mic_kurtosis, mic_clip,
      imu_rms, imu_crest, imu_dc, imu_clip,
-     imu_axes) = struct.unpack_from(HEADER_FMT, raw, 0)
+     imu_axes, overflow_count) = struct.unpack_from(HEADER_FMT, raw, 0)
 
     errs = []
     if magic != EPM_MAGIC:
@@ -610,6 +633,7 @@ def parse_frame(raw, exp_mic_bins, exp_imu_bins):
                 mic_rms=mic_rms, mic_crest=mic_crest, mic_kurtosis=mic_kurtosis,
                 imu_rms=imu_rms, imu_crest=imu_crest,
                 mic_fft=mic_fft, imu_x=imu_x, imu_y=imu_y, imu_z=imu_z,
+                overflow_count=overflow_count,
                 errors=errs)
 
 
@@ -934,7 +958,8 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
             csv_w.writerow(['wall_time', 'frame_id', 'device_ms',
                             'mic_rms', 'mic_crest', 'mic_kurtosis',
                             'imu_rms', 'imu_crest',
-                            'high_band_ratio', 'z_score', 'p_fault', 'alert'])
+                            'high_band_ratio', 'z_score', 'p_fault', 'alert',
+                            'overflow_count'])
         print(f"    Logging to: {csv_path}  ({'new' if is_new else 'append'})")
 
         # Maximum valid payload: header + mic FFT + 3 × IMU FFT + 1 KB margin.
@@ -1071,9 +1096,16 @@ def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
                 f"{frame['mic_kurtosis']:.3f}",
                 f"{frame['imu_rms']:.6f}", f"{frame['imu_crest']:.3f}",
                 f"{hb:.3f}", f"{z_score:.2f}", f"{p_fault:.4f}",
-                ["OK", "WARN", "FAULT"][min(alert, 2)]
+                ["OK", "WARN", "FAULT"][min(alert, 2)],
+                frame['overflow_count']
             ])
             csv_f.flush()
+
+            # I2S DMA overflow since the satellite's last frame — surfaces audio
+            # gaps that would otherwise silently degrade mic_rms/kurtosis.
+            if frame['overflow_count'] > 0:
+                print(f"[{name}] WARNING: overflow_count={frame['overflow_count']} "
+                      f"(I2S DMA overflow — this frame may have an audio gap)")
 
             # ── EPM v2 adaptive reply ──────────────────────────────────────────
             # Build and send the 8-byte v2 struct.  The AI posterior reshapes
@@ -4061,6 +4093,21 @@ def main():
                              'Omit to run without neural autoencoder channel.')
     args = parser.parse_args()
 
+    # Port-in-use guard — prevents silent conflicts with orphaned gateway instances.
+    # SO_REUSEADDR would let a new instance bind but the old process keeps accepting
+    # connections first, causing partial/lost frames. Fail fast instead.
+    _guard = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    _guard.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        _guard.bind((args.listen_ip, args.port))
+        _guard.close()
+    except OSError as _e:
+        print(f'[ERROR] Port {args.port} is already in use: {_e}')
+        print(f'        Find & kill the old process:')
+        print(f'          netstat -ano | findstr :{args.port}')
+        print(f'          Stop-Process -Id <PID> -Force')
+        sys.exit(1)
+
     if args.crest_warn is not None:
         CREST_WARN = args.crest_warn
     if args.crest_fault is not None:
@@ -4199,7 +4246,13 @@ def main():
     if _MDNS_AVAILABLE:
         try:
             my_ip = get_local_ip()
-            zc    = Zeroconf()
+            # Bind Zeroconf to the specific interface IP so it targets the correct
+            # subnet (hotspot 192.168.137.x) instead of probing all interfaces.
+            try:
+                from zeroconf import InterfaceChoice
+                zc = Zeroconf(interfaces=[my_ip])
+            except (ImportError, TypeError):
+                zc = Zeroconf()
             info  = ServiceInfo(
                 type_     = '_epm-gateway._tcp.local.',
                 name      = 'EPM-Gateway._epm-gateway._tcp.local.',
@@ -4213,7 +4266,7 @@ def main():
             print(f'[mDNS] Advertised: epm-gateway.local:{args.port} -> {my_ip}')
             print('[mDNS] Satellites will auto-discover the gateway (SERVER_IP becomes optional)')
         except Exception as e:
-            print(f'[mDNS] WARNING: registration failed ({e}) — satellites must use static SERVER_IP')
+            print(f'[mDNS] WARNING: registration failed ({type(e).__name__}: {e}) — satellites must use static SERVER_IP')
     else:
         print('[mDNS] zeroconf not installed — satellites must use static SERVER_IP. '
               'Install: pip install "zeroconf>=0.131.0"')
@@ -4257,21 +4310,4 @@ def main():
     ).start()
 
     if args.no_plot:
-        print("[plot] --no-plot: running headless (TCP receiver + dashboard only)")
-        print("[plot] Dashboard: http://localhost:{}/".format(args.dashboard_port))
-        try:
-            while True:
-                time.sleep(60)
-        except KeyboardInterrupt:
-            print("\nExiting.")
-    else:
-        try:
-            run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
-                     bearing_freqs_mic=bearing_freqs_mic,
-                     bearing_freqs_imu=bearing_freqs_imu)
-        except KeyboardInterrupt:
-            print("\nExiting.")
-
-
-if __name__ == '__main__':
-    main()
+        print("[plot] --no-plot: running headless (TCP receiver + dashboard only)"

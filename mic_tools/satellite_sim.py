@@ -43,7 +43,7 @@ import numpy as np
 # ─── Protocol constants (must match epm_protocol.h) ────────────────────────
 
 HELLO_FMT  = '<I6sBB12s'          # 24 bytes
-HEADER_FMT = '<IIIHHffffBfffBBx'  # 48 bytes
+HEADER_FMT = '<IIIHHffffBfffBBB'  # 48 bytes — last B is overflow_count (sim always sends 0)
 V2_FMT     = '<BBHBBBB'           # 8 bytes — epm_alert_v2_t
 
 EPM_HELLO_MAGIC    = 0xEA1D0000
@@ -117,7 +117,7 @@ def _make_frame(frame_id: int, bearing, shaft_hz: float,
                       EPM_FRAME_MAGIC, frame_id, ts_ms,
                       MIC_BINS, IMU_BINS,
                       mic_rms, crest, 0.0, kurtosis, 0,
-                      imu_rms, imu_crest, 0.0, 0, 3)
+                      imu_rms, imu_crest, 0.0, 0, 3, 0)
 
     # Determine alert mode label for IMU generation
     mode = 'ok' if severity < 0.3 else ('warn' if severity < 0.65 else 'fault')
@@ -334,8 +334,4 @@ def main():
             time.sleep(60)
     except KeyboardInterrupt:
         print('\nStopped.')
-        sys.exit(0)
-
-
-if __name__ == '__main__':
-    main()
+        sys.
