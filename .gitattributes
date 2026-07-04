@@ -1,0 +1,13 @@
+# Normalize line endings to LF in the repository regardless of the
+# checkout platform. Prevents Windows editors/tools from turning every
+# touched file into a full-file diff purely from CRLF conversion (this
+# happened to 32 files in one sitting — see git history around 2026-07-04).
+* text=auto eol=lf
+
+# Binary / generated — never touch line endings.
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.db binary
+*.sqlite binary
