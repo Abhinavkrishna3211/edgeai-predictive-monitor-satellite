@@ -7,7 +7,7 @@
  *   3. Open TCP connection to SERVER_IP:SERVER_PORT
  *   4. Each iteration:
  *        a. xQueueReceive mic_frame_t (2 s timeout)
- *        b. xQueueReceive imu_frame_t (1.5 s timeout)
+ *        b. xQueueReceive imu_frame_t (4 s timeout — covers 3.2 s first-frame latency)
  *        c. Build epm_header_t + length prefix
  *        d. send() length, header, mic FFT, imu FFT
  *        e. On any send failure: close socket, retry connect with 2 s delay
@@ -37,13 +37,14 @@
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
 #include "lwip/err.h"
+#include <fcntl.h>
 
-#include "mdns.h"
 #include "mbedtls/gcm.h"
 #include "esp_random.h"
 #include "esp_pm.h"
 
 #include "esp_attr.h"
+#include "esp_heap_caps.h"
 
 #include "epm_config.h"
 #include "epm_protocol.h"
@@ -58,6 +59,36 @@ static const char *TAG = "wifi_task";
 #define WIFI_CONNECTED_BIT  BIT0
 #define WIFI_MAX_RETRY      10
 
+/* ---------- Phase 0 heap-drain instrumentation (MASTERPLAN.md §Phase 0) ------
+ *
+ * The 9-min live test that degraded internal heap 21140 -> 2896 bytes could
+ * not be root-caused via static review alone (tcp_connect()/drop_connection()
+ * close the socket on every path, no malloc in the reconnect loop). This
+ * traces heap_caps free size AND largest-free-block at the 4 named points the
+ * audit prescribed, tagged with frame_id, so a soak-test log can distinguish
+ * a true leak (both fall) from fragmentation (free stable, largest-block
+ * falls) and localize per-frame vs per-reconnect drain.
+ *
+ * Off by default — enable for a soak test with -DEPM_HEAP_TRACE=1 in
+ * platformio.ini build_flags. Do not leave enabled for normal operation:
+ * this logs every frame (~1-2 Hz), which is too noisy for continuous use. */
+#ifndef EPM_HEAP_TRACE
+#define EPM_HEAP_TRACE 0
+#endif
+
+#if EPM_HEAP_TRACE
+static void heap_trace_log(const char *point, uint32_t frame_id)
+{
+    ESP_LOGI(TAG, "HEAPTRACE %-12s frame=%lu free=%u largest=%u",
+             point, (unsigned long)frame_id,
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+}
+#define HEAP_TRACE(point, fid) heap_trace_log((point), (fid))
+#else
+#define HEAP_TRACE(point, fid) ((void)0)
+#endif
+
 /* Total plaintext length per frame: header + mic FFT + 3 × IMU FFT */
 #define EPM_PLAIN_LEN  ((size_t)( \
     sizeof(epm_header_t) + \
@@ -66,8 +97,11 @@ static const char *TAG = "wifi_task";
 
 /* ---------- module state ---------- */
 
-static EventGroupHandle_t s_wifi_event_group = NULL;
-static int                s_retry_cnt        = 0;
+static EventGroupHandle_t s_wifi_event_group  = NULL;
+static int                s_retry_cnt         = 0;
+
+/* JTAG-readable: 0=init 1=rf_init_done 2=sta_start 3=connecting 4=got_ip */
+volatile uint32_t         g_wifi_debug_state  = 0;
 
 /* Adaptive-sensing parameters — set by wifi_task on v2 reply, read by mic_task. */
 volatile uint8_t g_adapt_overlap_pct = 0;
@@ -95,21 +129,29 @@ static DMA_ATTR uint8_t s_enc_ct[EPM_PLAIN_LEN];
 
 static void on_wifi_sta_start(void)
 {
+    g_wifi_debug_state = 2;  /* sta_start event received */
     rgb_led_set_state(RGB_WIFI_CONN);
     ESP_LOGI(TAG, "STA started — connecting to \"%s\"...", WIFI_SSID);
+    g_wifi_debug_state = 3;  /* esp_wifi_connect() about to be called */
     esp_wifi_connect();
 }
 
 static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
 {
+    g_wifi_debug_state = 3;  /* back to connecting state */
     rgb_led_set_state(RGB_WIFI_CONN);
     xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     s_retry_cnt++;
     const char *reason_str =
-        (d->reason == 201) ? "BEACON_TIMEOUT" :
-        (d->reason == 200) ? "NO_AP_FOUND"    :
-        (d->reason == 15)  ? "WRONG_PASSWORD" :
-        (d->reason == 8)   ? "ASSOC_LEAVE"    : "OTHER";
+        (d->reason == 200) ? "BEACON_TIMEOUT"         :
+        (d->reason == 201) ? "NO_AP_FOUND"            :
+        (d->reason == 202) ? "AUTH_FAIL"              :
+        (d->reason == 210) ? "NO_AP_COMPAT_SECURITY"  :
+        (d->reason == 211) ? "NO_AP_AUTHMODE"         :
+        (d->reason == 212) ? "NO_AP_RSSI"             :
+        (d->reason == 15)  ? "4WAY_TIMEOUT"           :
+        (d->reason == 17)  ? "IE_4WAY_DIFFERS"        :
+        (d->reason == 8)   ? "ASSOC_LEAVE"            : "OTHER";
     ESP_LOGW(TAG, "Disconnect reason: %s (%d) attempt=%d",
              reason_str, d->reason, s_retry_cnt);
     if (s_retry_cnt % WIFI_MAX_RETRY == 0) {
@@ -123,6 +165,7 @@ static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
 
 static void on_got_ip(ip_event_got_ip_t *ev)
 {
+    g_wifi_debug_state = 4;  /* IP obtained */
     ESP_LOGI(TAG, "Got IP: " IPSTR " (after %d attempt(s))",
              IP2STR(&ev->ip_info.ip), s_retry_cnt + 1);
     s_retry_cnt = 0;
@@ -148,27 +191,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 
 /* ---------- mDNS discovery ---------- */
 
-/* Query for the EPM gateway service via mDNS.
- * Returns the IPv4 address in network byte order, or 0 if not found / timed out. */
-static uint32_t resolve_gateway_mdns(void)
-{
-    mdns_result_t *results = NULL;
-    esp_err_t err = mdns_query_ptr("_epm-gateway", "_tcp", 3000, 1, &results);
-    if (err != ESP_OK || !results) {
-        return 0;
-    }
-    uint32_t ip = 0;
-    mdns_ip_addr_t *addr = results->addr;
-    while (addr) {
-        if (addr->addr.type == IPADDR_TYPE_V4) {
-            ip = addr->addr.u_addr.ip4.addr;
-            break;
-        }
-        addr = addr->next;
-    }
-    mdns_query_results_free(results);
-    return ip;
-}
+/* mDNS discovery removed: mdns_query_ptr() uses 5-8 KB of stack (LWIP socket
+ * ops + IDF NVS path), which caused wifi_task stack overflow after the first
+ * successful connection.  Static SERVER_IP is always available (defined in
+ * wifi_creds.h), so mDNS auto-discovery is unnecessary for this deployment. */
 
 /* ---------- PSK key management ---------- */
 
@@ -231,21 +257,13 @@ static int tcp_connect(void)
         .sin_port   = htons(SERVER_PORT),
     };
 
-    /* Try mDNS discovery first; fall back to static SERVER_IP */
-    uint32_t mdns_ip = resolve_gateway_mdns();
-    if (mdns_ip != 0) {
-        dest_addr.sin_addr.s_addr = mdns_ip;
-        char ip_str[16];
-        esp_ip4addr_ntoa((esp_ip4_addr_t *)&mdns_ip, ip_str, sizeof(ip_str));
-        ESP_LOGI(TAG, "mDNS: discovered gateway at %s — SERVER_IP override not needed",
-                 ip_str);
-    } else {
-        ESP_LOGW(TAG, "mDNS: no result in 3 s — falling back to SERVER_IP %s", SERVER_IP);
-        if (inet_aton(SERVER_IP, &dest_addr.sin_addr) == 0) {
-            ESP_LOGE(TAG, "Invalid SERVER_IP: %s", SERVER_IP);
-            return -1;
-        }
+    /* Always use static SERVER_IP (defined in wifi_creds.h).
+     * mDNS discovery was removed to prevent stack overflow. */
+    if (inet_aton(SERVER_IP, &dest_addr.sin_addr) == 0) {
+        ESP_LOGE(TAG, "Invalid SERVER_IP: %s", SERVER_IP);
+        return -1;
     }
+    ESP_LOGI(TAG, "Connecting to gateway at %s:%d", SERVER_IP, SERVER_PORT);
 
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
@@ -275,14 +293,51 @@ static int tcp_connect(void)
         ESP_LOGW(TAG, "SO_SNDTIMEO setsockopt failed: errno %d", errno);
     }
 
-    if (connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) != 0) {
-        char ip_s[16];
-        esp_ip4addr_ntoa((esp_ip4_addr_t *)&dest_addr.sin_addr.s_addr, ip_s, sizeof(ip_s));
-        ESP_LOGE(TAG, "connect() to %s:%d failed: errno %d", ip_s, SERVER_PORT, errno);
-        close(sock);
-        return -1;
-    }
+    /* Non-blocking connect() with 10-second timeout.
+     * The LWIP default TCP SYN retry sequence totals ~127 s (1+2+4+8+16+32+64),
+     * which produces 2+ minutes of silent blocking per attempt and makes failures
+     * invisible in the CDC UART log. select() caps the wait at 10 s. */
     {
+        int fl = fcntl(sock, F_GETFL, 0);
+        if (fl < 0) { fl = 0; }
+        fcntl(sock, F_SETFL, fl | O_NONBLOCK);
+
+        int rc = connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+        if (rc < 0 && errno != EINPROGRESS) {
+            char ip_s[16];
+            esp_ip4addr_ntoa((esp_ip4_addr_t *)&dest_addr.sin_addr.s_addr, ip_s, sizeof(ip_s));
+            ESP_LOGE(TAG, "connect() to %s:%d refused immediately: errno %d",
+                     ip_s, SERVER_PORT, errno);
+            close(sock);
+            return -1;
+        }
+        if (rc != 0) {  /* EINPROGRESS — wait via select() */
+            fd_set wfds;
+            FD_ZERO(&wfds);
+            FD_SET(sock, &wfds);
+            struct timeval tv = {.tv_sec = 10, .tv_usec = 0};
+            int sel = select(sock + 1, NULL, &wfds, NULL, &tv);
+            if (sel <= 0) {
+                char ip_s[16];
+                esp_ip4addr_ntoa((esp_ip4_addr_t *)&dest_addr.sin_addr.s_addr, ip_s, sizeof(ip_s));
+                ESP_LOGE(TAG, "connect() to %s:%d timed out after 10 s (sel=%d errno=%d)",
+                         ip_s, SERVER_PORT, sel, errno);
+                close(sock);
+                return -1;
+            }
+            int so_err = 0;
+            socklen_t so_len = sizeof(so_err);
+            getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_err, &so_len);
+            if (so_err != 0) {
+                char ip_s[16];
+                esp_ip4addr_ntoa((esp_ip4_addr_t *)&dest_addr.sin_addr.s_addr, ip_s, sizeof(ip_s));
+                ESP_LOGE(TAG, "connect() to %s:%d SO_ERROR=%d", ip_s, SERVER_PORT, so_err);
+                close(sock);
+                return -1;
+            }
+        }
+        fcntl(sock, F_SETFL, fl);  /* restore blocking for send()/recv() */
+
         char ip_s[16];
         esp_ip4addr_ntoa((esp_ip4_addr_t *)&dest_addr.sin_addr.s_addr, ip_s, sizeof(ip_s));
         ESP_LOGI(TAG, "TCP connected to %s:%d", ip_s, SERVER_PORT);
@@ -376,6 +431,14 @@ static int connect_to_gateway(void)
         return -1;
     }
 
+    /* Log STA netif IP so UART shows ip/gw on every connect attempt. */
+    esp_netif_ip_info_t ip_info = {0};
+    esp_netif_t *sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (sta_netif && esp_netif_get_ip_info(sta_netif, &ip_info) == ESP_OK) {
+        ESP_LOGI(TAG, "STA ip=" IPSTR " gw=" IPSTR,
+                 IP2STR(&ip_info.ip), IP2STR(&ip_info.gw));
+    }
+
     int sock = tcp_connect();
     if (sock < 0) {
         ESP_LOGW(TAG, "TCP connect failed — retrying in 2 s");
@@ -391,11 +454,12 @@ static int connect_to_gateway(void)
     return sock;
 }
 
-static void drop_connection(int *sock)
+static void drop_connection(int *sock, uint32_t frame_id)
 {
     close(*sock);
     *sock = -1;
     rgb_led_set_state(RGB_WIFI_CONN);
+    HEAP_TRACE("drop", frame_id);
 }
 
 /* ---------- Frame helpers ---------- */
@@ -406,7 +470,7 @@ static bool recv_mic_and_imu(QueueHandle_t mic_q, QueueHandle_t imu_q)
         ESP_LOGW(TAG, "mic_q timeout — no data from mic_task");
         return false;
     }
-    if (xQueueReceive(imu_q, &s_imu, pdMS_TO_TICKS(1500)) != pdTRUE) {
+    if (xQueueReceive(imu_q, &s_imu, pdMS_TO_TICKS(4000)) != pdTRUE) {
         ESP_LOGW(TAG, "imu_q timeout — no data from imu_task");
         return false;
     }
@@ -669,11 +733,6 @@ static void wifi_task_fn(void *arg)
      * WIFI_PS_MIN_MODEM causes the radio to enter DTIM sleep between beacon
      * intervals, dropping TCP keepalive probes and triggering reconnects. */
 
-    /* mDNS — must be initialised after WiFi brings up the network interface */
-    if (mdns_init() != ESP_OK) {
-        ESP_LOGW(TAG, "mdns_init() failed — will use static SERVER_IP as fallback");
-    }
-
     /* AES-128-GCM — load PSK (NVS or build-time) and arm the hardware cipher */
     encrypt_init();
 
@@ -686,6 +745,7 @@ static void wifi_task_fn(void *arg)
             }
             cal_frames = 0;
             last_alert = EPM_ALERT_OK;
+            HEAP_TRACE("connect", frame_id);
         }
 
         if (!recv_mic_and_imu(mic_q, imu_q)) {
@@ -698,25 +758,27 @@ static void wifi_task_fn(void *arg)
         if (!send_frame(sock, &hdr)) {
             ESP_LOGE(TAG, "TCP send failed on frame %lu — reconnecting",
                      (unsigned long)(frame_id - 1));
-            drop_connection(&sock);
+            drop_connection(&sock, frame_id - 1);
             vTaskDelay(pdMS_TO_TICKS(2000));
             continue;
         }
+        HEAP_TRACE("send_frame", frame_id - 1);
 
         /* read_gateway_alert leaves last_alert unchanged on timeout so the LED
          * never flickers back to OK just because the gateway was slow to reply */
         uint8_t alert      = last_alert;
         bool    snap_req   = false;
         if (!read_gateway_alert(sock, &alert, &snap_req)) {
-            drop_connection(&sock);
+            drop_connection(&sock, frame_id - 1);
             continue;
         }
         last_alert = alert;
+        HEAP_TRACE("alert", frame_id - 1);
 
         if (snap_req) {
             if (!snapshot_send_tcp(sock)) {
                 ESP_LOGE(TAG, "snapshot TCP send failed — reconnecting");
-                drop_connection(&sock);
+                drop_connection(&sock, frame_id - 1);
                 continue;
             }
         }
@@ -740,16 +802,22 @@ static void wifi_task_fn(void *arg)
  */
 void wifi_rf_init(void)
 {
+    g_wifi_debug_state = 1;  /* rf_init started */
     s_wifi_event_group = xEventGroupCreate();
     configASSERT(s_wifi_event_group != NULL);
 
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    /* Register handlers AFTER esp_wifi_init() — this is the required order:
+     * esp_wifi_init() sets up the WIFI_EVENT posting infrastructure; handlers
+     * registered before it are placed in the default event loop but may never
+     * receive WIFI_EVENT_STA_START on some IDF versions. */
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
                                                &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
                                                &wifi_event_handler, NULL));
 
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
@@ -757,8 +825,11 @@ void wifi_rf_init(void)
         .sta = {
             .ssid     = WIFI_SSID,
             .password = WIFI_PASS,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-            .pmf_cfg = { .capable = true, .required = false },
+            /* WPA_WPA2_PSK: accept WPA or WPA2 AP.  Avoids the silent stall
+             * caused by WIFI_AUTH_WPA2_PSK + pmf_capable=true on Windows Mobile
+             * Hotspot (WPA2-Personal without 802.11w). */
+            .threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            .pmf_cfg            = { .capable = false, .required = false },
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg));
@@ -775,7 +846,7 @@ void wifi_rf_init(void)
         ESP_LOGW(TAG, "esp_wifi_set_max_tx_power failed — using default");
     }
 
-    ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\", target: %s:%d (mDNS discovery first)",
+    ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\", target: %s:%d",
              WIFI_SSID, SERVER_IP, SERVER_PORT);
 }
 
@@ -783,20 +854,4 @@ void wifi_rf_init(void)
 bool wifi_wait_connected(TickType_t ticks_to_wait)
 {
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-                                           WIFI_CONNECTED_BIT,
-                                           pdFALSE, pdTRUE,
-                                           ticks_to_wait);
-    return (bits & WIFI_CONNECTED_BIT) != 0;
-}
-
-/* Phase 3: create TCP sender task — call after mic/imu tasks exist. */
-static TaskHandle_t s_task_handle = NULL;
-TaskHandle_t wifi_task_get_handle(void) { return s_task_handle; }
-
-void wifi_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q)
-{
-    s_task_args.mic_q = mic_q;
-    s_task_args.imu_q = imu_q;
-    xTaskCreatePinnedToCore(wifi_task_fn, "wifi_task", TASK_STACK_WIFI,
-                            &s_task_args, TASK_PRIO_WIFI, &s_task_handle, 0);
-}
+                                           WIFI_CONNECTE

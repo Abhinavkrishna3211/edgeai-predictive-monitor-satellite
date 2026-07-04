@@ -49,8 +49,9 @@ TaskHandle_t wifi_task_get_handle(void);
  * dsp_task latches these at the START of each averaging cycle so a change
  * never corrupts a partially-accumulated power spectrum.
  */
-extern volatile uint8_t g_adapt_overlap_pct;
-extern volatile uint8_t g_adapt_spec_avg_n;
+extern volatile uint8_t  g_adapt_overlap_pct;
+extern volatile uint8_t  g_adapt_spec_avg_n;
+extern volatile uint32_t g_wifi_debug_state;  /* JTAG-readable WiFi state machine step */
 
 #ifdef __cplusplus
 }
