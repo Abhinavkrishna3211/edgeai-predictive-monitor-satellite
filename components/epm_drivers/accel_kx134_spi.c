@@ -122,10 +122,16 @@ static const char *TAG = "kx134";
 
 /* Upper bound on samples per hal_accel_read_block() call this driver can
  * stage internally for the Y/Z cache (see file header). Not tied to
- * src/epm_config.h's FFT_IMU_N (currently 2048) -- epm_drivers must not
- * depend on the main component's config, same rule accel_stub.c documents
- * for IMU_FS_HZ. 4096 gives 2x headroom over the current FFT size. */
-#define KX134_STAGE_MAX_SAMPLES 4096
+ * src/epm_config.h's FFT_IMU_N -- epm_drivers must not depend on the main
+ * component's config, same rule accel_stub.c documents for IMU_FS_HZ.
+ * Sized to the current FFT_IMU_N (2048) with no extra headroom: on-device
+ * testing showed this board has too little free heap at boot for a larger
+ * static cache (see s_stage_y/s_stage_z below) -- xQueueCreate() elsewhere
+ * in the boot sequence (src/threads/imu_task.c) failed outright the first
+ * time this was sized at 4096. If FFT_IMU_N is ever raised above this, the
+ * bound check in kx134_fill_epoch() below fails loudly (-EINVAL) rather
+ * than silently truncating. */
+#define KX134_STAGE_MAX_SAMPLES 2048
 
 /* ─── State ─────────────────────────────────────────────────────────────── */
 
@@ -137,10 +143,13 @@ static SemaphoreHandle_t   s_data_ready_sem = NULL;
 static DMA_ATTR uint8_t s_burst_buf[1 + KX134_FIFO_MAX_FRAMES * KX134_FIFO_BYTES_PER_FRAME];
 
 /* Y/Z cache filled by the X call in an epoch, drained by the Y and Z calls
- * that follow (see file header). */
-static float  s_stage_y[KX134_STAGE_MAX_SAMPLES];
-static float  s_stage_z[KX134_STAGE_MAX_SAMPLES];
-static size_t s_stage_n = 0;
+ * that follow (see file header). Stored as raw sign-extended counts, not
+ * pre-converted float g-values -- halves this cache's RAM footprint, which
+ * matters on this board (see KX134_STAGE_MAX_SAMPLES above). Converted to
+ * g in hal_accel_read_block() at copy-out time instead. */
+static int16_t s_stage_y[KX134_STAGE_MAX_SAMPLES];
+static int16_t s_stage_z[KX134_STAGE_MAX_SAMPLES];
+static size_t  s_stage_n = 0;
 
 static IRAM_ATTR void kx134_int1_isr(void *arg)
 {
@@ -293,6 +302,8 @@ static int kx134_fill_epoch(float *out_x, size_t want)
     }
 
     s_stage_n = 0;
+    double   sum_x = 0.0, sum_y = 0.0, sum_z = 0.0;
+    uint16_t max_smp_lev = 0;
 
     while (s_stage_n < want) {
         if (xSemaphoreTake(s_data_ready_sem, pdMS_TO_TICKS(KX134_READ_TIMEOUT_MS)) != pdTRUE) {
@@ -305,6 +316,7 @@ static int kx134_fill_epoch(float *out_x, size_t want)
             return -EIO;
         }
         uint16_t smp_lev = status[0] | ((uint16_t)(status[1] & 0x03) << 8);
+        if (smp_lev > max_smp_lev) max_smp_lev = smp_lev;
 
         size_t frames = smp_lev / KX134_FIFO_BYTES_PER_FRAME;
         if (frames > KX134_FIFO_MAX_FRAMES) frames = KX134_FIFO_MAX_FRAMES;
@@ -327,11 +339,30 @@ static int kx134_fill_epoch(float *out_x, size_t want)
             int16_t z = (int16_t)(p[4] | (p[5] << 8));
 
             out_x[s_stage_n + i]      = (float)x / KX134_COUNTS_PER_G;
-            s_stage_y[s_stage_n + i]  = (float)y / KX134_COUNTS_PER_G;
-            s_stage_z[s_stage_n + i]  = (float)z / KX134_COUNTS_PER_G;
+            s_stage_y[s_stage_n + i]  = y;
+            s_stage_z[s_stage_n + i]  = z;
+
+            sum_x += out_x[s_stage_n + i];
+            sum_y += (float)y / KX134_COUNTS_PER_G;
+            sum_z += (float)z / KX134_COUNTS_PER_G;
         }
         s_stage_n += frames;
     }
+
+    /* Bring-up diagnostic, not a hardware-reported drop counter (the KX134
+     * has no dropped-sample register): BUF_CNTL1_SMP_TH=32 is the BFI
+     * watermark, well below the 86-frame physical capacity, so a burst
+     * observed at/near max capacity here means this task fell behind the
+     * ODR far enough that BM_STREAM's discard-oldest-on-overflow policy may
+     * have already silently dropped data before this poll. */
+    size_t max_smp_frames = max_smp_lev / KX134_FIFO_BYTES_PER_FRAME;
+    if (max_smp_frames >= KX134_FIFO_MAX_FRAMES) {
+        ESP_LOGW(TAG, "FIFO seen at max capacity (%u/%u frames) -- possible dropped samples",
+                  (unsigned)max_smp_frames, (unsigned)KX134_FIFO_MAX_FRAMES);
+    }
+    ESP_LOGI(TAG, "epoch: n=%u mean_g x=%.3f y=%.3f z=%.3f max_fifo=%u/%u",
+              (unsigned)s_stage_n, (float)(sum_x / s_stage_n), (float)(sum_y / s_stage_n),
+              (float)(sum_z / s_stage_n), (unsigned)max_smp_frames, (unsigned)KX134_FIFO_MAX_FRAMES);
 
     return (int)s_stage_n;
 }
@@ -346,12 +377,13 @@ int hal_accel_read_block(enum hal_accel_axis axis, float *out_samples, size_t ma
 
     /* Y/Z: served from the cache the X call just filled. Per this driver's
      * documented ordering requirement, X is always called first each
-     * epoch (verified against src/threads/imu_task.c). */
+     * epoch (verified against src/threads/imu_task.c). Cache holds raw
+     * counts (see s_stage_y/s_stage_z above), converted to g here. */
     size_t n = (max_samples < s_stage_n) ? max_samples : s_stage_n;
     if (axis == HAL_ACCEL_AXIS_Y) {
-        memcpy(out_samples, s_stage_y, n * sizeof(float));
+        for (size_t i = 0; i < n; i++) out_samples[i] = (float)s_stage_y[i] / KX134_COUNTS_PER_G;
     } else if (axis == HAL_ACCEL_AXIS_Z) {
-        memcpy(out_samples, s_stage_z, n * sizeof(float));
+        for (size_t i = 0; i < n; i++) out_samples[i] = (float)s_stage_z[i] / KX134_COUNTS_PER_G;
     } else {
         return -1;
     }
