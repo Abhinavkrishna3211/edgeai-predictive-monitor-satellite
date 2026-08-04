@@ -1,8 +1,5 @@
 #pragma once
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
 /*
  * Status-LED contract for the RGB indicator (matches the reference repo's
  * satellite/include/hal/hal_display_rgb.h role: one status enum, driven by
@@ -15,6 +12,13 @@
  * being renamed to hal_display_* — this is a pure move of the existing
  * public API into its HAL home, not a rename, to avoid rippling call-site
  * changes through dsp_task.c/wifi_task.c for no behavioural benefit.
+ *
+ * Zero ESP-IDF includes here (Part C.1): rgb_led_task's entry-point
+ * signature is plain void* so it needs no FreeRTOS types, and it is passed
+ * to xTaskCreatePinnedToCore by src/threads/led_task.c, which owns the
+ * TaskHandle_t and its own led_task_get_handle() accessor — the FreeRTOS
+ * task-handle API duplicated here previously was dead (no callers) and has
+ * been removed.
  */
 
 typedef enum {
@@ -32,9 +36,6 @@ typedef enum {
 
 /* Call once from app_main before task creation. */
 void rgb_led_task_init(void);
-
-/** Returns the task handle (set when task starts). Used by diagnostics_task. */
-TaskHandle_t rgb_led_task_get_handle(void);
 
 /* Set LED state. Safe from any task context. Non-blocking. */
 void rgb_led_set_state(rgb_led_state_t state);
