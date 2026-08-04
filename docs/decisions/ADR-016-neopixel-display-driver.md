@@ -70,4 +70,6 @@ Our `hal_display.h` contract (post Task 0 fix, this same session) is task-owning
 - `rgb_led_task` stack HWM and CPU time in `vTaskGetRunTimeStats`, now that the task self-paces via a 30 ms timeout instead of blocking indefinitely on ISR notification during animated states.
 
 ## Validation
-Compile-verified only in this session (`pio run -e xiao_esp32s3`) — see the session's final report for whether physical WS2812 hardware was available to confirm on-device colors match this table. `tests/host/` does not cover this driver (ESP-IDF/RMT-dependent, not host-testable).
+Hardware was available and flashed. Confirmed on-device: `led_strip_new_rmt_device()` claims the RMT channel and initialises cleanly every boot (`WS2812 init: DIN=GPIO6, 1 pixel(s)`, zero errors) across every capture in this session, including a 357-epoch / 90 s sustained run with the real KX134 driver active alongside it — no RMT/DMA contention observed. `rgb_led_set_state()` call sites and the color table were checked line-by-line against `status_color.py`'s convention and match.
+
+Not confirmed: the actual physical LED color output. No camera/visual channel was available in this session to verify the RMT-driven WS2812 actually renders the intended colors (vs., e.g., a channel-order or gamma mismatch that would compile and run cleanly but look wrong) — this still needs a human to look at the board. `tests/host/` does not cover this driver (ESP-IDF/RMT-dependent, not host-testable).
