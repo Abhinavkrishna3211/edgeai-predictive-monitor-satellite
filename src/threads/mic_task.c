@@ -6,9 +6,11 @@
  *   2. DC removal (mean subtracted in-place from s_norm)
  *   3. Time-domain stats via ESP-DSP SIMD:
  *      RMS    : dsps_dotprod_f32(s_norm, s_norm)  → sqrt(·/N)
- *      Crest  : fabsf() scalar loop → peak/RMS  (dsps_abs_f32 absent in this ESP-DSP release)
+ *      Crest  : fabsf() scalar loop → peak(|x|)/RMS  (dsps_abs_f32 absent in this ESP-DSP release)
  *      Kurtosis: dsps_mul_f32(s_norm,s_norm) → dsps_dotprod_f32 → (Σx⁴/N)/(var²) - 3 (excess, ADR-018)
  *      Std/Skew: reuses the Kurtosis step's x² scratch → dot(x²,x) = Σx³
+ *      Peak (wire scalar): signed max x.max(), NOT abs(x).max() — ADR-019.
+ *      Crest factor's internal peak(|x|) above is a separate, unrelated value.
  *   4. Post raw_mic_block_t to ring buffer for dsp_task (core 1)
  *
  * HW-OPT: esp_ringbuf zero-copy handoff — dsp_task receives a pointer into
@@ -85,6 +87,7 @@ static void mic_task_fn(void *arg)
     float   last_kurtosis = 0.0f; /* excess/Fisher fallback, ADR-018 */
     float   last_std      = 0.0f;
     float   last_skewness = 0.0f;
+    float   last_peak     = 0.0f; /* signed max, ADR-019 (not abs-max) */
     float   last_dc       = 0.0f;
     uint8_t last_clip     = 0;
 
@@ -127,6 +130,9 @@ static void mic_task_fn(void *arg)
         float peak = epm_dsp_peak_abs(s_norm, FFT_MIC_N);
         last_crest = epm_dsp_crest_factor(peak, last_rms);
 
+        /* --- 3b'. Wire "peak" scalar: signed max, not abs-max (ADR-019) --- */
+        last_peak = epm_dsp_peak_signed(s_norm, FFT_MIC_N);
+
         /* --- 3c. Kurtosis: (Σx⁴/N) / (Σx²/N)² (two SIMD dotprods) --- */
         /* Step 1: s_scratch = x²  (element-wise, SIMD) */
         dsps_mul_f32(s_norm, s_norm, s_scratch, FFT_MIC_N, 1, 1, 1);
@@ -153,6 +159,7 @@ static void mic_task_fn(void *arg)
         s_blk.kurtosis     = last_kurtosis;
         s_blk.std          = last_std;
         s_blk.skewness     = last_skewness;
+        s_blk.peak         = last_peak;
         s_blk.dc           = last_dc;
         s_blk.clip         = last_clip;
         s_blk.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);

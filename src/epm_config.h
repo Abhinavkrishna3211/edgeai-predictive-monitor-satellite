@@ -191,6 +191,7 @@ typedef struct {
     float    kurtosis;
     float    std;                 /* population std of the DC-removed block   */
     float    skewness;
+    float    peak;                /* signed max, ADR-019 (not abs-max)        */
     float    dc;
     uint8_t  clip;
     uint32_t timestamp_ms;
@@ -207,6 +208,7 @@ typedef struct {
     float    kurtosis;               /* excess/Fisher, ADR-018 (Gaussian ≈ 0)   */
     float    std;                    /* population std of the DC-removed block  */
     float    skewness;
+    float    peak;                   /* signed max, ADR-019 (not abs-max)       */
     float    dc;                     /* DC offset of last block                 */
     float    spectral_centroid;      /* Σ(f_i·P_i)/Σ(P_i) Hz — texture metric  */
     uint8_t  clip;                   /* 1 if any sample hit full-scale          */
@@ -248,6 +250,7 @@ typedef struct {
     float    kurtosis_x, kurtosis_y, kurtosis_z; /* excess/Fisher, ADR-018 */
     float    std_x, std_y, std_z;
     float    skewness_x, skewness_y, skewness_z;
+    float    peak_x, peak_y, peak_z; /* signed max, ADR-019 (not abs-max)   */
     float    dc_x;                   /* X-axis DC offset (gravity component)*/
     uint8_t  clip;                   /* 1 if any axis clipped               */
     uint32_t timestamp_ms;

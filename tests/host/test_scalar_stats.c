@@ -41,6 +41,19 @@ static float mirror_crest(const float *x, int n, float rms)
     return (rms > 1e-8f) ? (peak / rms) : 0.0f;
 }
 
+/* Mirrors src/mic_task.c's "3b'" step (signed max x.max(), NOT abs(x).max())
+ * -- the wire "peak" scalar's convention, ADR-019. Deliberately separate from
+ * mirror_crest's peak(|x|) above: they diverge whenever the largest-magnitude
+ * excursion is negative-going. */
+static float mirror_peak_signed(const float *x, int n)
+{
+    float peak = x[0];
+    for (int i = 1; i < n; i++) {
+        if (x[i] > peak) peak = x[i];
+    }
+    return peak;
+}
+
 /* Mirrors src/mic_task.c:129-138 (excess/Fisher kurtosis = (Sum(x^4)/N) /
  * (Sum(x^2)/N)^2 - 3, fallback 0.0f when var <= 1e-12f -- matches
  * mic_task.c:82's last_kurtosis init value). ADR-018 reversed ADR-014:
@@ -230,6 +243,27 @@ static void test_skewness_exponential_skewed(void)
     test_report("skewness_exponential_skewed", ok, EXPECT_PASS, detail);
 }
 
+static void test_peak_signed_diverges_from_abs_max(void)
+{
+    /* Deliberately asymmetric: largest-magnitude excursion (-0.9) is
+     * negative-going, larger than the positive excursion (0.5). Signed max
+     * (the wire "peak" scalar, ADR-019) misses it -- this is the exact
+     * known failure mode ADR-019 documents, not a bug in this test. Crest
+     * factor's independent peak(|x|)/rms still captures it via a high
+     * crest value, which is why the failure mode is considered acceptable. */
+    static const float x[6] = {0.1f, 0.5f, -0.9f, 0.2f, -0.3f, 0.0f};
+    float rms          = mirror_rms(x, 6);
+    float crest        = mirror_crest(x, 6, rms);
+    float peak_signed  = mirror_peak_signed(x, 6);
+    char detail[192];
+    snprintf(detail, sizeof(detail),
+              "peak_signed=%.4f (want 0.5, misses the -0.9 excursion by design) "
+              "crest=%.4f (still reflects the 0.9 magnitude via peak(|x|)/rms)",
+              peak_signed, crest);
+    int ok = fabsf(peak_signed - 0.5f) < 1e-6f;
+    test_report("peak_signed_diverges_from_abs_max", ok, EXPECT_PASS, detail);
+}
+
 int main(void)
 {
     test_sine_crest_factor();
@@ -239,5 +273,6 @@ int main(void)
     test_std_known_variance();
     test_skewness_symmetric_gaussian();
     test_skewness_exponential_skewed();
+    test_peak_signed_diverges_from_abs_max();
     return test_summary();
 }

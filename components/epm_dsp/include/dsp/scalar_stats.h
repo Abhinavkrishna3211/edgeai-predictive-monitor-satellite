@@ -15,8 +15,16 @@ extern "C" {
 /** RMS from a precomputed sum-of-squares (e.g. dsps_dotprod_f32(x,x)). */
 float epm_dsp_rms_from_sum_sq(float sum_sq, int n);
 
-/** Peak absolute value over x[0..n). */
+/** Peak absolute value over x[0..n). Used for crest factor (ISO-standard
+ * peak/rms), independent of the wire "peak" scalar's signed-max convention. */
 float epm_dsp_peak_abs(const float *x, int n);
+
+/**
+ * Signed maximum over x[0..n) (i.e. x.max(), not abs(x).max()) — the wire
+ * "peak" scalar's convention, matching the reference implementation
+ * (ADR-019). Undefined for n == 0.
+ */
+float epm_dsp_peak_signed(const float *x, int n);
 
 /** Crest factor = peak/rms, or 0 if rms is too small to divide by. */
 float epm_dsp_crest_factor(float peak, float rms);

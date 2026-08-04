@@ -133,6 +133,7 @@ static void dsp_task_fn(void *arg)
     float   last_kurtosis = 0.0f; /* excess/Fisher fallback, ADR-018 */
     float   last_std      = 0.0f;
     float   last_skewness = 0.0f;
+    float   last_peak     = 0.0f; /* signed max, ADR-019 (not abs-max) */
     float   last_dc       = 0.0f;
     uint8_t last_clip     = 0;
 
@@ -179,6 +180,7 @@ static void dsp_task_fn(void *arg)
         last_kurtosis = blk->kurtosis;
         last_std      = blk->std;
         last_skewness = blk->skewness;
+        last_peak     = blk->peak;
         last_dc       = blk->dc;
         last_clip     = blk->clip;
 
@@ -267,6 +269,7 @@ static void dsp_task_fn(void *arg)
             s_out_frame.kurtosis         = last_kurtosis;
             s_out_frame.std              = last_std;
             s_out_frame.skewness         = last_skewness;
+            s_out_frame.peak             = last_peak;
             s_out_frame.dc               = last_dc;
             s_out_frame.spectral_centroid = spectral_centroid;
             s_out_frame.clip             = last_clip;

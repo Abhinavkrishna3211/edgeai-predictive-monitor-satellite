@@ -94,8 +94,9 @@ static EXT_RAM_BSS_ATTR imu_frame_t s_frame;
 
 typedef struct {
     float   rms;
-    float   peak;
-    float   kurtosis;   /* excess/Fisher, ADR-018 */
+    float   peak_abs;    /* max(|x|) — internal, feeds crest factor only */
+    float   peak_signed; /* max(x), ADR-019 — the wire "peak" scalar */
+    float   kurtosis;    /* excess/Fisher, ADR-018 */
     float   std;
     float   skewness;
     float   dc;
@@ -107,7 +108,8 @@ static axis_stats_t compute_axis_stats(void)
     /* double accumulators: FFT_IMU_N (1024+) terms, and sum3/sum4 grow as
      * v^3/v^4 — matches the existing sum/sq precision choice below. */
     double sum = 0.0, sq = 0.0, cube = 0.0, quad = 0.0;
-    float  peak = 0.0f;
+    float  peak_abs    = 0.0f;
+    float  peak_signed = s_block[0];
     uint32_t clip = 0;
 
     for (int i = 0; i < FFT_IMU_N; i++) {
@@ -118,18 +120,20 @@ static axis_stats_t compute_axis_stats(void)
         sq   += vd * vd;
         cube += vd * vd * vd;
         quad += vd * vd * vd * vd;
-        if (a > peak) peak = a;
+        if (a > peak_abs) peak_abs = a;
+        if (v > peak_signed) peak_signed = v;
         if (a >= 1.0f) clip++;
     }
 
     axis_stats_t st;
-    st.dc       = (float)(sum / FFT_IMU_N);
-    st.rms      = sqrtf((float)(sq  / FFT_IMU_N));
-    st.peak     = peak;
-    st.kurtosis = epm_dsp_kurtosis_from_sums((float)sq, (float)quad, FFT_IMU_N, 0.0f);
-    st.std      = epm_dsp_std_from_sums((float)sum, (float)sq, FFT_IMU_N);
-    st.skewness = epm_dsp_skewness_from_sums((float)sum, (float)sq, (float)cube, FFT_IMU_N, 0.0f);
-    st.clip     = clip > 0 ? 1 : 0;
+    st.dc          = (float)(sum / FFT_IMU_N);
+    st.rms         = sqrtf((float)(sq  / FFT_IMU_N));
+    st.peak_abs    = peak_abs;
+    st.peak_signed = peak_signed;
+    st.kurtosis    = epm_dsp_kurtosis_from_sums((float)sq, (float)quad, FFT_IMU_N, 0.0f);
+    st.std         = epm_dsp_std_from_sums((float)sum, (float)sq, FFT_IMU_N);
+    st.skewness    = epm_dsp_skewness_from_sums((float)sum, (float)sq, (float)cube, FFT_IMU_N, 0.0f);
+    st.clip        = clip > 0 ? 1 : 0;
     return st;
 }
 
@@ -221,9 +225,9 @@ static void imu_task_fn(void *arg)
         s_frame.rms_x   = st_x.rms;
         s_frame.rms_y   = st_y.rms;
         s_frame.rms_z   = st_z.rms;
-        s_frame.crest_x = (st_x.rms > 1e-8f) ? st_x.peak / st_x.rms : 0.0f;
-        s_frame.crest_y = (st_y.rms > 1e-8f) ? st_y.peak / st_y.rms : 0.0f;
-        s_frame.crest_z = (st_z.rms > 1e-8f) ? st_z.peak / st_z.rms : 0.0f;
+        s_frame.crest_x = (st_x.rms > 1e-8f) ? st_x.peak_abs / st_x.rms : 0.0f;
+        s_frame.crest_y = (st_y.rms > 1e-8f) ? st_y.peak_abs / st_y.rms : 0.0f;
+        s_frame.crest_z = (st_z.rms > 1e-8f) ? st_z.peak_abs / st_z.rms : 0.0f;
         s_frame.kurtosis_x = st_x.kurtosis;
         s_frame.kurtosis_y = st_y.kurtosis;
         s_frame.kurtosis_z = st_z.kurtosis;
@@ -233,6 +237,9 @@ static void imu_task_fn(void *arg)
         s_frame.skewness_x = st_x.skewness;
         s_frame.skewness_y = st_y.skewness;
         s_frame.skewness_z = st_z.skewness;
+        s_frame.peak_x = st_x.peak_signed;
+        s_frame.peak_y = st_y.peak_signed;
+        s_frame.peak_z = st_z.peak_signed;
         s_frame.dc_x         = st_x.dc;   /* X-axis gravity/tilt component — useful for mounting angle detection */
         s_frame.clip         = st_x.clip | st_y.clip | st_z.clip;
         s_frame.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);

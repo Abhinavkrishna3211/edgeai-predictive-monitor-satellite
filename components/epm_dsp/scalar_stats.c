@@ -17,6 +17,15 @@ float epm_dsp_peak_abs(const float *x, int n)
     return peak;
 }
 
+float epm_dsp_peak_signed(const float *x, int n)
+{
+    float peak = x[0];
+    for (int i = 1; i < n; i++) {
+        if (x[i] > peak) peak = x[i];
+    }
+    return peak;
+}
+
 float epm_dsp_crest_factor(float peak, float rms)
 {
     return (rms > 1e-8f) ? (peak / rms) : 0.0f;
