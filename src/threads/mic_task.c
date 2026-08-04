@@ -8,6 +8,7 @@
  *      RMS    : dsps_dotprod_f32(s_norm, s_norm)  → sqrt(·/N)
  *      Crest  : fabsf() scalar loop → peak/RMS  (dsps_abs_f32 absent in this ESP-DSP release)
  *      Kurtosis: dsps_mul_f32(s_norm,s_norm) → dsps_dotprod_f32 → (Σx⁴/N)/(var²) - 3 (excess, ADR-018)
+ *      Std/Skew: reuses the Kurtosis step's x² scratch → dot(x²,x) = Σx³
  *   4. Post raw_mic_block_t to ring buffer for dsp_task (core 1)
  *
  * HW-OPT: esp_ringbuf zero-copy handoff — dsp_task receives a pointer into
@@ -82,6 +83,8 @@ static void mic_task_fn(void *arg)
     float   last_rms      = 0.0f;
     float   last_crest    = 0.0f;
     float   last_kurtosis = 0.0f; /* excess/Fisher fallback, ADR-018 */
+    float   last_std      = 0.0f;
+    float   last_skewness = 0.0f;
     float   last_dc       = 0.0f;
     uint8_t last_clip     = 0;
 
@@ -132,12 +135,24 @@ static void mic_task_fn(void *arg)
         dsps_dotprod_f32(s_scratch, s_scratch, &sum4, FFT_MIC_N);
         last_kurtosis = epm_dsp_kurtosis_from_sums(sum_sq, sum4, FFT_MIC_N, last_kurtosis);
 
+        /* --- 3d. Std + skewness: s_norm is already DC-removed (mean ≈ 0), so
+         * sum=0.0f is passed rather than an extra SIMD reduction; the helpers
+         * still mean-center generically so this is correct, not a shortcut
+         * specific to this call site. Step 3: sum3 = Σx³ = dot(s_scratch, s_norm)
+         * reuses s_scratch = x² from the kurtosis step above (SIMD). */
+        float sum3 = 0.0f;
+        dsps_dotprod_f32(s_scratch, s_norm, &sum3, FFT_MIC_N);
+        last_std      = epm_dsp_std_from_sums(0.0f, sum_sq, FFT_MIC_N);
+        last_skewness = epm_dsp_skewness_from_sums(0.0f, sum_sq, sum3, FFT_MIC_N, last_skewness);
+
         /* --- 4. Post to dsp_task via ring buffer --- */
         static raw_mic_block_t s_blk;
         memcpy(s_blk.samples, s_norm, FFT_MIC_N * sizeof(float));
         s_blk.rms          = last_rms;
         s_blk.crest        = last_crest;
         s_blk.kurtosis     = last_kurtosis;
+        s_blk.std          = last_std;
+        s_blk.skewness     = last_skewness;
         s_blk.dc           = last_dc;
         s_blk.clip         = last_clip;
         s_blk.timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);

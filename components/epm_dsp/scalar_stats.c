@@ -30,3 +30,22 @@ float epm_dsp_kurtosis_from_sums(float sum_sq, float sum4, int n, float fallback
     }
     return fallback;
 }
+
+float epm_dsp_std_from_sums(float sum, float sum_sq, int n)
+{
+    float mean = sum / (float)n;
+    float var  = sum_sq / (float)n - mean * mean;
+    return (var > 0.0f) ? sqrtf(var) : 0.0f;
+}
+
+float epm_dsp_skewness_from_sums(float sum, float sum_sq, float sum_cube, int n, float fallback)
+{
+    float mean = sum / (float)n;
+    float var  = sum_sq / (float)n - mean * mean;
+    if (var <= 1e-12f) {
+        return fallback;
+    }
+    float std = sqrtf(var);
+    float m3  = sum_cube / (float)n - 3.0f * mean * (sum_sq / (float)n) + 2.0f * mean * mean * mean;
+    return m3 / (std * std * std);
+}

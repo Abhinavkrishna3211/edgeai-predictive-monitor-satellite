@@ -29,6 +29,18 @@ float epm_dsp_crest_factor(float peak, float rms);
  */
 float epm_dsp_kurtosis_from_sums(float sum_sq, float sum4, int n, float fallback);
 
+/**
+ * Population standard deviation from Σx and Σx² (mean subtracted internally,
+ * so it's correct whether or not the caller pre-removed DC).
+ */
+float epm_dsp_std_from_sums(float sum, float sum_sq, int n);
+
+/**
+ * Skewness = mean(((x-mean(x))/std(x))^3), from Σx, Σx², Σx³ (mean subtracted
+ * internally), or `fallback` if the variance is too small to divide by.
+ */
+float epm_dsp_skewness_from_sums(float sum, float sum_sq, float sum_cube, int n, float fallback);
+
 #ifdef __cplusplus
 }
 #endif

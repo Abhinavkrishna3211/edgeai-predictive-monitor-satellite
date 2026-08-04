@@ -60,6 +60,38 @@ static float mirror_kurtosis(const float *x, int n)
     return (sum4 / (float)n) / (var * var) - 3.0f;
 }
 
+/* Mirrors components/epm_dsp/scalar_stats.c's epm_dsp_std_from_sums, generic
+ * mean-centered form (not the sum=0.0f DC-removed-shortcut call site in
+ * mic_task.c -- imu_task.c calls the same helper on non-DC-removed data, so
+ * the mirror here computes sum/mean generically to match both). */
+static float mirror_std(const float *x, int n)
+{
+    float sum = 0.0f, sum_sq = 0.0f;
+    for (int i = 0; i < n; i++) { sum += x[i]; sum_sq += x[i] * x[i]; }
+    float mean = sum / (float)n;
+    float var  = sum_sq / (float)n - mean * mean;
+    return (var > 0.0f) ? sqrtf(var) : 0.0f;
+}
+
+/* Mirrors components/epm_dsp/scalar_stats.c's epm_dsp_skewness_from_sums:
+ * skewness = m3 / std^3, m3 = Sum(x^3)/N - 3*mean*Sum(x^2)/N + 2*mean^3,
+ * fallback 0.0f when var <= 1e-12f. */
+static float mirror_skewness(const float *x, int n)
+{
+    float sum = 0.0f, sum_sq = 0.0f, sum_cube = 0.0f;
+    for (int i = 0; i < n; i++) {
+        sum      += x[i];
+        sum_sq   += x[i] * x[i];
+        sum_cube += x[i] * x[i] * x[i];
+    }
+    float mean = sum / (float)n;
+    float var  = sum_sq / (float)n - mean * mean;
+    if (var <= 1e-12f) return 0.0f;
+    float std = sqrtf(var);
+    float m3  = sum_cube / (float)n - 3.0f * mean * (sum_sq / (float)n) + 2.0f * mean * mean * mean;
+    return m3 / (std * std * std);
+}
+
 /* Deterministic splitmix64 PRNG -- no libc rand()/srand() dependency, so
  * results are identical across platforms/compilers. */
 static uint64_t s_rng_state;
@@ -154,11 +186,58 @@ static void test_silence_fallback_defaults(void)
     test_report("silence_fallback_defaults", ok, EXPECT_PASS, detail);
 }
 
+static void test_std_known_variance(void)
+{
+    static float x[TEST_N];
+    /* Zero-mean +-2.0 square wave: mean=0, Sum(x^2)/N=4 -> var=4, std=2.0 exactly. */
+    for (int i = 0; i < TEST_N; i++) {
+        x[i] = ((i % 128) < 64) ? 2.0f : -2.0f;
+    }
+    float std = mirror_std(x, TEST_N);
+    char detail[128];
+    snprintf(detail, sizeof(detail), "std=%.6f (want 2.000000, zero-mean square wave var=4)", std);
+    int ok = fabsf(std - 2.0f) < 1e-5f;
+    test_report("std_known_variance", ok, EXPECT_PASS, detail);
+}
+
+static void test_skewness_symmetric_gaussian(void)
+{
+    static float x[20000];
+    fill_gaussian(x, 20000, 0xA53Cu);
+    float s = mirror_skewness(x, 20000);
+    /* Sampling std-error of skewness ~= sqrt(6/N) ~= 0.017 at N=20000; +-0.15
+     * mirrors the margin used for the kurtosis Gaussian anchor above. */
+    char detail[160];
+    snprintf(detail, sizeof(detail), "skewness=%.4f (want ~0.0, symmetric Gaussian distribution)", s);
+    int ok = fabsf(s - 0.0f) < 0.15f;
+    test_report("skewness_symmetric_gaussian", ok, EXPECT_PASS, detail);
+}
+
+static void test_skewness_exponential_skewed(void)
+{
+    static float x[20000];
+    s_rng_state = 0xE4700Eu;
+    for (int i = 0; i < 20000; i++) {
+        /* Exponential(rate=1) via inverse-CDF sampling: theoretical skewness
+         * = 2.0 (right-skewed) -- a known-nonzero anchor distinct from the
+         * symmetric Gaussian case above. */
+        x[i] = -logf(rng_uniform_open01());
+    }
+    float s = mirror_skewness(x, 20000);
+    char detail[128];
+    snprintf(detail, sizeof(detail), "skewness=%.4f (want > 1.0, right-skewed Exponential(1), theory=2.0)", s);
+    int ok = s > 1.0f;
+    test_report("skewness_exponential_skewed", ok, EXPECT_PASS, detail);
+}
+
 int main(void)
 {
     test_sine_crest_factor();
     test_square_crest_factor();
     test_gaussian_kurtosis_excess_convention();
     test_silence_fallback_defaults();
+    test_std_known_variance();
+    test_skewness_symmetric_gaussian();
+    test_skewness_exponential_skewed();
     return test_summary();
 }
