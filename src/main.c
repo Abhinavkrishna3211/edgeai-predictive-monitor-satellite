@@ -37,9 +37,9 @@
 
 #include "epm_config.h"
 #include "threads/led_task.h"
-#include "mic_task.h"
-#include "dsp_task.h"
-#include "imu_task.h"
+#include "threads/mic_task.h"
+#include "threads/dsp_task.h"
+#include "threads/imu_task.h"
 #include "wifi_task.h"
 #include "drivers/mic_inmp441_i2s.h"
 #include "threads/net_task.h"
