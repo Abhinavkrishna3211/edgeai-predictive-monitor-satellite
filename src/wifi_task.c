@@ -715,6 +715,16 @@ static void wifi_task_fn(void *arg)
     uint8_t  last_alert = EPM_ALERT_OK;  /* persists across frames; resets on reconnect */
     int sock = -1;
 
+    /* Heap-fragmentation escape hatch (Phase 0 mitigation, Session 9).
+     * tcp_connect() can loop on errno 119 (EINPROGRESS) indefinitely when the
+     * heap is fragmented — the only observed cure is a radio-level disconnect,
+     * which triggers on_wifi_disconnected() → esp_wifi_connect() and defragments
+     * the heap.  Track the start of a consecutive failure streak; if it exceeds
+     * CONNECT_RESET_TIMEOUT_US, force a WiFi disconnect to trigger that path. */
+#define CONNECT_RESET_TIMEOUT_US  (75LL * 1000000LL)   /* 75 seconds in µs */
+    int64_t connect_fail_since = 0;   /* esp_timer_get_time() at first failure; 0 = no streak */
+    uint32_t connect_fail_count = 0;
+
     wait_for_wifi();
 
     /* Dynamic CPU frequency scaling: 240 MHz during active DSP/TCP bursts,
@@ -740,9 +750,28 @@ static void wifi_task_fn(void *arg)
         if (sock < 0) {
             sock = connect_to_gateway();
             if (sock < 0) {
+                int64_t now = esp_timer_get_time();
+                if (connect_fail_since == 0) {
+                    connect_fail_since = now;
+                }
+                connect_fail_count++;
+
+                if ((now - connect_fail_since) >= CONNECT_RESET_TIMEOUT_US) {
+                    HEAP_TRACE("forced_reset", frame_id);
+                    ESP_LOGW(TAG, "stuck %lld s failing to connect (%lu attempts) "
+                             "— forcing WiFi radio reset to defragment heap",
+                             (long long)((now - connect_fail_since) / 1000000LL),
+                             (unsigned long)connect_fail_count);
+                    esp_wifi_disconnect();
+                    connect_fail_since = 0;
+                    connect_fail_count = 0;
+                }
+
                 vTaskDelay(pdMS_TO_TICKS(2000));
                 continue;
             }
+            connect_fail_since = 0;
+            connect_fail_count = 0;
             cal_frames = 0;
             last_alert = EPM_ALERT_OK;
             HEAP_TRACE("connect", frame_id);
@@ -854,4 +883,39 @@ void wifi_rf_init(void)
 bool wifi_wait_connected(TickType_t ticks_to_wait)
 {
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-                                           WIFI_CONNECTE
+                                           WIFI_CONNECTED_BIT,
+                                           pdFALSE, pdTRUE,
+                                           ticks_to_wait);
+    return (bits & WIFI_CONNECTED_BIT) != 0;
+}
+
+/* Phase 3: create TCP sender task — call after mic/imu tasks exist.
+ *
+ * Static stack + TCB: the WiFi driver fragments the heap with dozens of
+ * small allocations (RX buffers, management buffers, LWIP PCBs).  Even with
+ * 23 KB of total free heap there is no single contiguous 16 KB block available
+ * for a dynamically allocated task stack.  Using xTaskCreateStaticPinnedToCore
+ * reserves the stack in BSS at link time, bypassing heap fragmentation entirely.
+ *
+ * BSS cost: TASK_STACK_WIFI (16384) + sizeof(StaticTask_t) (~220) bytes.
+ * This reduces the boot-time heap by 16604 bytes, which is acceptable because
+ * those bytes were already unavailable (no contiguous block to allocate them). */
+static StackType_t  s_wifi_stack[TASK_STACK_WIFI];
+static StaticTask_t s_wifi_tcb;
+static TaskHandle_t s_task_handle = NULL;
+TaskHandle_t wifi_task_get_handle(void) { return s_task_handle; }
+
+void wifi_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q)
+{
+    s_task_args.mic_q = mic_q;
+    s_task_args.imu_q = imu_q;
+    s_task_handle = xTaskCreateStaticPinnedToCore(
+        wifi_task_fn, "wifi_task", TASK_STACK_WIFI,
+        &s_task_args, TASK_PRIO_WIFI,
+        s_wifi_stack, &s_wifi_tcb, 0);
+    if (s_task_handle == NULL) {
+        ESP_LOGE(TAG, "wifi_task static creation FAILED — impossible (static memory)");
+    } else {
+        ESP_LOGI(TAG, "wifi_task created (static stack %u bytes)", TASK_STACK_WIFI);
+    }
+}
