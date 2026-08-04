@@ -11,23 +11,28 @@
  * HW-OPT: ring buffer zero-copy — raw_mic_block_t is accessed directly from
  * the ring buffer storage (internal DRAM), no intermediate memcpy.  Item is
  * returned to the ring buffer immediately after samples are copied to the
- * Welch overlap buffer, typically within 2 µs of receipt.
+ * sliding history buffer, typically within 2 µs of receipt.
  *
  * HW-OPT: ESP-DSP dsps_fft2r_fc32 uses the LX7 vectorisation unit (128-bit
  * SIMD, 4 floats/cycle).  Benchmark logged once at startup; expected ~1.1 ms
  * (≈264 k CPU cycles at 240 MHz) vs ~4.2 ms for a scalar Cooley-Tukey.
  *
- * Pipeline per block:
+ * Pipeline per block (ADR-013):
  *   1.  xRingbufferReceive — zero-copy pointer to raw_mic_block_t
- *   2.  Welch overlap (optional)
+ *   2.  Append block to sliding history buffer (s_hist)
  *   3.  vRingbufferReturnItem — release ring buffer slot
+ *   [drain loop — one iteration per FFT_MIC_N-sample window the history
+ *    buffer currently has enough samples for, advancing hop_n samples
+ *    (= FFT_MIC_N * (1 - overlap_pct/100)) each time, so overlap_pct
+ *    actually changes how often a window is emitted, not just its content]
  *   4.  Hann window (dsps_mul_f32, SIMD)
  *   5.  Pack interleaved complex, dsps_fft2r_fc32 + dsps_bit_rev2r_fc32
  *   6.  Accumulate linear power into s_pwr_acc (internal DRAM)
- *   7.  After SPEC_AVG_N blocks:
+ *   7.  After SPEC_AVG_N windows:
  *       7a. Spectral centroid via dsps_dotprod_f32 on s_pwr_acc
  *       7b. Convert s_pwr_acc → dBFS → s_mag_db (PSRAM)
  *       7c. Build mic_frame_t (static internal DRAM) and post to queue
+ *   8.  Compact history buffer, keeping the unconsumed (< FFT_MIC_N-sample) tail
  */
 
 #include <math.h>
@@ -72,9 +77,16 @@ static float s_window    [FFT_MIC_N]     __attribute__((aligned(16)));
 static float s_windowed  [FFT_MIC_N]     __attribute__((aligned(16)));
 static float s_fft       [FFT_MIC_N * 2] __attribute__((aligned(16)));
 static float s_pwr_acc   [FFT_HALF]      __attribute__((aligned(16)));  /* accumulator: fast DRAM */
-static float s_overlap_buf[FFT_MIC_N]    __attribute__((aligned(16)));
-static float s_merged    [FFT_MIC_N]     __attribute__((aligned(16)));
-static uint8_t s_overlap_valid = 0;
+
+/* Welch sliding-history buffer (ADR-013): raw samples accumulate here as
+ * blocks arrive; FFT windows are drained out at a hop size that actually
+ * responds to overlap_pct, instead of always advancing one block at a time.
+ * Capacity 2*FFT_MIC_N is sufficient because the post-drain leftover is
+ * always < FFT_MIC_N (proved in ADR-013), so one more full block appended
+ * next cycle never overflows it. */
+static float s_hist[2 * FFT_MIC_N] __attribute__((aligned(16)));
+static int   s_hist_len  = 0;
+static int   s_hist_read = 0;
 
 /* ── Spectral centroid support — pre-computed frequency-bin table ─────────── */
 
@@ -142,6 +154,11 @@ static void dsp_task_fn(void *arg)
             int new_avg     = (int)(uint8_t)g_adapt_spec_avg_n;
             int new_overlap = (int)(uint8_t)g_adapt_overlap_pct;
             if (new_avg < 1 || new_avg > 16) new_avg = SPEC_AVG_N;
+            /* ADR-013: overlap_pct now directly controls the drain loop's hop
+             * size, so an out-of-protocol value (garbage or >90%) could push
+             * hop_n to 0 and stall the task. Clamp here; hop_n itself also
+             * gets a hard >=1 floor below as a second line of defense. */
+            if (new_overlap < 0 || new_overlap > 90) new_overlap = 0;
             if (new_avg != local_spec_avg_n || new_overlap != local_overlap_pct) {
                 ESP_LOGI(TAG, "Adapt: avg_n %d→%d  overlap %d%%→%d%%",
                          local_spec_avg_n, new_avg,
@@ -158,104 +175,125 @@ static void dsp_task_fn(void *arg)
         last_dc       = blk->dc;
         last_clip     = blk->clip;
 
-        /* --- 2. Welch overlap (uses blk->samples before returning item) --- */
-        const float *fft_src = blk->samples;
-        if (local_overlap_pct > 0 && s_overlap_valid) {
-            int overlap_n = (local_overlap_pct * FFT_MIC_N) / 100;
-            if (overlap_n > 0 && overlap_n < FFT_MIC_N) {
-                memcpy(s_merged,
-                       s_overlap_buf + (FFT_MIC_N - overlap_n),
-                       (size_t)overlap_n * sizeof(float));
-                memcpy(s_merged + overlap_n,
-                       blk->samples,
-                       (size_t)(FFT_MIC_N - overlap_n) * sizeof(float));
-                fft_src = s_merged;
-            }
-        }
-        memcpy(s_overlap_buf, blk->samples, FFT_MIC_N * sizeof(float));
-        s_overlap_valid = 1;
+        /* --- 2. Append raw block to the sliding history buffer --- */
+        memcpy(s_hist + s_hist_len, blk->samples, FFT_MIC_N * sizeof(float));
+        s_hist_len += FFT_MIC_N;
 
         /* --- 3. Return ring buffer item — done reading blk->samples --- */
         vRingbufferReturnItem(raw_rb, blk);
 
-        /* --- 4. Hann window (SIMD) --- */
-        dsps_mul_f32(fft_src, s_window, s_windowed, FFT_MIC_N, 1, 1, 1);
+        /* Welch hop (ADR-013): overlap_pct controls how far the window
+         * advances between successive FFTs, not just what samples end up
+         * inside a given window. hop_n is floored at 1 so an out-of-range
+         * overlap_pct — already clamped above, guarded again here — can
+         * never stall the drain loop below. */
+        int overlap_n = (local_overlap_pct * FFT_MIC_N) / 100;
+        int hop_n     = FFT_MIC_N - overlap_n;
+        if (hop_n < 1) hop_n = 1;
 
-        /* --- 5. FFT --- */
-        for (int i = 0; i < FFT_MIC_N; i++) {
-            s_fft[2 * i]     = s_windowed[i];
-            s_fft[2 * i + 1] = 0.0f;
+        while (s_hist_read + FFT_MIC_N <= s_hist_len) {
+            const float *fft_src = s_hist + s_hist_read;
+
+            /* --- 4. Hann window (SIMD) --- */
+            dsps_mul_f32(fft_src, s_window, s_windowed, FFT_MIC_N, 1, 1, 1);
+
+            /* --- 5. FFT --- */
+            for (int i = 0; i < FFT_MIC_N; i++) {
+                s_fft[2 * i]     = s_windowed[i];
+                s_fft[2 * i + 1] = 0.0f;
+            }
+
+            /* HW-OPT: esp_cpu_get_cycle_count() benchmark — logged once at startup.
+             * dsps_fft2r_fc32 uses LX7 128-bit SIMD butterfly units.
+             * Expected: ~264 k cycles (~1.1 ms at 240 MHz) vs ~1008 k (~4.2 ms) scalar. */
+            if (!fft_benchmarked) {
+                uint32_t t0 = esp_cpu_get_cycle_count();
+                dsps_fft2r_fc32(s_fft, FFT_MIC_N);
+                dsps_bit_rev2r_fc32(s_fft, FFT_MIC_N);
+                uint32_t t1 = esp_cpu_get_cycle_count();
+                ESP_LOGI(TAG, "FFT benchmark: %lu cycles (%.2f ms at 240 MHz) for %d-pt",
+                         (unsigned long)(t1 - t0),
+                         (float)(t1 - t0) / 240000.0f,
+                         FFT_MIC_N);
+                fft_benchmarked = true;
+            } else {
+                dsps_fft2r_fc32(s_fft, FFT_MIC_N);
+                dsps_bit_rev2r_fc32(s_fft, FFT_MIC_N);
+            }
+
+            /* --- 6. Accumulate linear power (normalised so full-scale sine → 0 dBFS) ---
+             * /s_coherent_gain corrects for the Hann window's amplitude loss
+             * (ADR-012) — without it, windowed spectra read ~6 dB low.
+             *
+             * Welch/Bartlett caveat (ADR-013): once overlap_n > 0 these
+             * segments are correlated, not independent, so the *effective*
+             * independent-average count behind this accumulation is lower
+             * than local_spec_avg_n. That inflates the variance of the
+             * resulting estimate; it does not bias its mean, so the averaged
+             * power below is still a correct (unbiased) spectrum estimate —
+             * no output value needs correcting for the overlap. */
+            const float nf = 2.0f / ((float)FFT_MIC_N * s_coherent_gain);
+            for (int i = 0; i < FFT_HALF; i++) {
+                float re = s_fft[2 * i]     * nf;
+                float im = s_fft[2 * i + 1] * nf;
+                s_pwr_acc[i] += re * re + im * im;
+            }
+            avg_cnt++;
+            s_hist_read += hop_n;
+
+            if (avg_cnt < local_spec_avg_n) {
+                continue;
+            }
+
+            /* --- 7a. Spectral centroid from accumulated linear power (SIMD) --- */
+            /* Σ(f_i × P_i) / Σ(P_i) — computed on raw accumulator so division by
+             * local_spec_avg_n cancels in numerator and denominator. */
+            float freq_weighted = 0.0f, power_total = 0.0f;
+            dsps_dotprod_f32(s_pwr_acc, s_freq_bins, &freq_weighted, FFT_HALF);
+            dsps_dotprod_f32(s_pwr_acc, s_ones_half, &power_total,   FFT_HALF);
+            float spectral_centroid = (power_total > 1e-20f)
+                                      ? freq_weighted / power_total : 0.0f;
+
+            /* --- 7b. Convert averaged linear power → dBFS (PSRAM output) --- */
+            const float inv_n = 1.0f / (float)local_spec_avg_n;
+            for (int i = 0; i < FFT_HALF; i++) {
+                s_mag_db[i]  = 10.0f * log10f(s_pwr_acc[i] * inv_n + 1e-12f);
+                s_pwr_acc[i] = 0.0f;
+            }
+            s_mag_db[0] = -120.0f;   /* DC bin */
+            avg_cnt = 0;
+
+            /* --- 7c. Build frame and post to wifi_task queue --- */
+            memcpy(s_out_frame.fft_db, s_mag_db, sizeof(s_out_frame.fft_db));
+            s_out_frame.rms              = last_rms;
+            s_out_frame.crest            = last_crest;
+            s_out_frame.kurtosis         = last_kurtosis;
+            s_out_frame.dc               = last_dc;
+            s_out_frame.spectral_centroid = spectral_centroid;
+            s_out_frame.clip             = last_clip;
+            s_out_frame.timestamp_ms     = (uint32_t)(esp_timer_get_time() / 1000);
+
+            xQueueOverwrite(s_queue, &s_out_frame);
+
+            hst_frame_count++;
+            if (!g_hst_warmed_up && hst_frame_count >= 250) {
+                g_hst_warmed_up = true;
+                rgb_led_set_state(RGB_OK);
+                ESP_LOGI(TAG, "HST warmed up at frame %lu", (unsigned long)hst_frame_count);
+            }
         }
 
-        /* HW-OPT: esp_cpu_get_cycle_count() benchmark — logged once at startup.
-         * dsps_fft2r_fc32 uses LX7 128-bit SIMD butterfly units.
-         * Expected: ~264 k cycles (~1.1 ms at 240 MHz) vs ~1008 k (~4.2 ms) scalar. */
-        if (!fft_benchmarked) {
-            uint32_t t0 = esp_cpu_get_cycle_count();
-            dsps_fft2r_fc32(s_fft, FFT_MIC_N);
-            dsps_bit_rev2r_fc32(s_fft, FFT_MIC_N);
-            uint32_t t1 = esp_cpu_get_cycle_count();
-            ESP_LOGI(TAG, "FFT benchmark: %lu cycles (%.2f ms at 240 MHz) for %d-pt",
-                     (unsigned long)(t1 - t0),
-                     (float)(t1 - t0) / 240000.0f,
-                     FFT_MIC_N);
-            fft_benchmarked = true;
-        } else {
-            dsps_fft2r_fc32(s_fft, FFT_MIC_N);
-            dsps_bit_rev2r_fc32(s_fft, FFT_MIC_N);
+        /* --- 8. Compact history buffer --- */
+        /* Leftover is always < FFT_MIC_N (the drain loop's own condition
+         * guarantees it stops as soon as less than one full window remains),
+         * so appending the next full raw block never overflows s_hist's
+         * 2*FFT_MIC_N capacity. */
+        int leftover = s_hist_len - s_hist_read;
+        if (s_hist_read > 0 && leftover > 0) {
+            memmove(s_hist, s_hist + s_hist_read, (size_t)leftover * sizeof(float));
         }
-
-        /* --- 6. Accumulate linear power (normalised so full-scale sine → 0 dBFS) ---
-         * /s_coherent_gain corrects for the Hann window's amplitude loss
-         * (ADR-012) — without it, windowed spectra read ~6 dB low. */
-        const float nf = 2.0f / ((float)FFT_MIC_N * s_coherent_gain);
-        for (int i = 0; i < FFT_HALF; i++) {
-            float re = s_fft[2 * i]     * nf;
-            float im = s_fft[2 * i + 1] * nf;
-            s_pwr_acc[i] += re * re + im * im;
-        }
-        avg_cnt++;
-
-        if (avg_cnt < local_spec_avg_n) {
-            continue;
-        }
-
-        /* --- 7a. Spectral centroid from accumulated linear power (SIMD) --- */
-        /* Σ(f_i × P_i) / Σ(P_i) — computed on raw accumulator so division by
-         * local_spec_avg_n cancels in numerator and denominator. */
-        float freq_weighted = 0.0f, power_total = 0.0f;
-        dsps_dotprod_f32(s_pwr_acc, s_freq_bins, &freq_weighted, FFT_HALF);
-        dsps_dotprod_f32(s_pwr_acc, s_ones_half, &power_total,   FFT_HALF);
-        float spectral_centroid = (power_total > 1e-20f)
-                                  ? freq_weighted / power_total : 0.0f;
-
-        /* --- 7b. Convert averaged linear power → dBFS (PSRAM output) --- */
-        const float inv_n = 1.0f / (float)local_spec_avg_n;
-        for (int i = 0; i < FFT_HALF; i++) {
-            s_mag_db[i]  = 10.0f * log10f(s_pwr_acc[i] * inv_n + 1e-12f);
-            s_pwr_acc[i] = 0.0f;
-        }
-        s_mag_db[0] = -120.0f;   /* DC bin */
-        avg_cnt = 0;
-
-        /* --- 7c. Build frame and post to wifi_task queue --- */
-        memcpy(s_out_frame.fft_db, s_mag_db, sizeof(s_out_frame.fft_db));
-        s_out_frame.rms              = last_rms;
-        s_out_frame.crest            = last_crest;
-        s_out_frame.kurtosis         = last_kurtosis;
-        s_out_frame.dc               = last_dc;
-        s_out_frame.spectral_centroid = spectral_centroid;
-        s_out_frame.clip             = last_clip;
-        s_out_frame.timestamp_ms     = (uint32_t)(esp_timer_get_time() / 1000);
-
-        xQueueOverwrite(s_queue, &s_out_frame);
-
-        hst_frame_count++;
-        if (!g_hst_warmed_up && hst_frame_count >= 250) {
-            g_hst_warmed_up = true;
-            rgb_led_set_state(RGB_OK);
-            ESP_LOGI(TAG, "HST warmed up at frame %lu", (unsigned long)hst_frame_count);
-        }
+        s_hist_len  = leftover;
+        s_hist_read = 0;
     }
 }
 
