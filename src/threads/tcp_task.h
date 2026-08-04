@@ -1,5 +1,5 @@
 /*
- * wifi_task.h — Public API for the WiFi connection + TCP send task.
+ * tcp_task.h — Public API for the WiFi connection + TCP send task.
  */
 
 #pragma once

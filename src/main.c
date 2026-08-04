@@ -40,7 +40,7 @@
 #include "threads/mic_task.h"
 #include "threads/dsp_task.h"
 #include "threads/imu_task.h"
-#include "wifi_task.h"
+#include "threads/tcp_task.h"
 #include "drivers/mic_inmp441_i2s.h"
 #include "threads/net_task.h"
 

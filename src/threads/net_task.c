@@ -1,8 +1,8 @@
 /*
  * net_task.c — MQTT telemetry publish loop (Phase 0.5).
  *
- * Blocks on wifi_task.h's wifi_wait_connected() (WiFi STA bring-up stays
- * owned by wifi_task.c — see docs/decisions/ADR-011-mqtt-transport-added.md),
+ * Blocks on tcp_task.h's wifi_wait_connected() (WiFi STA bring-up stays
+ * owned by tcp_task.c — see docs/decisions/ADR-011-mqtt-transport-added.md),
  * then starts the MQTT link (components/epm_drivers/link_mqtt.c) and
  * publishes one section-list telemetry frame
  * (components/epm_codec/include/frame_codec/spectrum_codec.h) every
@@ -32,7 +32,7 @@
 #include "drivers/link_mqtt.h"
 
 #include "epm_config.h"
-#include "wifi_task.h"
+#include "threads/tcp_task.h"
 
 static const char *TAG = "net_task";
 

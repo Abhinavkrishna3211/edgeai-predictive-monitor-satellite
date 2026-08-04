@@ -58,7 +58,7 @@
 
 #include "epm_config.h"
 #include "threads/dsp_task.h"
-#include "wifi_task.h"     /* g_adapt_overlap_pct, g_adapt_spec_avg_n */
+#include "threads/tcp_task.h"     /* g_adapt_overlap_pct, g_adapt_spec_avg_n */
 #include "hal/hal_display.h"  /* rgb_led_set_state, RGB_OK */
 
 /* Set to true when 250 averaged frames have been processed (HST warm-up done).

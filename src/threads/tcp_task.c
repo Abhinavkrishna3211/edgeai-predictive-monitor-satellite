@@ -1,5 +1,5 @@
 /*
- * wifi_task.c — WiFi STA connection + TCP client send task.
+ * tcp_task.c — WiFi STA connection + TCP client send task.
  *
  * Responsibilities:
  *   1. Bring up WiFi STA and join WIFI_SSID / WIFI_PASS
@@ -49,7 +49,7 @@
 #include "epm_config.h"
 #include "epm_protocol.h"
 #include "hal/hal_display.h"
-#include "wifi_task.h"
+#include "threads/tcp_task.h"
 #include "drivers/mic_inmp441_i2s.h"  /* snapshot_count(), snapshot_read_chunk(), get_overflow_count() */
 
 /* ---------- module constants ---------- */

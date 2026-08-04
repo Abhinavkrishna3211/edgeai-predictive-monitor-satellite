@@ -1,10 +1,10 @@
 /*
  * net_task.h — Public API for the MQTT telemetry task (Phase 0.5).
  *
- * Additive alongside wifi_task.c's raw-TCP path (see
+ * Additive alongside tcp_task.c's raw-TCP path (see
  * docs/decisions/ADR-011-mqtt-transport-added.md); TCP retirement is
  * Phase 7's job. This task owns nothing about WiFi itself — it blocks on
- * wifi_task.h's wifi_wait_connected(), then drives components/epm_drivers/
+ * tcp_task.h's wifi_wait_connected(), then drives components/epm_drivers/
  * link_mqtt.c (behind components/epm_hal/include/hal/hal_transport.h) to
  * publish a synthetic section-list telemetry frame
  * (components/epm_codec/include/frame_codec/spectrum_codec.h) every
