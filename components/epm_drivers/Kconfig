@@ -9,4 +9,14 @@ menu "EPM Drivers"
             the real KX134 SPI driver lands (Phase 9); disabling it without
             a replacement driver present will fail the build.
 
+    config EPM_DISPLAY_USE_LEDC
+        bool "Use plain-LEDC RGB LED (no WS2812/NeoPixel hardware)"
+        default n
+        help
+            Selects components/epm_drivers/display_ledc.c as the hal_display.h
+            implementation instead of the default WS2812 NeoPixel driver
+            (display_neopixel.c). Kept as a Kconfig fallback for boards
+            without an addressable RGB LED wired up -- see
+            docs/decisions/ADR-016.
+
 endmenu
