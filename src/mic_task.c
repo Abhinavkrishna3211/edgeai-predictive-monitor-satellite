@@ -31,6 +31,8 @@
 #include "dsps_math.h"
 #include "dsps_dotprod.h"
 
+#include "dsp/scalar_stats.h"
+
 #include "mic_capture.h"
 #include "epm_config.h"
 #include "mic_task.h"
@@ -114,17 +116,13 @@ static void mic_task_fn(void *arg)
          * ~4× throughput vs a scalar loop (128-bit SIMD = 4 float/cycle). */
         float sum_sq = 0.0f;
         dsps_dotprod_f32(s_norm, s_norm, &sum_sq, FFT_MIC_N);
-        last_rms = sqrtf(sum_sq / FFT_MIC_N);
+        last_rms = epm_dsp_rms_from_sum_sq(sum_sq, FFT_MIC_N);
 
         /* --- 3b. Crest factor: peak(|x|) / RMS (scalar abs + scan) --- */
         /* dsps_abs_f32 is not present in this ESP-DSP release; scalar fabsf is
          * fast enough (1 cycle/element on LX7, 512 iterations ≈ 0.2 µs). */
-        float peak = 0.0f;
-        for (int i = 0; i < FFT_MIC_N; i++) {
-            float a = fabsf(s_norm[i]);
-            if (a > peak) peak = a;
-        }
-        last_crest = (last_rms > 1e-8f) ? (peak / last_rms) : 0.0f;
+        float peak = epm_dsp_peak_abs(s_norm, FFT_MIC_N);
+        last_crest = epm_dsp_crest_factor(peak, last_rms);
 
         /* --- 3c. Kurtosis: (Σx⁴/N) / (Σx²/N)² (two SIMD dotprods) --- */
         /* Step 1: s_scratch = x²  (element-wise, SIMD) */
@@ -132,10 +130,7 @@ static void mic_task_fn(void *arg)
         /* Step 2: sum4 = Σx⁴ = dot(s_scratch, s_scratch)  (SIMD) */
         float sum4 = 0.0f;
         dsps_dotprod_f32(s_scratch, s_scratch, &sum4, FFT_MIC_N);
-        float var = sum_sq / FFT_MIC_N;
-        if (var > 1e-12f) {
-            last_kurtosis = (sum4 / FFT_MIC_N) / (var * var);
-        }
+        last_kurtosis = epm_dsp_kurtosis_from_sums(sum_sq, sum4, FFT_MIC_N, last_kurtosis);
 
         /* --- 4. Post to dsp_task via ring buffer --- */
         static raw_mic_block_t s_blk;

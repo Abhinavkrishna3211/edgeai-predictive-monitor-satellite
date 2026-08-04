@@ -3,5 +3,5 @@ idf_component_register(
          "threads/net_task.c"
     INCLUDE_DIRS "."
     REQUIRES mic_capture espressif__esp-dsp esp_wifi nvs_flash esp_netif lwip driver
-            mbedtls esp_pm epm_hal epm_drivers epm_codec
+            mbedtls esp_pm epm_hal epm_drivers epm_codec epm_dsp
 )

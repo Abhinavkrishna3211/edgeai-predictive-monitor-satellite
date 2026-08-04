@@ -53,6 +53,9 @@
 #include "dsps_math.h"
 #include "dsps_dotprod.h"
 
+#include "dsp/window.h"
+#include "dsp/spectrum.h"
+
 #include "epm_config.h"
 #include "dsp_task.h"
 #include "wifi_task.h"     /* g_adapt_overlap_pct, g_adapt_spec_avg_n */
@@ -187,9 +190,7 @@ static void dsp_task_fn(void *arg)
          * inside a given window. hop_n is floored at 1 so an out-of-range
          * overlap_pct — already clamped above, guarded again here — can
          * never stall the drain loop below. */
-        int overlap_n = (local_overlap_pct * FFT_MIC_N) / 100;
-        int hop_n     = FFT_MIC_N - overlap_n;
-        if (hop_n < 1) hop_n = 1;
+        int hop_n = epm_dsp_welch_hop_size(FFT_MIC_N, local_overlap_pct);
 
         while (s_hist_read + FFT_MIC_N <= s_hist_len) {
             const float *fft_src = s_hist + s_hist_read;
@@ -233,11 +234,7 @@ static void dsp_task_fn(void *arg)
              * power below is still a correct (unbiased) spectrum estimate —
              * no output value needs correcting for the overlap. */
             const float nf = 2.0f / ((float)FFT_MIC_N * s_coherent_gain);
-            for (int i = 0; i < FFT_HALF; i++) {
-                float re = s_fft[2 * i]     * nf;
-                float im = s_fft[2 * i + 1] * nf;
-                s_pwr_acc[i] += re * re + im * im;
-            }
+            epm_dsp_accumulate_power(s_fft, s_pwr_acc, FFT_HALF, nf);
             avg_cnt++;
             s_hist_read += hop_n;
 
@@ -256,11 +253,7 @@ static void dsp_task_fn(void *arg)
 
             /* --- 7b. Convert averaged linear power → dBFS (PSRAM output) --- */
             const float inv_n = 1.0f / (float)local_spec_avg_n;
-            for (int i = 0; i < FFT_HALF; i++) {
-                s_mag_db[i]  = 10.0f * log10f(s_pwr_acc[i] * inv_n + 1e-12f);
-                s_pwr_acc[i] = 0.0f;
-            }
-            s_mag_db[0] = -120.0f;   /* DC bin */
+            epm_dsp_power_to_db(s_pwr_acc, s_mag_db, FFT_HALF, inv_n);
             avg_cnt = 0;
 
             /* --- 7c. Build frame and post to wifi_task queue --- */
@@ -311,9 +304,7 @@ void dsp_task_start(RingbufHandle_t raw_rb)
 
     /* Coherent gain = mean of the window taps — derived from the actual
      * array dsps_wind_hann_f32() just produced, not a hardcoded constant. */
-    float window_sum = 0.0f;
-    for (int i = 0; i < FFT_MIC_N; i++) window_sum += s_window[i];
-    s_coherent_gain = window_sum / (float)FFT_MIC_N;
+    s_coherent_gain = epm_dsp_coherent_gain(s_window, FFT_MIC_N);
 
     ESP_LOGI(TAG, "dsp_task starting (FFT core 1): %d-pt, avg=%d (adaptive), "
              "%.2f Hz/bin, coherent_gain=%.4f",
