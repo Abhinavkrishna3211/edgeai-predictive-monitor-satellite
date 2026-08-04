@@ -5,9 +5,11 @@ menu "EPM Drivers"
         default y
         help
             Selects components/epm_drivers/accel_stub.c as the hal_accel.h
-            implementation. This is the only implementation available until
-            the real KX134 SPI driver lands (Phase 9); disabling it without
-            a replacement driver present will fail the build.
+            implementation instead of the real accel_kx134_spi.c driver.
+            Default stays y until the real driver is confirmed against
+            physical KX134 hardware (WHO_AM_I, at-rest g-values, zero
+            dropped FIFO frames over a sustained run) -- see
+            docs/decisions/ADR-017.
 
     config EPM_DISPLAY_USE_LEDC
         bool "Use plain-LEDC RGB LED (no WS2812/NeoPixel hardware)"

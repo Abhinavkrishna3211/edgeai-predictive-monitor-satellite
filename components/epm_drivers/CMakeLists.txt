@@ -8,6 +8,8 @@ endif()
 
 if(CONFIG_EPM_ACCEL_USE_STUB)
     list(APPEND epm_drivers_srcs "accel_stub.c")
+else()
+    list(APPEND epm_drivers_srcs "accel_kx134_spi.c")
 endif()
 
 idf_component_register(
