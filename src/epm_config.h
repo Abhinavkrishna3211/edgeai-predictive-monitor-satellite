@@ -72,6 +72,40 @@
 
 #define EPM_MAGIC   0xEA1DF00DUL
 
+/* ─── MQTT telemetry (Phase 0.5 — additive alongside the TCP path above) ──── *
+ * See docs/decisions/ADR-011-mqtt-transport-added.md. Broker host/port are
+ * NOT here: they're private to components/epm_drivers/link_mqtt.c (this
+ * header belongs to the main component only; the driver component must not
+ * depend back on it — src already depends on epm_drivers). These are the
+ * values src/threads/net_task.c needs to build the synthetic section-list
+ * frame each publish cycle. */
+
+#ifndef EPM_MODEL_SPECTRUM_BINS
+#define EPM_MODEL_SPECTRUM_BINS 128 /* bins per channel expected by the base station's model */
+#endif
+
+#ifndef EPM_MIC_FS_HZ
+#define EPM_MIC_FS_HZ    48000.0f
+#endif
+#ifndef EPM_MIC_FFT_SIZE
+#define EPM_MIC_FFT_SIZE 2048
+#endif
+
+#ifndef EPM_ACCEL_FS_HZ
+#define EPM_ACCEL_FS_HZ    6400.0f
+#endif
+#ifndef EPM_ACCEL_FFT_SIZE
+#define EPM_ACCEL_FFT_SIZE 1024
+#endif
+
+#ifndef EPM_NET_PUBLISH_INTERVAL_MS
+#define EPM_NET_PUBLISH_INTERVAL_MS 200 /* matches the reference satellite's FUSER_EPOCH_MS */
+#endif
+
+#ifndef EPM_NET_FRAME_BUF_BYTES
+#define EPM_NET_FRAME_BUF_BYTES 4096 /* 5-section synthetic frame is 2251 B; ample headroom */
+#endif
+
 /* ─── Alert LED ──────────────────────────────────────────────────────────── */
 
 /* Frames before HST z-score baseline is considered valid.
@@ -132,12 +166,14 @@
 #define TASK_STACK_IMU   3072
 #define TASK_STACK_WIFI  16384
 #define TASK_STACK_DIAG  3072
+#define TASK_STACK_NET   4096  /* net_task: blocks on WiFi, then esp-mqtt publish loop */
 
 #define TASK_PRIO_MIC    5   /* I2S DMA callback — must not be starved by DSP */
 #define TASK_PRIO_DSP    6   /* FFT compute — highest: must drain raw_rb before next block */
 #define TASK_PRIO_IMU    3   /* SPI DMA capture — below wifi_task(4) so WiFi stack is never starved */
 #define TASK_PRIO_WIFI   4   /* TCP I/O — preemptible by DMA tasks */
 #define TASK_PRIO_DIAG   1   /* background health monitor */
+#define TASK_PRIO_NET    4   /* MQTT publish — same tier as wifi_task, also radio-side I/O */
 
 /* ─── Inter-task data structures ─────────────────────────────────────────── */
 
@@ -206,4 +242,6 @@ typedef struct {
     float    rms_x, rms_y, rms_z;   /* per-axis RMS                        */
     float    crest_x, crest_y, crest_z; /* per-axis crest factor           */
     float    dc_x;                   /* X-axis DC offset (gravity component)*/
-    uint8_t  clip;                   /* 
+    uint8_t  clip;                   /* 1 if any axis clipped               */
+    uint32_t timestamp_ms;
+} imu_frame_t;

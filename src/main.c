@@ -42,6 +42,7 @@
 #include "imu_task.h"
 #include "wifi_task.h"
 #include "mic_capture.h"
+#include "threads/net_task.h"
 
 static const char *TAG = "main";
 
@@ -157,6 +158,14 @@ void app_main(void)
     dsp_task_start(mic_task_get_raw_ringbuf());
     imu_task_start();
     wifi_task_start(dsp_task_get_queue(), imu_task_get_queue());
+
+    /* --- MQTT telemetry to the base station (Phase 0.5, additive) ---
+     * See docs/decisions/ADR-011-mqtt-transport-added.md. net_task blocks
+     * on WiFi itself, so it's safe to start before the 30 s wait above
+     * resolves. */
+    if (net_task_start() != 0) {
+        ESP_LOGE(TAG, "net_task_start failed");
+    }
 
     /* --- diagnostics_task (core 0, priority 1) ---
      * Collects task handles after all *_task_start() calls complete.
