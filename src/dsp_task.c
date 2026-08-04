@@ -84,6 +84,13 @@ static uint8_t s_overlap_valid = 0;
 static float s_freq_bins[FFT_HALF] __attribute__((aligned(16)));  /* Hz per bin */
 static float s_ones_half[FFT_HALF] __attribute__((aligned(16)));  /* all-1 for Σ P_i */
 
+/* Hann window's coherent gain (mean of the window taps, ~0.5) — computed from
+ * the real s_window array in dsp_task_start() rather than hardcoded, so it
+ * tracks whatever window function is actually in use. The power-normalisation
+ * factor below divides by this so a full-scale sine still reads 0 dBFS after
+ * windowing (see tests/host/test_hann_window.c). */
+static float s_coherent_gain = 1.0f;
+
 /* ── FFT output buffer in PSRAM ──────────────────────────────────────────── */
 
 /* s_mag_db in PSRAM: confirmed working (8 MB free, SESSION_7). */
@@ -198,8 +205,10 @@ static void dsp_task_fn(void *arg)
             dsps_bit_rev2r_fc32(s_fft, FFT_MIC_N);
         }
 
-        /* --- 6. Accumulate linear power (normalised so full-scale sine → 0 dBFS) --- */
-        const float nf = 2.0f / FFT_MIC_N;
+        /* --- 6. Accumulate linear power (normalised so full-scale sine → 0 dBFS) ---
+         * /s_coherent_gain corrects for the Hann window's amplitude loss
+         * (ADR-012) — without it, windowed spectra read ~6 dB low. */
+        const float nf = 2.0f / ((float)FFT_MIC_N * s_coherent_gain);
         for (int i = 0; i < FFT_HALF; i++) {
             float re = s_fft[2 * i]     * nf;
             float im = s_fft[2 * i + 1] * nf;
@@ -262,9 +271,15 @@ void dsp_task_start(RingbufHandle_t raw_rb)
 
     dsps_wind_hann_f32(s_window, FFT_MIC_N);
 
+    /* Coherent gain = mean of the window taps — derived from the actual
+     * array dsps_wind_hann_f32() just produced, not a hardcoded constant. */
+    float window_sum = 0.0f;
+    for (int i = 0; i < FFT_MIC_N; i++) window_sum += s_window[i];
+    s_coherent_gain = window_sum / (float)FFT_MIC_N;
+
     ESP_LOGI(TAG, "dsp_task starting (FFT core 1): %d-pt, avg=%d (adaptive), "
-             "%.2f Hz/bin",
-             FFT_MIC_N, SPEC_AVG_N, (float)MIC_FS_HZ / FFT_MIC_N);
+             "%.2f Hz/bin, coherent_gain=%.4f",
+             FFT_MIC_N, SPEC_AVG_N, (float)MIC_FS_HZ / FFT_MIC_N, s_coherent_gain);
 
     xTaskCreatePinnedToCore(dsp_task_fn, "dsp_task", TASK_STACK_DSP, raw_rb,
                             TASK_PRIO_DSP, &s_task_handle, 1);
