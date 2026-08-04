@@ -1,6 +1,10 @@
 # ── PlatformIO build output ──────────────────────────────────────────────────
 .pio/
 
+# ── Native host test build output (tests/host/) ──────────────────────────────
+tests/host/build/
+tests/host/out/
+
 # ── WiFi credentials — NEVER commit ─────────────────────────────────────────
 src/wifi_creds.h
 

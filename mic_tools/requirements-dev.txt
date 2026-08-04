@@ -1,0 +1,9 @@
+# EPM gateway — development/test-only dependencies.
+#
+# NOT required on the deployed Uno Q device (requirements.txt is the
+# deployed install list). Install alongside it for running the pytest
+# harness documented in mic_tools/TESTING.md:
+#
+#   pip3 install -r requirements.txt -r requirements-dev.txt
+
+pytest>=7.4
