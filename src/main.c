@@ -36,7 +36,7 @@
 #include "dsps_fft2r.h"
 
 #include "epm_config.h"
-#include "rgb_led_task.h"
+#include "threads/led_task.h"
 #include "mic_task.h"
 #include "dsp_task.h"
 #include "imu_task.h"
@@ -139,10 +139,7 @@ void app_main(void)
 #endif
 
     /* --- RGB LED: init hardware and start task on core 1, priority 3 --- */
-    rgb_led_task_init();
-    static TaskHandle_t h_rgb = NULL;
-    xTaskCreatePinnedToCore(rgb_led_task, "rgb_led", 3072, NULL, 3, &h_rgb, 1);
-    rgb_led_set_state(RGB_BOOT);
+    led_task_start();
 
     /* --- Start WiFi RF before any I2S/DMA ---
      * I2S DMA interrupts disrupt the WiFi firmware RF state-machine timing
@@ -173,7 +170,7 @@ void app_main(void)
     s_diag_args.h_mic  = mic_task_get_handle();
     s_diag_args.h_dsp  = dsp_task_get_handle();
     s_diag_args.h_wifi = wifi_task_get_handle();
-    s_diag_args.h_rgb  = h_rgb;
+    s_diag_args.h_rgb  = led_task_get_handle();
 
     static TaskHandle_t h_diag = NULL;
     xTaskCreatePinnedToCore(diagnostics_task_fn, "diag", TASK_STACK_DIAG,

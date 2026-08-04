@@ -48,7 +48,7 @@
 
 #include "epm_config.h"
 #include "epm_protocol.h"
-#include "rgb_led_task.h"
+#include "hal/hal_display.h"
 #include "wifi_task.h"
 #include "mic_capture.h"  /* snapshot_count(), snapshot_read_chunk(), get_overflow_count() */
 
