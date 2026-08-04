@@ -1,0 +1,12 @@
+menu "EPM Drivers"
+
+    config EPM_ACCEL_USE_STUB
+        bool "Use synthetic accelerometer stub (no KX134 hardware)"
+        default y
+        help
+            Selects components/epm_drivers/accel_stub.c as the hal_accel.h
+            implementation. This is the only implementation available until
+            the real KX134 SPI driver lands (Phase 9); disabling it without
+            a replacement driver present will fail the build.
+
+endmenu
