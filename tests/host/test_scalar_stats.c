@@ -1,0 +1,167 @@
+/*
+ * test_scalar_stats.c — host-native anchor tests for the scalar-stats math
+ * computed on-device in src/mic_task.c (NOT src/dsp_task.c -- dsp_task.c
+ * only owns the FFT/Hann/Welch pipeline; RMS/crest/kurtosis are computed
+ * per-block in mic_task.c before a block is even handed off to dsp_task).
+ *
+ * src/mic_task.c is ESP-IDF-coupled (FreeRTOS, esp_timer, ESP-DSP SIMD
+ * calls) and cannot be #include'd or linked here. Instead each function
+ * below is a plain-C, scalar (non-SIMD) transcription of the exact formula
+ * at the cited mic_task.c line range -- if mic_task.c's math changes, these
+ * mirrors must be hand-resynced (see tests/host/README.md).
+ *
+ * Build/run: see tests/host/README.md.
+ */
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "test_util.h"
+
+#define TEST_N 1024 /* mirrors FFT_MIC_N default, src/epm_config.h:23 */
+
+/* Mirrors src/mic_task.c:112-117 (RMS on DC-removed signal via
+ * dsps_dotprod_f32 then sqrtf(sum_sq/N)). */
+static float mirror_rms(const float *x, int n)
+{
+    float sum_sq = 0.0f;
+    for (int i = 0; i < n; i++) sum_sq += x[i] * x[i];
+    return sqrtf(sum_sq / (float)n);
+}
+
+/* Mirrors src/mic_task.c:119-127 (crest = peak(|x|)/rms, fallback 0.0f when
+ * rms <= 1e-8f). */
+static float mirror_crest(const float *x, int n, float rms)
+{
+    float peak = 0.0f;
+    for (int i = 0; i < n; i++) {
+        float a = fabsf(x[i]);
+        if (a > peak) peak = a;
+    }
+    return (rms > 1e-8f) ? (peak / rms) : 0.0f;
+}
+
+/* Mirrors src/mic_task.c:129-138 (RAW/Pearson kurtosis = (Sum(x^4)/N) /
+ * (Sum(x^2)/N)^2, fallback 3.0f when var <= 1e-12f -- matches mic_task.c:82's
+ * last_kurtosis init value). NOTE: this is the RAW convention (Gaussian =~
+ * 3.0), not excess/Fisher (Gaussian =~ 0). docs/MASTER_PLAN.md Part D's
+ * wire-protocol doc documented the excess convention as an unverified draft;
+ * ADR-014 resolved the discrepancy in favor of RAW/Pearson (the convention
+ * mic_task.c already implements, and that src/threads/net_task.c's
+ * independently-written synthetic placeholder already assumed) -- Part D's
+ * row itself is corrected later, in Phase 4. */
+static float mirror_kurtosis(const float *x, int n)
+{
+    float sum_sq = 0.0f, sum4 = 0.0f;
+    for (int i = 0; i < n; i++) sum_sq += x[i] * x[i];
+    float var = sum_sq / (float)n;
+    if (var <= 1e-12f) return 3.0f;
+    for (int i = 0; i < n; i++) {
+        float x2 = x[i] * x[i];
+        sum4 += x2 * x2;
+    }
+    return (sum4 / (float)n) / (var * var);
+}
+
+/* Deterministic splitmix64 PRNG -- no libc rand()/srand() dependency, so
+ * results are identical across platforms/compilers. */
+static uint64_t s_rng_state;
+
+static uint64_t splitmix64_next(void)
+{
+    uint64_t z = (s_rng_state += 0x9E3779B97F4A7C15ULL);
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    return z ^ (z >> 31);
+}
+
+static float rng_uniform_open01(void)
+{
+    /* (0,1) open interval -- avoids log(0.0) in Box-Muller below. */
+    return ((float)(splitmix64_next() >> 11) + 0.5f) / (float)(1ULL << 53);
+}
+
+static void fill_gaussian(float *x, int n, uint64_t seed)
+{
+    s_rng_state = seed;
+    for (int i = 0; i < n; i += 2) {
+        float u1 = rng_uniform_open01();
+        float u2 = rng_uniform_open01();
+        float r = sqrtf(-2.0f * logf(u1));
+        float g0 = r * cosf(2.0f * (float)M_PI * u2);
+        float g1 = r * sinf(2.0f * (float)M_PI * u2);
+        x[i] = g0;
+        if (i + 1 < n) x[i + 1] = g1;
+    }
+}
+
+static void test_sine_crest_factor(void)
+{
+    static float x[TEST_N];
+    /* Bin-aligned: 8 whole cycles across 1024 samples so the discrete sum
+     * Sum(cos^2) is exactly N/2 (orthogonality), no windowing-leakage error. */
+    for (int i = 0; i < TEST_N; i++) {
+        x[i] = cosf(2.0f * (float)M_PI * 8.0f * (float)i / (float)TEST_N);
+    }
+    float rms = mirror_rms(x, TEST_N);
+    float crest = mirror_crest(x, TEST_N, rms);
+    char detail[128];
+    snprintf(detail, sizeof(detail), "rms=%.6f (want 0.707107) crest=%.6f (want 1.414214, sqrt(2))",
+              rms, crest);
+    int ok = fabsf(crest - 1.41421356f) < 1e-4f;
+    test_report("sine_crest_factor", ok, EXPECT_PASS, detail);
+}
+
+static void test_square_crest_factor(void)
+{
+    static float x[TEST_N];
+    /* +-1.0 square wave, period 128 samples (64 high, 64 low). */
+    for (int i = 0; i < TEST_N; i++) {
+        x[i] = ((i % 128) < 64) ? 1.0f : -1.0f;
+    }
+    float rms = mirror_rms(x, TEST_N);
+    float crest = mirror_crest(x, TEST_N, rms);
+    char detail[128];
+    snprintf(detail, sizeof(detail), "rms=%.6f (want 1.000000) crest=%.6f (want 1.000000)", rms, crest);
+    int ok = fabsf(crest - 1.0f) < 1e-6f;
+    test_report("square_crest_factor", ok, EXPECT_PASS, detail);
+}
+
+static void test_gaussian_kurtosis_raw_convention(void)
+{
+    static float x[20000];
+    fill_gaussian(x, 20000, 0xA53Cu);
+    float k = mirror_kurtosis(x, 20000);
+    /* Sampling std-error of raw kurtosis ~= sqrt(24/N) ~= 0.035 at N=20000;
+     * +-0.15 is ~4x that margin, chosen during planning against an
+     * independent PRNG run that converged to ~3.02 at both N=20000 and
+     * N=100000, to avoid flakiness from PRNG-specific variance. */
+    char detail[160];
+    snprintf(detail, sizeof(detail),
+              "kurtosis=%.4f (want ~3.0, RAW/Pearson convention -- ADR-014 confirms this is "
+              "the firmware's actual wire convention, not Part D's draft excess/Fisher)", k);
+    int ok = fabsf(k - 3.0f) < 0.15f;
+    test_report("gaussian_kurtosis_raw_convention", ok, EXPECT_PASS, detail);
+}
+
+static void test_silence_fallback_defaults(void)
+{
+    static float x[TEST_N] = {0};
+    float rms = mirror_rms(x, TEST_N);
+    float crest = mirror_crest(x, TEST_N, rms);
+    float k = mirror_kurtosis(x, TEST_N);
+    char detail[128];
+    snprintf(detail, sizeof(detail), "rms=%.6f crest=%.6f (want 0.0) kurtosis=%.6f (want 3.0)",
+              rms, crest, k);
+    int ok = (crest == 0.0f) && (k == 3.0f);
+    test_report("silence_fallback_defaults", ok, EXPECT_PASS, detail);
+}
+
+int main(void)
+{
+    test_sine_crest_factor();
+    test_square_crest_factor();
+    test_gaussian_kurtosis_raw_convention();
+    test_silence_fallback_defaults();
+    return test_summary();
+}
