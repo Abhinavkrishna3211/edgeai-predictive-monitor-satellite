@@ -33,7 +33,7 @@
 
 #include "dsp/scalar_stats.h"
 
-#include "mic_capture.h"
+#include "drivers/mic_inmp441_i2s.h"
 #include "epm_config.h"
 #include "mic_task.h"
 

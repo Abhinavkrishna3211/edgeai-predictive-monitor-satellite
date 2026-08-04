@@ -41,7 +41,7 @@
 #include "dsp_task.h"
 #include "imu_task.h"
 #include "wifi_task.h"
-#include "mic_capture.h"
+#include "drivers/mic_inmp441_i2s.h"
 #include "threads/net_task.h"
 
 static const char *TAG = "main";

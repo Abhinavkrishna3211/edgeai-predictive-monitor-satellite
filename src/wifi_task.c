@@ -50,7 +50,7 @@
 #include "epm_protocol.h"
 #include "hal/hal_display.h"
 #include "wifi_task.h"
-#include "mic_capture.h"  /* snapshot_count(), snapshot_read_chunk(), get_overflow_count() */
+#include "drivers/mic_inmp441_i2s.h"  /* snapshot_count(), snapshot_read_chunk(), get_overflow_count() */
 
 /* ---------- module constants ---------- */
 
