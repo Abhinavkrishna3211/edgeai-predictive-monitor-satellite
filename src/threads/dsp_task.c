@@ -130,7 +130,7 @@ static void dsp_task_fn(void *arg)
 
     float   last_rms      = 0.0f;
     float   last_crest    = 0.0f;
-    float   last_kurtosis = 3.0f;
+    float   last_kurtosis = 0.0f; /* excess/Fisher fallback, ADR-018 */
     float   last_dc       = 0.0f;
     uint8_t last_clip     = 0;
 

@@ -22,9 +22,10 @@ float epm_dsp_peak_abs(const float *x, int n);
 float epm_dsp_crest_factor(float peak, float rms);
 
 /**
- * Kurtosis = (sum4/n) / (sum_sq/n)^2, or `fallback` if the variance is too
- * small to divide by (matches the mic_task.c convention of leaving the
- * previous value in place rather than dividing by ~0).
+ * Excess/Fisher kurtosis (Gaussian ≈ 0.0, ADR-018) = (sum4/n)/(sum_sq/n)^2 - 3,
+ * or `fallback` if the variance is too small to divide by (matches the
+ * mic_task.c convention of leaving the previous value in place rather than
+ * dividing by ~0 — `fallback` must itself already be in excess terms).
  */
 float epm_dsp_kurtosis_from_sums(float sum_sq, float sum4, int n, float fallback);
 

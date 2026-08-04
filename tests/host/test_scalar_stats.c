@@ -41,26 +41,23 @@ static float mirror_crest(const float *x, int n, float rms)
     return (rms > 1e-8f) ? (peak / rms) : 0.0f;
 }
 
-/* Mirrors src/mic_task.c:129-138 (RAW/Pearson kurtosis = (Sum(x^4)/N) /
- * (Sum(x^2)/N)^2, fallback 3.0f when var <= 1e-12f -- matches mic_task.c:82's
- * last_kurtosis init value). NOTE: this is the RAW convention (Gaussian =~
- * 3.0), not excess/Fisher (Gaussian =~ 0). docs/MASTER_PLAN.md Part D's
- * wire-protocol doc documented the excess convention as an unverified draft;
- * ADR-014 resolved the discrepancy in favor of RAW/Pearson (the convention
- * mic_task.c already implements, and that src/threads/net_task.c's
- * independently-written synthetic placeholder already assumed) -- Part D's
- * row itself is corrected later, in Phase 4. */
+/* Mirrors src/mic_task.c:129-138 (excess/Fisher kurtosis = (Sum(x^4)/N) /
+ * (Sum(x^2)/N)^2 - 3, fallback 0.0f when var <= 1e-12f -- matches
+ * mic_task.c:82's last_kurtosis init value). ADR-018 reversed ADR-014:
+ * the reference's raw_features.py explicitly subtracts 3.0 ("# excess
+ * kurtosis") and shares fuser.cpp's on-device math, so excess/Fisher
+ * (Gaussian =~ 0) is the real wire convention, not RAW/Pearson. */
 static float mirror_kurtosis(const float *x, int n)
 {
     float sum_sq = 0.0f, sum4 = 0.0f;
     for (int i = 0; i < n; i++) sum_sq += x[i] * x[i];
     float var = sum_sq / (float)n;
-    if (var <= 1e-12f) return 3.0f;
+    if (var <= 1e-12f) return 0.0f;
     for (int i = 0; i < n; i++) {
         float x2 = x[i] * x[i];
         sum4 += x2 * x2;
     }
-    return (sum4 / (float)n) / (var * var);
+    return (sum4 / (float)n) / (var * var) - 3.0f;
 }
 
 /* Deterministic splitmix64 PRNG -- no libc rand()/srand() dependency, so
@@ -127,21 +124,21 @@ static void test_square_crest_factor(void)
     test_report("square_crest_factor", ok, EXPECT_PASS, detail);
 }
 
-static void test_gaussian_kurtosis_raw_convention(void)
+static void test_gaussian_kurtosis_excess_convention(void)
 {
     static float x[20000];
     fill_gaussian(x, 20000, 0xA53Cu);
     float k = mirror_kurtosis(x, 20000);
-    /* Sampling std-error of raw kurtosis ~= sqrt(24/N) ~= 0.035 at N=20000;
+    /* Sampling std-error of excess kurtosis ~= sqrt(24/N) ~= 0.035 at N=20000;
      * +-0.15 is ~4x that margin, chosen during planning against an
-     * independent PRNG run that converged to ~3.02 at both N=20000 and
+     * independent PRNG run that converged to ~0.02 at both N=20000 and
      * N=100000, to avoid flakiness from PRNG-specific variance. */
     char detail[160];
     snprintf(detail, sizeof(detail),
-              "kurtosis=%.4f (want ~3.0, RAW/Pearson convention -- ADR-014 confirms this is "
-              "the firmware's actual wire convention, not Part D's draft excess/Fisher)", k);
-    int ok = fabsf(k - 3.0f) < 0.15f;
-    test_report("gaussian_kurtosis_raw_convention", ok, EXPECT_PASS, detail);
+              "kurtosis=%.4f (want ~0.0, excess/Fisher convention -- ADR-018 confirms this is "
+              "the firmware's actual wire convention, reversing ADR-014's RAW/Pearson choice)", k);
+    int ok = fabsf(k - 0.0f) < 0.15f;
+    test_report("gaussian_kurtosis_excess_convention", ok, EXPECT_PASS, detail);
 }
 
 static void test_silence_fallback_defaults(void)
@@ -151,9 +148,9 @@ static void test_silence_fallback_defaults(void)
     float crest = mirror_crest(x, TEST_N, rms);
     float k = mirror_kurtosis(x, TEST_N);
     char detail[128];
-    snprintf(detail, sizeof(detail), "rms=%.6f crest=%.6f (want 0.0) kurtosis=%.6f (want 3.0)",
+    snprintf(detail, sizeof(detail), "rms=%.6f crest=%.6f (want 0.0) kurtosis=%.6f (want 0.0)",
               rms, crest, k);
-    int ok = (crest == 0.0f) && (k == 3.0f);
+    int ok = (crest == 0.0f) && (k == 0.0f);
     test_report("silence_fallback_defaults", ok, EXPECT_PASS, detail);
 }
 
@@ -161,7 +158,7 @@ int main(void)
 {
     test_sine_crest_factor();
     test_square_crest_factor();
-    test_gaussian_kurtosis_raw_convention();
+    test_gaussian_kurtosis_excess_convention();
     test_silence_fallback_defaults();
     return test_summary();
 }

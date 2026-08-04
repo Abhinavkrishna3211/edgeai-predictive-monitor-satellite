@@ -1,7 +1,7 @@
 ---
 id: ADR-014
 title: Kurtosis wire convention is RAW/Pearson, not excess/Fisher
-status: accepted
+status: superseded by ADR-018
 date: 2026-08-04
 deciders: Abhinav Krishna N
 ---

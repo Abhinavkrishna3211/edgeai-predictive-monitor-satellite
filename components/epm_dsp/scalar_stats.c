@@ -26,7 +26,7 @@ float epm_dsp_kurtosis_from_sums(float sum_sq, float sum4, int n, float fallback
 {
     float var = sum_sq / (float)n;
     if (var > 1e-12f) {
-        return (sum4 / (float)n) / (var * var);
+        return (sum4 / (float)n) / (var * var) - 3.0f; /* excess/Fisher, ADR-018 */
     }
     return fallback;
 }

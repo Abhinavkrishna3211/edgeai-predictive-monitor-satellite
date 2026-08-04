@@ -202,7 +202,7 @@ typedef struct {
     float    fft_db[FFT_MIC_N / 2]; /* averaged power spectrum in dBFS         */
     float    rms;                    /* RMS of AC (DC-removed) block            */
     float    crest;                  /* peak/RMS — impulse fault indicator      */
-    float    kurtosis;               /* 4th moment / variance^2 — ISO bearing   */
+    float    kurtosis;               /* excess/Fisher, ADR-018 (Gaussian ≈ 0)   */
     float    dc;                     /* DC offset of last block                 */
     float    spectral_centroid;      /* Σ(f_i·P_i)/Σ(P_i) Hz — texture metric  */
     uint8_t  clip;                   /* 1 if any sample hit full-scale          */

@@ -7,7 +7,7 @@
  *   3. Time-domain stats via ESP-DSP SIMD:
  *      RMS    : dsps_dotprod_f32(s_norm, s_norm)  → sqrt(·/N)
  *      Crest  : fabsf() scalar loop → peak/RMS  (dsps_abs_f32 absent in this ESP-DSP release)
- *      Kurtosis: dsps_mul_f32(s_norm,s_norm) → dsps_dotprod_f32 → (Σx⁴/N)/(var²)
+ *      Kurtosis: dsps_mul_f32(s_norm,s_norm) → dsps_dotprod_f32 → (Σx⁴/N)/(var²) - 3 (excess, ADR-018)
  *   4. Post raw_mic_block_t to ring buffer for dsp_task (core 1)
  *
  * HW-OPT: esp_ringbuf zero-copy handoff — dsp_task receives a pointer into
@@ -81,7 +81,7 @@ static void mic_task_fn(void *arg)
 
     float   last_rms      = 0.0f;
     float   last_crest    = 0.0f;
-    float   last_kurtosis = 3.0f;
+    float   last_kurtosis = 0.0f; /* excess/Fisher fallback, ADR-018 */
     float   last_dc       = 0.0f;
     uint8_t last_clip     = 0;
 
