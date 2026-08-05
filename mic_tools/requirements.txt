@@ -57,9 +57,9 @@ zeroconf>=0.131.0
 # Dashboard is stdlib http.server (_DashHandler / HTTPServer in recv_verify.py) —
 # no Flask/app.route usage anywhere. Nothing to install here.
 
-# ── MQTT ingestion (Phase 8a — mqtt_ingest.py, --mqtt-host) ──────────────────
+# ── MQTT ingestion (Phase 8a — gateway/ingestion/mqtt_subscriber.py, --mqtt-host)
 # paho-mqtt 2.x's Client() constructor requires the CallbackAPIVersion arg
-# mqtt_ingest.py passes; 1.x is not compatible.
+# mqtt_subscriber.py passes; 1.x is not compatible.
 paho-mqtt>=2.1.0
 
 # ── Optional: serial port (legacy plot_mic.py) ────────────────────────────────

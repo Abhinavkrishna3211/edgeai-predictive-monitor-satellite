@@ -1,12 +1,15 @@
-"""
-MQTT ingestion adapter for the section-list wire format (Phase 8a, Task 4).
+"""gateway/ingestion/mqtt_subscriber.py — MQTT ingestion adapter for the
+section-list wire format (Phase 8a, Task 4; moved from mic_tools/mqtt_ingest.py
+in Phase 8b3 task 1 — relocation + the _open_csv_for_node fix below, no other
+behavior change).
 
 Subscribes to `epm/+/data` over paho-mqtt (QoS 0, matching the firmware's
 publish side), decodes each message with `telemetry_frame.decode_frame()`,
 adapts the result into the exact frame-dict shape `recv_verify.parse_frame()`
-already produces, and feeds it into `recv_verify._process_satellite_frame()`
--- the same per-frame pipeline (alerting, HST/RUL/fusion, CSV logging,
-dashboard state) the TCP+AES path uses. See PHASE_8A_PROMPT.md Tasks 2/4.
+(now `gateway.ingestion.tcp_legacy.parse_frame()`) already produces, and feeds
+it into `recv_verify._process_satellite_frame()` -- the same per-frame
+pipeline (alerting, HST/RUL/fusion, CSV logging, dashboard state) the TCP+AES
+path uses. See PHASE_8A_PROMPT.md Tasks 2/4.
 
 Modeled on the reference-repo maintainer's edgeai-predictive-monitor @
 base-station/python/ingestion/mqtt_subscriber.py (paho v2 callback API,
@@ -42,22 +45,25 @@ silently guessed (see PHASE_8A_PROMPT.md Task 4):
 
   overflow_count: no wire equivalent (no I2S-overflow scalar in
   telemetry_schema.SCALAR_ID_BY_NAME) -- always 0 for MQTT-sourced frames.
+
+`_open_csv_for_node()` resolves its logs/ directory from the `rv_module`
+passed into `MqttIngestor` (`rv_module._BASE_DIR`, i.e. recv_verify.py's own
+directory) rather than this file's own `__file__` — this module now lives in
+gateway/ingestion/, whose directory is not where mic_tools/logs/ belongs;
+a bare `__file__`-relative path here (as the pre-move version used, back when
+this file and recv_verify.py were siblings in mic_tools/) would silently
+write logs under gateway/ingestion/logs/ instead.
 """
 import csv
 import datetime
 import logging
 import math
 import os
-import sys
 import threading
 import time
 
 import numpy as np
 import paho.mqtt.client as mqtt
-
-# Repo root on sys.path so `from gateway.common import ...` resolves when
-# this file is imported/run standalone from within mic_tools/.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gateway.common.telemetry_frame as telemetry_frame
 import gateway.common.telemetry_schema as schema
@@ -113,12 +119,12 @@ def decoded_to_frame_dict(decoded: "telemetry_frame.DecodedFrame",
     return frame
 
 
-def _open_csv_for_node(node_id: str):
-    """Mirrors satellite_thread's CSV setup (recv_verify.py) for a synthetic
-    `sat-<node_id>` name -- one file per node, appended across process
-    restarts, dated subdirectory layout for the existing rotation job."""
+def _open_csv_for_node(node_id: str, rv_module):
+    """Mirrors satellite_thread's CSV setup (gateway/ingestion/tcp_legacy.py)
+    for a synthetic `sat-<node_id>` name -- one file per node, appended across
+    process restarts, dated subdirectory layout for the existing rotation job."""
     name     = f"sat-{node_id}"
-    log_dir  = os.path.join(os.path.dirname(__file__), 'logs')
+    log_dir  = os.path.join(rv_module._BASE_DIR, 'logs')
     now_dt   = datetime.datetime.now()
     csv_dir  = os.path.join(log_dir, 'csv', now_dt.strftime('%Y'), now_dt.strftime('%m'))
     os.makedirs(csv_dir, exist_ok=True)
@@ -212,7 +218,7 @@ class MqttIngestor:
             if node is None:
                 sat = rv._sat_register(node_id, f"sat-{node_id}", None, None,
                                        (self._host, self._port))
-                csv_w, csv_f = _open_csv_for_node(node_id)
+                csv_w, csv_f = _open_csv_for_node(node_id, rv)
                 node = _NodeState(csv_w, csv_f, rv.EPM_ALERT_OK)
                 self._nodes[node_id] = node
                 print(f"\n[+] Satellite registered (MQTT): {sat.name}  node_id={node_id}")
