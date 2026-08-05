@@ -43,6 +43,15 @@ target_include_directories(test_hann_window PRIVATE ${HANN_INC})
 target_link_libraries(test_hann_window PRIVATE m)
 target_compile_options(test_hann_window PRIVATE -Wall -Wextra)
 
+# ── spectrum reduction test — links the real components/epm_dsp/spectrum.c ─
+add_executable(test_spectrum
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_spectrum.c
+    ${REPO_ROOT}/components/epm_dsp/spectrum.c
+)
+target_include_directories(test_spectrum PRIVATE ${REPO_ROOT}/components/epm_dsp/include)
+target_link_libraries(test_spectrum PRIVATE m)
+target_compile_options(test_spectrum PRIVATE -Wall -Wextra)
+
 # ── Existing frame_encode test — wired in unmodified; its own raw-gcc
 #    one-liner documented in its header comment still works standalone ─────
 add_executable(test_frame_encode
@@ -57,3 +66,4 @@ enable_testing()
 add_test(NAME scalar_stats COMMAND test_scalar_stats)
 add_test(NAME hann_window  COMMAND test_hann_window)
 add_test(NAME frame_encode COMMAND test_frame_encode WORKING_DIRECTORY ${REPO_ROOT})
+add_test(NAME spectrum     COMMAND test_spectrum)

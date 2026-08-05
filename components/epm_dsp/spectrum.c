@@ -28,3 +28,25 @@ void epm_dsp_power_to_db(float *pwr_acc, float *mag_db_out, int half_n, float in
     }
     mag_db_out[0] = -120.0f;   /* DC bin */
 }
+
+int epm_dsp_reduce_bins(const float *in_db, int in_n, float *out_db, int out_n)
+{
+    if (in_n <= 0 || out_n <= 0 || out_n > in_n || in_n % out_n != 0) {
+        return -1;
+    }
+
+    int band = in_n / out_n;
+
+    for (int i = 0; i < out_n; i++) {
+        float pwr_sum = 0.0f;
+
+        for (int j = 0; j < band; j++) {
+            pwr_sum += powf(10.0f, in_db[i * band + j] / 10.0f);
+        }
+
+        float avg_pwr = pwr_sum / (float)band;
+        out_db[i]     = 10.0f * log10f(avg_pwr + 1e-12f);
+    }
+
+    return 0;
+}
