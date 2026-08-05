@@ -151,6 +151,13 @@ static int16_t s_stage_y[KX134_STAGE_MAX_SAMPLES];
 static int16_t s_stage_z[KX134_STAGE_MAX_SAMPLES];
 static size_t  s_stage_n = 0;
 
+/* Per-burst frame-decode scratch, copied out of s_burst_buf by
+ * kx134_read_regs(). File-scope, not a kx134_fill_epoch() local: this
+ * driver is only ever called from imu_task's stack (docs/IMU_TASK_STACK_
+ * OVERFLOW_FIX_PROMPT.md), and a 516-byte array here was silently eating
+ * into that task's stack budget on every FIFO burst. */
+static uint8_t s_raw_frame_buf[KX134_FIFO_MAX_FRAMES * KX134_FIFO_BYTES_PER_FRAME];
+
 static IRAM_ATTR void kx134_int1_isr(void *arg)
 {
     (void)arg;
@@ -323,8 +330,7 @@ static int kx134_fill_epoch(float *out_x, size_t want)
         if (frames > want - s_stage_n) frames = want - s_stage_n;
         if (frames == 0) continue;
 
-        uint8_t raw[KX134_FIFO_MAX_FRAMES * KX134_FIFO_BYTES_PER_FRAME];
-        if (kx134_read_regs(KX134_REG_BUF_READ, raw, frames * KX134_FIFO_BYTES_PER_FRAME) != ESP_OK) {
+        if (kx134_read_regs(KX134_REG_BUF_READ, s_raw_frame_buf, frames * KX134_FIFO_BYTES_PER_FRAME) != ESP_OK) {
             return -EIO;
         }
 
@@ -333,7 +339,7 @@ static int kx134_fill_epoch(float *out_x, size_t want)
          * hal_accel.h requires g-units (the reference passes raw counts
          * through unconverted — that conversion has no source to port). */
         for (size_t i = 0; i < frames; i++) {
-            const uint8_t *p = &raw[i * KX134_FIFO_BYTES_PER_FRAME];
+            const uint8_t *p = &s_raw_frame_buf[i * KX134_FIFO_BYTES_PER_FRAME];
             int16_t x = (int16_t)(p[0] | (p[1] << 8));
             int16_t y = (int16_t)(p[2] | (p[3] << 8));
             int16_t z = (int16_t)(p[4] | (p[5] << 8));

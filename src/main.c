@@ -7,7 +7,7 @@
  *   ┌────────────────────────────────────────────────────────┐
  *   │ net_task         priority 4   stack 4096  (MQTT publish)│
  *   │ mic_task         priority 5   stack 8192  (I2S DMA)    │
- *   │ imu_task         priority 3   stack 3072  (SPI DMA)    │
+ *   │ imu_task         priority 3   stack 4096  (SPI DMA)    │
  *   │ diagnostics_task priority 1   stack 3072  (health mon) │
  *   └────────────────────────────────────────────────────────┘
  *
@@ -55,6 +55,7 @@ typedef struct {
     TaskHandle_t h_mic;
     TaskHandle_t h_dsp;
     TaskHandle_t h_rgb;
+    TaskHandle_t h_imu;
 } diag_args_t;
 
 static diag_args_t s_diag_args;
@@ -69,10 +70,11 @@ static void diagnostics_task_fn(void *arg)
 
         /* Stack watermarks — minimum ever-free bytes (IDF 5.x returns bytes).
          * A value approaching 0 signals an imminent stack overflow. */
-        ESP_LOGI("DIAG", "Stack HWM (bytes free): mic=%lu dsp=%lu rgb=%lu diag=%lu",
+        ESP_LOGI("DIAG", "Stack HWM (bytes free): mic=%lu dsp=%lu rgb=%lu imu=%lu diag=%lu",
             (unsigned long)uxTaskGetStackHighWaterMark(a->h_mic),
             (unsigned long)uxTaskGetStackHighWaterMark(a->h_dsp),
             (unsigned long)uxTaskGetStackHighWaterMark(a->h_rgb),
+            (unsigned long)uxTaskGetStackHighWaterMark(a->h_imu),
             (unsigned long)uxTaskGetStackHighWaterMark(h_diag));
 
         /* CPU runtime statistics — only compiled when the SMP FreeRTOS scheduler
@@ -170,6 +172,7 @@ void app_main(void)
     s_diag_args.h_mic  = mic_task_get_handle();
     s_diag_args.h_dsp  = dsp_task_get_handle();
     s_diag_args.h_rgb  = led_task_get_handle();
+    s_diag_args.h_imu  = imu_task_get_handle();
 
     static TaskHandle_t h_diag = NULL;
     xTaskCreatePinnedToCore(diagnostics_task_fn, "diag", TASK_STACK_DIAG,

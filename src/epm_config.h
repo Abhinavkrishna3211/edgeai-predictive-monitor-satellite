@@ -110,15 +110,27 @@
  *   mic=8192  (spec 4096) — float kurtosis buffers on task stack safety margin
  *   dsp=6144  (HWM 2004) — FFT compute on core 1; was 16384 but 93% wasted;
  *                          6144 = 3× measured peak; saves 10240 bytes of heap
- *   imu=3072  (HWM 968)  — 3-axis FFT stub; was 8192 but 88% wasted;
- *                          3072 = 3× measured peak; saves 5120 bytes of heap
+ *   imu=4096  (HWM 568 on real hardware, real KX134 driver, 3072-byte stack)
+ *              — the 3072 value dated from a pre-Phase-3.5 measurement of the
+ *              stub-only imu_task (HWM 968 on an 8192 stack, i.e. ~2104 bytes
+ *              peak) and was never re-measured after the real KX134 SPI
+ *              driver (components/epm_drivers/accel_kx134_spi.c) landed.
+ *              That driver also had a 516-byte `raw` FIFO-frame buffer
+ *              declared *inside* kx134_fill_epoch() -- a genuine stack-local
+ *              bug, not just legitimate stack growth -- which combined with
+ *              the stale 3072 sizing to leave only 72-152 bytes of headroom
+ *              and caused two observed stack-overflow reboots (see
+ *              docs/IMU_TASK_STACK_OVERFLOW_FIX_PROMPT.md). Fixed by moving
+ *              that buffer to file scope (s_raw_frame_buf); re-measured real
+ *              peak usage afterward is 3072-568=2504 bytes. 4096 = measured
+ *              peak + ~63% margin, matching net_task's existing stack size.
  *   net=4096  — esp-mqtt publish loop; receive destinations are file-scope
  *               statics (ADR-021), not stack, so this stays small
  *   diag=3072 (spec 3072) — only vTaskGetRunTimeStats 1024-byte static buffer
  */
 #define TASK_STACK_MIC   8192
 #define TASK_STACK_DSP   6144
-#define TASK_STACK_IMU   3072
+#define TASK_STACK_IMU   4096
 #define TASK_STACK_DIAG  3072
 #define TASK_STACK_NET   4096  /* net_task: blocks on WiFi, then esp-mqtt publish loop */
 
