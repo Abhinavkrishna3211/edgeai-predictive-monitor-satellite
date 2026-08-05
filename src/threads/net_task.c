@@ -1,32 +1,37 @@
 /*
- * net_task.c — MQTT telemetry publish loop (Phase 0.5).
+ * net_task.c — MQTT telemetry publish loop (Phase 0.5, real data since 6c).
  *
  * Blocks on tcp_task.h's wifi_wait_connected() (WiFi STA bring-up stays
  * owned by tcp_task.c — see docs/decisions/ADR-011-mqtt-transport-added.md),
  * then starts the MQTT link (components/epm_drivers/link_mqtt.c) and
  * publishes one section-list telemetry frame
  * (components/epm_codec/include/frame_codec/spectrum_codec.h) every
- * EPM_NET_PUBLISH_INTERVAL_MS.
+ * EPM_NET_PUBLISH_INTERVAL_MS, built from real mic/IMU FFT output delivered
+ * via the net-side queues (dsp_task_get_net_queue()/imu_task_get_net_queue(),
+ * ADR-021) — a second consumer of each producer's output, parallel to
+ * tcp_task.c's own queues, added specifically so this task never races
+ * tcp_task.c for the same buffered item.
  *
- * The frame's bins/scalars are synthetic this phase — a slow-moving,
- * non-zero shape so the base station's dashboard chart is visibly alive.
- * Real mic/accel data replaces them in Phase 6; only the channel layout
- * (mic + accel_x/y/z spectra + one PERF scalar set) needs to stay fixed,
- * since the base station's registry commits sensor_config/input_dim from
- * this node's first frame and silently drops any later frame that doesn't
- * match it exactly.
+ * No frame is published until both queues have delivered at least one real
+ * frame (docs/BASE_STATION_CONTRACT.md line 24: a present, real-bin_count,
+ * all-zero channel reads as genuine silence to the model, not "no data
+ * yet" — zero-filling before real data exists would be indistinguishable
+ * from that). Once both sides have delivered once, every tick publishes
+ * whatever is currently cached, refreshed opportunistically each tick.
  */
 
 #include "threads/net_task.h"
 
 #include <errno.h>
-#include <math.h>
 
+#include "esp_attr.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+#include "dsp/spectrum.h"
+#include "frame_codec/scalar_map.h"
 #include "frame_codec/spectrum_codec.h"
 #include "frame_codec/telemetry_schema.h"
 #include "hal/hal_transport.h"
@@ -47,83 +52,90 @@ typedef struct {
 
 static net_task_args_t s_task_args;
 
-/* Fills bins[0..n) with a decaying-ramp shape plus a slow-moving Gaussian
- * peak so consecutive frames visibly differ on the dashboard's spectrum
- * plot without needing real DSP input yet. */
-static void fill_synthetic_bins(float *bins, size_t n, uint32_t phase)
+/* Cached last-received frames. mic_frame_t (~2.1 KB) and imu_frame_t
+ * (~12.4 KB) are both too large for TASK_STACK_NET (4096 B), so
+ * xQueueReceive() always writes directly into these file-scope statics,
+ * never a stack temporary (mirrors tcp_task.c's own s_mic/s_imu receive
+ * buffers). EXT_RAM_BSS_ATTR places them in PSRAM — the same placement
+ * already used for this size class (dsp_task.c's s_mag_db, imu_task.c's
+ * s_frame) — to protect the tight internal-DRAM heap margin
+ * docs/decisions/ADR-020-bin-count-downsampled-not-buffer-enlarged.md
+ * documents. xQueueReceive has no DMA constraint on this path (unlike the
+ * KX134 FIFO buffer), so writing into PSRAM here is safe. */
+static EXT_RAM_BSS_ATTR mic_frame_t s_last_mic;
+static EXT_RAM_BSS_ATTR imu_frame_t s_last_imu;
+static bool s_have_mic = false;
+static bool s_have_imu = false;
+
+/* Reduced (EPM_MODEL_SPECTRUM_BINS-wide) spectra, rebuilt each publish tick.
+ * Small enough to stay plain internal DRAM. */
+static float s_mic_bins[EPM_MODEL_SPECTRUM_BINS];
+static float s_accel_x_bins[EPM_MODEL_SPECTRUM_BINS];
+static float s_accel_y_bins[EPM_MODEL_SPECTRUM_BINS];
+static float s_accel_z_bins[EPM_MODEL_SPECTRUM_BINS];
+
+static uint8_t frame_buf[EPM_NET_FRAME_BUF_BYTES];
+
+/* Builds the 5-section frame (4 SPECTRUM + 1 SCALAR_SET) from the currently
+ * cached s_last_mic/s_last_imu. Returns the encoded length, or 0 if
+ * out_buf_size is too small or a bin-reduction call fails
+ * (telemetry_build_frame()'s / epm_dsp_reduce_bins()'s convention). */
+static size_t build_real_frame(uint8_t *out_buf, size_t out_buf_size)
 {
-	float peak_pos = (float)(phase % n);
-
-	for (size_t i = 0; i < n; i++) {
-		float decay = expf(-(float)i / ((float)n * 0.25f));
-		float dist = (float)i - peak_pos;
-		float peak = expf(-(dist * dist) / (2.0f * 4.0f * 4.0f));
-
-		bins[i] = 0.05f * decay + 0.5f * peak;
+	if (epm_dsp_reduce_bins(s_last_mic.fft_db, FFT_MIC_N / 2, s_mic_bins, EPM_MODEL_SPECTRUM_BINS) != 0 ||
+	    epm_dsp_reduce_bins(s_last_imu.fft_x, FFT_IMU_N / 2, s_accel_x_bins, EPM_MODEL_SPECTRUM_BINS) != 0 ||
+	    epm_dsp_reduce_bins(s_last_imu.fft_y, FFT_IMU_N / 2, s_accel_y_bins, EPM_MODEL_SPECTRUM_BINS) != 0 ||
+	    epm_dsp_reduce_bins(s_last_imu.fft_z, FFT_IMU_N / 2, s_accel_z_bins, EPM_MODEL_SPECTRUM_BINS) != 0) {
+		ESP_LOGE(TAG, "epm_dsp_reduce_bins failed");
+		return 0;
 	}
-}
-
-/* One axis' 6 scalars (rms, kurtosis, std, peak, crest_factor, skewness),
- * ids id_base..id_base+5 — TELEM_SCALAR_RMS_X..SKEWNESS_X and its Y/Z/MIC
- * siblings are each 6 consecutive ids in exactly this order
- * (components/epm_codec/include/frame_codec/telemetry_schema.h). */
-static void fill_axis_scalars(struct scalar_entry *entries, uint16_t id_base, uint32_t phase)
-{
-	float wobble = 0.01f * sinf((float)phase * 0.05f);
-
-	entries[0] = (struct scalar_entry){.id = (uint16_t)(id_base + 0), .value = 0.10f + wobble};
-	entries[1] = (struct scalar_entry){.id = (uint16_t)(id_base + 1), .value = 3.00f};
-	entries[2] = (struct scalar_entry){.id = (uint16_t)(id_base + 2), .value = 0.10f + wobble};
-	entries[3] = (struct scalar_entry){.id = (uint16_t)(id_base + 3), .value = 0.40f};
-	entries[4] = (struct scalar_entry){.id = (uint16_t)(id_base + 4), .value = 4.00f};
-	entries[5] = (struct scalar_entry){.id = (uint16_t)(id_base + 5), .value = 0.00f};
-}
-
-/* Builds the 5-section frame (4 SPECTRUM + 1 SCALAR_SET) that commits this
- * node's sensor_config = {mic, accel_x, accel_y, accel_z}, input_dim = 536
- * on the base station's registry. Returns the encoded length, or 0 if
- * out_buf_size is too small (telemetry_build_frame()'s convention). */
-static size_t build_synthetic_frame(uint8_t *out_buf, size_t out_buf_size, uint32_t phase)
-{
-	static float mic_bins[EPM_MODEL_SPECTRUM_BINS];
-	static float accel_x_bins[EPM_MODEL_SPECTRUM_BINS];
-	static float accel_y_bins[EPM_MODEL_SPECTRUM_BINS];
-	static float accel_z_bins[EPM_MODEL_SPECTRUM_BINS];
-
-	fill_synthetic_bins(mic_bins, EPM_MODEL_SPECTRUM_BINS, phase);
-	fill_synthetic_bins(accel_x_bins, EPM_MODEL_SPECTRUM_BINS, phase + 7);
-	fill_synthetic_bins(accel_y_bins, EPM_MODEL_SPECTRUM_BINS, phase + 13);
-	fill_synthetic_bins(accel_z_bins, EPM_MODEL_SPECTRUM_BINS, phase + 19);
 
 	struct spectrum_channel channels[4] = {
 		{.channel_id = TELEM_CHANNEL_MIC,
-		 .fs = EPM_MIC_FS_HZ,
-		 .fft_size = EPM_MIC_FFT_SIZE,
+		 .fs = (float)MIC_FS_HZ,
+		 .fft_size = (uint16_t)FFT_MIC_N,
 		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
-		 .bins = mic_bins},
+		 .bins = s_mic_bins},
 		{.channel_id = TELEM_CHANNEL_ACCEL_X,
-		 .fs = EPM_ACCEL_FS_HZ,
-		 .fft_size = EPM_ACCEL_FFT_SIZE,
+		 .fs = (float)IMU_FS_HZ,
+		 .fft_size = (uint16_t)FFT_IMU_N,
 		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
-		 .bins = accel_x_bins},
+		 .bins = s_accel_x_bins},
 		{.channel_id = TELEM_CHANNEL_ACCEL_Y,
-		 .fs = EPM_ACCEL_FS_HZ,
-		 .fft_size = EPM_ACCEL_FFT_SIZE,
+		 .fs = (float)IMU_FS_HZ,
+		 .fft_size = (uint16_t)FFT_IMU_N,
 		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
-		 .bins = accel_y_bins},
+		 .bins = s_accel_y_bins},
 		{.channel_id = TELEM_CHANNEL_ACCEL_Z,
-		 .fs = EPM_ACCEL_FS_HZ,
-		 .fft_size = EPM_ACCEL_FFT_SIZE,
+		 .fs = (float)IMU_FS_HZ,
+		 .fft_size = (uint16_t)FFT_IMU_N,
 		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
-		 .bins = accel_z_bins},
+		 .bins = s_accel_z_bins},
+	};
+
+	struct axis_scalars sc_x = {
+		.rms = s_last_imu.rms_x, .kurtosis = s_last_imu.kurtosis_x, .std = s_last_imu.std_x,
+		.peak = s_last_imu.peak_x, .crest = s_last_imu.crest_x, .skewness = s_last_imu.skewness_x,
+	};
+	struct axis_scalars sc_y = {
+		.rms = s_last_imu.rms_y, .kurtosis = s_last_imu.kurtosis_y, .std = s_last_imu.std_y,
+		.peak = s_last_imu.peak_y, .crest = s_last_imu.crest_y, .skewness = s_last_imu.skewness_y,
+	};
+	struct axis_scalars sc_z = {
+		.rms = s_last_imu.rms_z, .kurtosis = s_last_imu.kurtosis_z, .std = s_last_imu.std_z,
+		.peak = s_last_imu.peak_z, .crest = s_last_imu.crest_z, .skewness = s_last_imu.skewness_z,
+	};
+	struct axis_scalars sc_mic = {
+		.rms = s_last_mic.rms, .kurtosis = s_last_mic.kurtosis, .std = s_last_mic.std,
+		.peak = s_last_mic.peak, .crest = s_last_mic.crest, .skewness = s_last_mic.skewness,
 	};
 
 	struct scalar_entry scalars[24];
 
-	fill_axis_scalars(&scalars[0], TELEM_SCALAR_RMS_X, phase);
-	fill_axis_scalars(&scalars[6], TELEM_SCALAR_RMS_Y, phase);
-	fill_axis_scalars(&scalars[12], TELEM_SCALAR_RMS_Z, phase);
-	fill_axis_scalars(&scalars[18], TELEM_SCALAR_RMS_MIC, phase);
+	scalar_map_build_axis(&sc_x, TELEM_SCALAR_RMS_X, &scalars[0]);
+	scalar_map_build_axis(&sc_y, TELEM_SCALAR_RMS_Y, &scalars[6]);
+	scalar_map_build_axis(&sc_z, TELEM_SCALAR_RMS_Z, &scalars[12]);
+	scalar_map_build_axis(&sc_mic, TELEM_SCALAR_RMS_MIC, &scalars[18]);
 
 	return telemetry_build_frame(channels, 4, scalars, 24, out_buf, out_buf_size);
 }
@@ -133,8 +145,6 @@ static void net_task_fn(void *arg)
 	net_task_args_t *args = (net_task_args_t *)arg;
 	QueueHandle_t mic_q = args->mic_q;
 	QueueHandle_t imu_q = args->imu_q;
-	(void)mic_q; /* wired into the publish loop in Task 1 */
-	(void)imu_q;
 
 	wifi_wait_connected(portMAX_DELAY);
 
@@ -144,11 +154,20 @@ static void net_task_fn(void *arg)
 		ESP_LOGE(TAG, "link_mqtt_start failed: %d", rc);
 	}
 
-	static uint8_t frame_buf[EPM_NET_FRAME_BUF_BYTES];
-	uint32_t phase = 0;
-
 	while (1) {
-		size_t len = build_synthetic_frame(frame_buf, sizeof(frame_buf), phase++);
+		if (xQueueReceive(mic_q, &s_last_mic, 0) == pdTRUE) {
+			s_have_mic = true;
+		}
+		if (xQueueReceive(imu_q, &s_last_imu, 0) == pdTRUE) {
+			s_have_imu = true;
+		}
+
+		if (!s_have_mic || !s_have_imu) {
+			vTaskDelay(pdMS_TO_TICKS(EPM_NET_PUBLISH_INTERVAL_MS));
+			continue;
+		}
+
+		size_t len = build_real_frame(frame_buf, sizeof(frame_buf));
 
 		if (len == 0) {
 			ESP_LOGE(TAG, "frame build failed (buffer too small?)");

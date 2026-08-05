@@ -76,26 +76,10 @@
  * See docs/decisions/ADR-011-mqtt-transport-added.md. Broker host/port are
  * NOT here: they're private to components/epm_drivers/link_mqtt.c (this
  * header belongs to the main component only; the driver component must not
- * depend back on it — src already depends on epm_drivers). These are the
- * values src/threads/net_task.c needs to build the synthetic section-list
- * frame each publish cycle. */
+ * depend back on it — src already depends on epm_drivers). */
 
 #ifndef EPM_MODEL_SPECTRUM_BINS
-#define EPM_MODEL_SPECTRUM_BINS 128 /* bins per channel expected by the base station's model */
-#endif
-
-#ifndef EPM_MIC_FS_HZ
-#define EPM_MIC_FS_HZ    48000.0f
-#endif
-#ifndef EPM_MIC_FFT_SIZE
-#define EPM_MIC_FFT_SIZE 2048
-#endif
-
-#ifndef EPM_ACCEL_FS_HZ
-#define EPM_ACCEL_FS_HZ    6400.0f
-#endif
-#ifndef EPM_ACCEL_FFT_SIZE
-#define EPM_ACCEL_FFT_SIZE 1024
+#define EPM_MODEL_SPECTRUM_BINS 128 /* bins per channel epm_dsp_reduce_bins() reduces to (ADR-020) */
 #endif
 
 #ifndef EPM_NET_PUBLISH_INTERVAL_MS
@@ -103,7 +87,7 @@
 #endif
 
 #ifndef EPM_NET_FRAME_BUF_BYTES
-#define EPM_NET_FRAME_BUF_BYTES 4096 /* 5-section synthetic frame is 2251 B; ample headroom */
+#define EPM_NET_FRAME_BUF_BYTES 4096 /* 5-section frame at EPM_MODEL_SPECTRUM_BINS is 2251 B; ample headroom */
 #endif
 
 /* ─── Alert LED ──────────────────────────────────────────────────────────── */

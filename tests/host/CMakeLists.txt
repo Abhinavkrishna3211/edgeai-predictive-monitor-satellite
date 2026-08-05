@@ -62,8 +62,18 @@ add_executable(test_frame_encode
 target_include_directories(test_frame_encode PRIVATE ${REPO_ROOT}/components/epm_codec/include)
 target_link_libraries(test_frame_encode PRIVATE m)
 
+# ── scalar-mapping test — links the real components/epm_codec/scalar_map.c ─
+add_executable(test_scalar_map
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_scalar_map.c
+    ${REPO_ROOT}/components/epm_codec/scalar_map.c
+)
+target_include_directories(test_scalar_map PRIVATE ${REPO_ROOT}/components/epm_codec/include)
+target_link_libraries(test_scalar_map PRIVATE m)
+target_compile_options(test_scalar_map PRIVATE -Wall -Wextra)
+
 enable_testing()
 add_test(NAME scalar_stats COMMAND test_scalar_stats)
 add_test(NAME hann_window  COMMAND test_hann_window)
 add_test(NAME frame_encode COMMAND test_frame_encode WORKING_DIRECTORY ${REPO_ROOT})
 add_test(NAME spectrum     COMMAND test_spectrum)
+add_test(NAME scalar_map   COMMAND test_scalar_map)
