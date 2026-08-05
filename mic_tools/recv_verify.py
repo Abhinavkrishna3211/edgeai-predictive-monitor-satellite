@@ -127,6 +127,8 @@ from gateway.registry.baselines import (
     _save_rul_state, _load_rul_state,
     _sat_update_baseline, _recompute_z_baseline,
 )
+from gateway.pipeline.adaptive_control import _adaptive_overlap, _adaptive_avg_n
+
 # Optional: AES-128-GCM frame decryption (cryptography>=42.0.0)
 _CRYPTO_AVAILABLE = False
 try:
@@ -261,17 +263,9 @@ AB_WARMUP_FRAMES = 30    # warm-up length (matches CAL_FRAMES)
 AB_SAVE_INTERVAL = 1000  # persist baseline state every N healthy-frame updates
 
 # ─── Adaptive-sensing reply (EPM protocol v2) ─────────────────────────────────
+# _adaptive_overlap / _adaptive_avg_n are imported above from
+# gateway.pipeline.adaptive_control (Phase 8b1 task 3).
 EPM_PROTO_V2_MAGIC = 0xA2  # first byte of v2 reply — distinct from 0x00/0x01/0x02
-
-def _adaptive_overlap(p_fault: float) -> int:
-    if p_fault < 0.30: return 0
-    if p_fault < 0.70: return 50
-    return 75
-
-def _adaptive_avg_n(p_fault: float) -> int:
-    if p_fault < 0.30: return 8
-    if p_fault < 0.70: return 4
-    return 2
 
 
 def _write_led(channel: str, value: int) -> None:
