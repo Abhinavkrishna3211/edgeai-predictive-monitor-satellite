@@ -12,21 +12,12 @@ extern "C" {
 #endif
 
 /**
- * Returns the QueueHandle for imu_frame_t items.
- * Queue depth is 1 — the wifi_task reads via xQueueReceive;
+ * Returns the QueueHandle for imu_frame_t items (imu_task → net_task).
+ * Queue depth is 1 — net_task reads via xQueueReceive;
  * the imu_task posts via xQueueOverwrite so it never blocks.
  * Call AFTER imu_task_start().
  */
 QueueHandle_t imu_task_get_queue(void);
-
-/**
- * Returns the second QueueHandle for imu_frame_t items (imu_task → net_task),
- * a separate depth-1 queue exclusively for the MQTT publisher — imu_task's
- * primary queue above stays wired to wifi_task unchanged (ADR-021).
- * Queue depth is 1 — net_task reads; imu_task posts via xQueueOverwrite.
- * Call AFTER imu_task_start().
- */
-QueueHandle_t imu_task_get_net_queue(void);
 
 /**
  * Initialises the IMU (stub or real KX134 driver) and launches the

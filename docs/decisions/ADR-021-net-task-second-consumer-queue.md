@@ -115,3 +115,19 @@ cannot address PSRAM.
 
 `git diff --stat src/threads/tcp_task.c` empty. `tests/host/` full suite
 passes. `pio run -e xiao_esp32s3` clean.
+
+## Addendum (2026-08-05, Phase 7a)
+
+`tcp_task.c` — the other consumer this ADR's second queue existed to avoid
+racing — is deleted
+(`docs/decisions/ADR-023-transport-adrs-superseded.md`). `net_task.c` is now
+each producer's only reader, so the second queue this ADR added has no
+remaining purpose: `dsp_task.c`/`imu_task.c` are back to one queue each
+(`dsp_task_get_queue()`/`imu_task_get_queue()`, the pre-ADR-021 names,
+reused rather than keeping the `_net` suffix now that "net" is the only
+consumer left), one `xQueueCreate`, and one `xQueueOverwrite` per producer
+post — exactly Option A from this ADR's own "Options considered," now
+adopted after the fact rather than up front. The zero-fill / cache-last-tick
+behavior `net_task.c` implements around these queues (the bulk of this
+ADR's "Decision" section) is unaffected — it operates identically over a
+single queue.

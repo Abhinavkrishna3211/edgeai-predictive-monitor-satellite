@@ -2,15 +2,16 @@
  * net_task.c — MQTT telemetry publish loop (Phase 0.5, real data since 6c).
  *
  * Blocks on wifi_task.h's wifi_wait_connected() (WiFi STA bring-up lives in
- * threads/wifi_task.c — see docs/decisions/ADR-022-wifi-task-revived.md),
- * then starts the MQTT link (components/epm_drivers/link_mqtt.c) and
+ * threads/wifi_task.c — see docs/decisions/ADR-022-wifi-task-revived.md and
+ * docs/decisions/ADR-023-transport-adrs-superseded.md), then starts the
+ * MQTT link (components/epm_drivers/link_mqtt.c) and
  * publishes one section-list telemetry frame
  * (components/epm_codec/include/frame_codec/spectrum_codec.h) every
  * EPM_NET_PUBLISH_INTERVAL_MS, built from real mic/IMU FFT output delivered
- * via the net-side queues (dsp_task_get_net_queue()/imu_task_get_net_queue(),
- * ADR-021) — a second consumer of each producer's output, parallel to
- * tcp_task.c's own queues, added specifically so this task never races
- * tcp_task.c for the same buffered item.
+ * via dsp_task_get_queue()/imu_task_get_queue() — this task is each
+ * producer's sole consumer (see docs/decisions/ADR-021-net-task-second-consumer-queue.md's
+ * addendum: the second-queue split it introduced collapsed back to one
+ * queue per producer once tcp_task.c, the other consumer, was deleted).
  *
  * No frame is published until both queues have delivered at least one real
  * frame (docs/BASE_STATION_CONTRACT.md line 24: a present, real-bin_count,
@@ -43,8 +44,7 @@
 static const char *TAG = "net_task";
 
 /* net_task_start()'s two queue args, handed to net_task_fn via
- * xTaskCreatePinnedToCore's arg pointer (mirrors tcp_task.c's own
- * s_task_args pattern) — ADR-021. */
+ * xTaskCreatePinnedToCore's arg pointer — ADR-021. */
 typedef struct {
 	QueueHandle_t mic_q;
 	QueueHandle_t imu_q;
@@ -55,8 +55,7 @@ static net_task_args_t s_task_args;
 /* Cached last-received frames. mic_frame_t (~2.1 KB) and imu_frame_t
  * (~12.4 KB) are both too large for TASK_STACK_NET (4096 B), so
  * xQueueReceive() always writes directly into these file-scope statics,
- * never a stack temporary (mirrors tcp_task.c's own s_mic/s_imu receive
- * buffers). EXT_RAM_BSS_ATTR places them in PSRAM — the same placement
+ * never a stack temporary. EXT_RAM_BSS_ATTR places them in PSRAM — the same placement
  * already used for this size class (dsp_task.c's s_mag_db, imu_task.c's
  * s_frame) — to protect the tight internal-DRAM heap margin
  * docs/decisions/ADR-020-bin-count-downsampled-not-buffer-enlarged.md
