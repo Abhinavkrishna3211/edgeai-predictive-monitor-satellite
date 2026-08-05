@@ -50,15 +50,9 @@ static const char *TAG = "neopixel";
  * Does not conflict with the INMP441 mic (GPIO2/3/4, mic_inmp441_i2s.c). */
 #define WS2812_GPIO 6
 
-/* Physical LED count is NOT confirmed against real hardware for this board
- * (the reference repo's own choice of 8 is for ITS ring product, verified
- * by its own comment as a user-confirmed hardware match — that
- * confirmation does not carry over to our board). Defaulting to a single
- * pixel is the conservative choice: correct whether the real hardware is
- * one LED or a ring (all N pixels are always set identically below), and
- * cannot overrun a shorter real chain the way guessing "8" could. Update
- * if/when our physical WS2812 hardware is confirmed. */
-#define WS2812_NUM_PIXELS 1
+/* Physical hardware confirmed as an 8-LED WS2812 ring (Phase 7c hardware
+ * validation session). All N pixels are always set identically below. */
+#define WS2812_NUM_PIXELS 8
 
 typedef enum {
     MODE_CONST = 0,

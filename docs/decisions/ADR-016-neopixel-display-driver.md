@@ -73,3 +73,13 @@ Our `hal_display.h` contract (post Task 0 fix, this same session) is task-owning
 Hardware was available and flashed. Confirmed on-device: `led_strip_new_rmt_device()` claims the RMT channel and initialises cleanly every boot (`WS2812 init: DIN=GPIO6, 1 pixel(s)`, zero errors) across every capture in this session, including a 357-epoch / 90 s sustained run with the real KX134 driver active alongside it — no RMT/DMA contention observed. `rgb_led_set_state()` call sites and the color table were checked line-by-line against `status_color.py`'s convention and match.
 
 Not confirmed: the actual physical LED color output. No camera/visual channel was available in this session to verify the RMT-driven WS2812 actually renders the intended colors (vs., e.g., a channel-order or gamma mismatch that would compile and run cleanly but look wrong) — this still needs a human to look at the board. `tests/host/` does not cover this driver (ESP-IDF/RMT-dependent, not host-testable).
+
+## Addendum (2026-08-05, Phase 7c)
+
+Physical hardware confirmed by the user: an 8-LED WS2812 ring, not a single
+pixel. `WS2812_NUM_PIXELS` updated from 1 to 8
+(`components/epm_drivers/display_neopixel.c`) — the "Metrics to watch" item
+this ADR flagged for exactly this update. All 8 pixels are driven
+identically (`display_neopixel.c`'s per-pixel loop was already written for
+this, per this ADR's Decision section), so the change is a one-line count
+update, not a logic change.
