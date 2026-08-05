@@ -334,4 +334,8 @@ def main():
             time.sleep(60)
     except KeyboardInterrupt:
         print('\nStopped.')
-        sys.
+        sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
