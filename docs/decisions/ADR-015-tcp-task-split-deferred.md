@@ -60,3 +60,13 @@ structural benefit; the split is only worth doing for code that survives.
 - `pio run -e xiao_esp32s3` — clean build succeeds after the move.
 - `ctest --test-dir tests/host/build` — 3/3 still pass (no host test
   references this file).
+
+## Addendum (2026-08-05, Phase 7a)
+
+The inconsistency this ADR called "resolved when Phase 7 deletes the file"
+is now resolved: `src/threads/tcp_task.c`/`.h` are deleted outright. WiFi
+STA lifecycle and power management — the two of the file's three original
+responsibilities with a future — move to a revived
+`src/threads/wifi_task.c`/`.h` (`docs/decisions/ADR-022-wifi-task-revived.md`).
+The third, the raw-TCP+AES-GCM transport, has no successor; it is retired,
+not moved (`docs/decisions/ADR-023-transport-adrs-superseded.md`).

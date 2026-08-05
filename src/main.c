@@ -5,11 +5,14 @@
  *
  *   Core 0 — Radio and peripheral capture (time-critical I/O)
  *   ┌────────────────────────────────────────────────────────┐
- *   │ wifi_task        priority 4   stack 16384              │
+ *   │ net_task         priority 4   stack 4096  (MQTT publish)│
  *   │ mic_task         priority 5   stack 8192  (I2S DMA)    │
  *   │ imu_task         priority 3   stack 3072  (SPI DMA)    │
  *   │ diagnostics_task priority 1   stack 3072  (health mon) │
  *   └────────────────────────────────────────────────────────┘
+ *
+ * WiFi STA lifecycle (wifi_rf_init()/wifi_wait_connected()) is event-driven,
+ * not a task of its own — see src/threads/wifi_task.h.
  *
  *   Core 1 — Compute (no radio interference)
  *   ┌────────────────────────────────────────────────────────┐
@@ -40,7 +43,7 @@
 #include "threads/mic_task.h"
 #include "threads/dsp_task.h"
 #include "threads/imu_task.h"
-#include "threads/tcp_task.h"
+#include "threads/wifi_task.h"
 #include "drivers/mic_inmp441_i2s.h"
 #include "threads/net_task.h"
 
@@ -51,7 +54,6 @@ static const char *TAG = "main";
 typedef struct {
     TaskHandle_t h_mic;
     TaskHandle_t h_dsp;
-    TaskHandle_t h_wifi;
     TaskHandle_t h_rgb;
 } diag_args_t;
 
@@ -67,10 +69,9 @@ static void diagnostics_task_fn(void *arg)
 
         /* Stack watermarks — minimum ever-free bytes (IDF 5.x returns bytes).
          * A value approaching 0 signals an imminent stack overflow. */
-        ESP_LOGI("DIAG", "Stack HWM (bytes free): mic=%lu dsp=%lu wifi=%lu rgb=%lu diag=%lu",
+        ESP_LOGI("DIAG", "Stack HWM (bytes free): mic=%lu dsp=%lu rgb=%lu diag=%lu",
             (unsigned long)uxTaskGetStackHighWaterMark(a->h_mic),
             (unsigned long)uxTaskGetStackHighWaterMark(a->h_dsp),
-            (unsigned long)uxTaskGetStackHighWaterMark(a->h_wifi),
             (unsigned long)uxTaskGetStackHighWaterMark(a->h_rgb),
             (unsigned long)uxTaskGetStackHighWaterMark(h_diag));
 
@@ -154,7 +155,6 @@ void app_main(void)
     mic_task_start();
     dsp_task_start(mic_task_get_raw_ringbuf());
     imu_task_start();
-    wifi_task_start(dsp_task_get_queue(), imu_task_get_queue());
 
     /* --- MQTT telemetry to the base station (Phase 0.5, additive) ---
      * See docs/decisions/ADR-011-mqtt-transport-added.md. net_task blocks
@@ -169,15 +169,14 @@ void app_main(void)
      * Priority 1 ensures it never preempts any application task. */
     s_diag_args.h_mic  = mic_task_get_handle();
     s_diag_args.h_dsp  = dsp_task_get_handle();
-    s_diag_args.h_wifi = wifi_task_get_handle();
     s_diag_args.h_rgb  = led_task_get_handle();
 
     static TaskHandle_t h_diag = NULL;
     xTaskCreatePinnedToCore(diagnostics_task_fn, "diag", TASK_STACK_DIAG,
                             &s_diag_args, TASK_PRIO_DIAG, &h_diag, 0);
 
-    ESP_LOGI(TAG, "EPM: mic=%d-pt imu=%d-pt avg=%d | %s:%d",
-             FFT_MIC_N, FFT_IMU_N, SPEC_AVG_N, SERVER_IP, SERVER_PORT);
+    ESP_LOGI(TAG, "EPM: mic=%d-pt imu=%d-pt avg=%d",
+             FFT_MIC_N, FFT_IMU_N, SPEC_AVG_N);
 
     while (1) {
         vTaskDelay(portMAX_DELAY);

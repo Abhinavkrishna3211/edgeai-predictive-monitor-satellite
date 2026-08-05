@@ -2,8 +2,8 @@
  * dsp_task.c — ESP-DSP FFT pipeline task (core 1).
  *
  * Receives raw_mic_block_t items from mic_task via ring buffer, applies the
- * full Welch/Hann/FFT pipeline, and emits mic_frame_t to wifi_task after
- * SPEC_AVG_N (or g_adapt_spec_avg_n) blocks.
+ * full Welch/Hann/FFT pipeline, and emits mic_frame_t after SPEC_AVG_N
+ * blocks.
  *
  * Running exclusively on core 1 means the FFT never competes with I2S DMA
  * interrupts (core 0) or the WiFi driver (core 0).
@@ -58,12 +58,10 @@
 
 #include "epm_config.h"
 #include "threads/dsp_task.h"
-#include "threads/tcp_task.h"     /* g_adapt_overlap_pct, g_adapt_spec_avg_n */
 #include "hal/hal_display.h"  /* rgb_led_set_state, RGB_OK */
 
-/* Set to true when 250 averaged frames have been processed (HST warm-up done).
- * Read by wifi_task on core 0 — volatile ensures cross-core visibility. */
-volatile bool g_hst_warmed_up = false;
+/* Set to true when 250 averaged frames have been processed (HST warm-up done). */
+static bool s_hst_warmed_up = false;
 
 static const char *TAG = "dsp_task";
 
@@ -124,8 +122,8 @@ static void dsp_task_fn(void *arg)
     RingbufHandle_t raw_rb = (RingbufHandle_t)arg;
 
     int      avg_cnt          = 0;
-    int      local_spec_avg_n  = SPEC_AVG_N;
-    int      local_overlap_pct = 0;
+    const int local_spec_avg_n  = SPEC_AVG_N;
+    const int local_overlap_pct = 0;
     uint32_t hst_frame_count   = 0;
     bool     fft_benchmarked   = false;
 
@@ -154,25 +152,6 @@ static void dsp_task_fn(void *arg)
         if (blk == NULL) {
             ESP_LOGW(TAG, "raw_rb timeout — no data from mic_task");
             continue;
-        }
-
-        /* --- Latch adaptive parameters at cycle start --- */
-        if (avg_cnt == 0) {
-            int new_avg     = (int)(uint8_t)g_adapt_spec_avg_n;
-            int new_overlap = (int)(uint8_t)g_adapt_overlap_pct;
-            if (new_avg < 1 || new_avg > 16) new_avg = SPEC_AVG_N;
-            /* ADR-013: overlap_pct now directly controls the drain loop's hop
-             * size, so an out-of-protocol value (garbage or >90%) could push
-             * hop_n to 0 and stall the task. Clamp here; hop_n itself also
-             * gets a hard >=1 floor below as a second line of defense. */
-            if (new_overlap < 0 || new_overlap > 90) new_overlap = 0;
-            if (new_avg != local_spec_avg_n || new_overlap != local_overlap_pct) {
-                ESP_LOGI(TAG, "Adapt: avg_n %d→%d  overlap %d%%→%d%%",
-                         local_spec_avg_n, new_avg,
-                         local_overlap_pct, new_overlap);
-                local_spec_avg_n  = new_avg;
-                local_overlap_pct = new_overlap;
-            }
         }
 
         /* Latch per-block stats from the ring buffer item. */
@@ -280,8 +259,8 @@ static void dsp_task_fn(void *arg)
             xQueueOverwrite(s_net_queue, &s_out_frame);
 
             hst_frame_count++;
-            if (!g_hst_warmed_up && hst_frame_count >= 250) {
-                g_hst_warmed_up = true;
+            if (!s_hst_warmed_up && hst_frame_count >= 250) {
+                s_hst_warmed_up = true;
                 rgb_led_set_state(RGB_OK);
                 ESP_LOGI(TAG, "HST warmed up at frame %lu", (unsigned long)hst_frame_count);
             }
