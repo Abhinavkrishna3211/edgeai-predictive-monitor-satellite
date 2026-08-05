@@ -379,6 +379,14 @@ class SatelliteState:
     def fps_str(self):
         return f"{self.fps:.1f}" if self.connected else "—"
 
+    def fw_str(self):
+        # fw_major/fw_minor are None for satellites registered over MQTT,
+        # which has no hello-equivalent to report a real version (ADR-027) --
+        # rendering that as "0.0" would misread as a real, very old build.
+        if self.fw_major is None or self.fw_minor is None:
+            return "mqtt"
+        return f"{self.fw_major}.{self.fw_minor}"
+
     def rolling_fps(self, now):
         self._ts_buf.append(now)
         if len(self._ts_buf) < 2:
@@ -447,7 +455,7 @@ def _print_sat_table():
         status    = "CONNECTED" if s.connected else "disconnected"
         alert_str = ["OK", "WARN", "FAULT"][min(s.alert, 2)] if s.connected else "—"
         print(f"  {s.name:<12} {s.mac_hex:<17} "
-              f"{s.fw_major}.{s.fw_minor:<5} {s.fps_str():<6} {status}  {alert_str}")
+              f"{s.fw_str():<6} {s.fps_str():<6} {status}  {alert_str}")
 
 
 # ─── Display state (most recently updated satellite) ─────────────────────────
@@ -3272,7 +3280,7 @@ def _build_status_json():
         sat_list.append({
             'name':             s.name,
             'mac':              s.mac_hex,
-            'fw':               f"{s.fw_major}.{s.fw_minor}",
+            'fw':               s.fw_str(),
             'alert':            ['OK', 'WARN', 'FAULT'][min(int(s.sent_alert), 2)],
             'connected':        s.connected,
             'uptime_s':         int(now - s.connect_t),
@@ -3595,7 +3603,7 @@ tr:nth-child(even) td{{background:#f9fafb}}
         W(f'<div class="sat-card-head">'
           f'<h3>{esc(s.name)}</h3>{status_badge(al)}'
           f'&nbsp;&nbsp;<span style="font-family:monospace;font-size:.68rem;color:#9ca3af">{esc(s.mac_hex)}</span>'
-          f'&nbsp;·&nbsp;<span style="font-size:.7rem;color:#9ca3af">FW {s.fw_major}.{s.fw_minor}</span>'
+          f'&nbsp;·&nbsp;<span style="font-size:.7rem;color:#9ca3af">FW {s.fw_str()}</span>'
           f'&nbsp;·&nbsp;<span style="font-size:.7rem;color:#9ca3af">{"✓ Calibrated" if s.calibrated else "⧖ Calibrating"}</span>'
           f'</div>')
         W('<div class="sat-card-body">')
@@ -4128,6 +4136,14 @@ def main():
                              'Adds reconstruction-error as a 4th Bayesian fusion channel. '
                              'Stats sidecar <model>_stats.npz must exist alongside the model. '
                              'Omit to run without neural autoencoder channel.')
+    parser.add_argument('--mqtt-host', type=str, default=None,
+                        help='Broker host for the MQTT section-list ingestion path '
+                             '(Phase 8a) -- e.g. 192.168.1.8. Runs alongside the existing '
+                             'TCP+AES receiver (does not replace it); omit to disable. '
+                             'See mqtt_ingest.py and ADR-027 for the satellite-identity '
+                             'and imu_rms/imu_crest derivation this path uses.')
+    parser.add_argument('--mqtt-port', type=int, default=1883,
+                        help='Broker port for --mqtt-host (default 1883)')
     args = parser.parse_args()
 
     # Port-in-use guard — prevents silent conflicts with orphaned gateway instances.
@@ -4345,6 +4361,13 @@ def main():
         args=(args.listen_ip, args.port, args.fft_mic_n, args.fft_imu_n),
         daemon=True,
     ).start()
+
+    # ── MQTT section-list ingestion (Phase 8a) — additive, off by default ────
+    if args.mqtt_host:
+        import mqtt_ingest
+        mqtt_ingest.start(sys.modules[__name__], args.mqtt_host, args.mqtt_port)
+        print(f"[mqtt] Ingesting {mqtt_ingest.DATA_TOPIC_FILTER} from "
+              f"{args.mqtt_host}:{args.mqtt_port}")
 
     if args.no_plot:
         print("[plot] --no-plot: running headless (TCP receiver + dashboard only)")
