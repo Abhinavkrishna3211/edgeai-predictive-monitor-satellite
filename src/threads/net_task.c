@@ -30,6 +30,7 @@
 #include "threads/net_task.h"
 
 #include <errno.h>
+#include <string.h>
 
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
@@ -168,6 +169,44 @@ static void net_task_cmd_handler(uint8_t type, const uint8_t *body, size_t len)
 	rgb_led_set_remote(rgb.rgb, rgb.mode, rgb.period_ms);
 }
 
+#if CONFIG_EPM_STATUS_LED_SELFTEST
+/* TEMPORARY, test-only (Phase 7c hardware validation, see ADR-025). Fires a
+ * manufactured STATUS_LED straight at the cmd handler net_task_fn() just
+ * registered, so the decode-dispatch-LED-update path can be confirmed on
+ * real hardware without a working MQTT broker connection (ADR-011's known
+ * TCP-handshake stall). Blueviolet/BREATHE/500ms - deliberately not any
+ * color in display_neopixel.c's k_pattern[] table, so a human watching the
+ * board can tell this fired apart from any local state it might already be
+ * showing.
+ *
+ * Runs from its own short-lived task, delayed ~90s past boot, instead of
+ * firing inline in net_task_fn() at registration time: ADR-025's
+ * last-write-wins single-slot queue means firing immediately at boot loses
+ * the race against dsp_task.c's own one-shot rgb_led_set_state(RGB_OK) at
+ * HST warm-up (~250 mic frames in, observed ~60-70s after boot), which
+ * silently overwrites the remote color before a human has a chance to look
+ * (confirmed on hardware: an immediate-fire version showed blueviolet only
+ * in the first minute, then reverted to solid green with no further state
+ * changes after). Firing after warm-up instead makes the self-test color
+ * the last write, so it persists indefinitely for observation. */
+static void net_task_selftest_task(void *arg)
+{
+	(void)arg;
+	vTaskDelay(pdMS_TO_TICKS(90000));
+
+	struct display_rgb_payload selftest_rgb = {
+		.rgb = 0x8A2BE2, .mode = 1, .period_ms = 500,
+	};
+	uint8_t selftest_buf[sizeof(selftest_rgb)];
+
+	memcpy(selftest_buf, &selftest_rgb, sizeof(selftest_rgb));
+	ESP_LOGW(TAG, "EPM_STATUS_LED_SELFTEST: firing manufactured STATUS_LED at cmd handler");
+	net_task_cmd_handler(MQTT_MSG_TYPE_STATUS_LED, selftest_buf, sizeof(selftest_buf));
+
+	vTaskDelete(NULL);
+}
+#endif
+
 static void net_task_fn(void *arg)
 {
 	net_task_args_t *args = (net_task_args_t *)arg;
@@ -196,6 +235,13 @@ static void net_task_fn(void *arg)
 	 * wiped. Unconditional on rc: transport_init() has already run either
 	 * way, and there's no retry loop that would re-wipe this later. */
 	transport_set_cmd_handler(net_task_cmd_handler);
+
+#if CONFIG_EPM_STATUS_LED_SELFTEST
+	/* TEMPORARY, test-only (Phase 7c hardware validation, see ADR-025 and
+	 * net_task_selftest_task()'s comment above for why this is deferred
+	 * to a delayed background task instead of firing inline here). */
+	xTaskCreate(net_task_selftest_task, "led_selftest", 2048, NULL, 3, NULL);
+#endif
 
 	while (1) {
 		/* MQTT-level disconnect revert (ADR-025): a broker-session drop

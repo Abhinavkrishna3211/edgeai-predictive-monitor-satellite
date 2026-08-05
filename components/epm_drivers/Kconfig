@@ -23,4 +23,17 @@ menu "EPM Drivers"
             without an addressable RGB LED wired up -- see
             docs/decisions/ADR-016.
 
+    config EPM_STATUS_LED_SELFTEST
+        bool "TEMPORARY/TEST-ONLY: fire a manufactured STATUS_LED at boot"
+        default n
+        help
+            Phase 7c hardware-validation aid, not for normal builds. Makes
+            src/threads/net_task.c invoke its own just-registered cmd
+            handler once at boot with a manufactured STATUS_LED payload,
+            so the decode-dispatch-LED-update path can be confirmed on
+            real hardware without a working MQTT broker connection
+            (ADR-011's known TCP-handshake stall against the only
+            reachable stand-in broker blocks real command delivery).
+            Leave n for normal builds -- see docs/decisions/ADR-025.
+
 endmenu
