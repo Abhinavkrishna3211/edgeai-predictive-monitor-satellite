@@ -1,10 +1,15 @@
 ---
 id: ADR-007
 title: AES-GCM-128 via ESP32-S3 hardware accelerator and GDMA
-status: accepted
+status: superseded
 date: 2026-06-30
 deciders: Abhinav Krishna N
 ---
+
+> **Superseded 2026-08-05** by
+> [ADR-023](ADR-023-transport-adrs-superseded.md): the TCP transport this
+> encryption layer protected is deleted. Content below preserved as-is
+> per this repo's append-only ADR convention.
 
 ## Context
 

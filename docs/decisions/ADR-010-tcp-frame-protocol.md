@@ -1,10 +1,16 @@
 ---
 id: ADR-010
 title: TCP frame protocol design — framing, batching, and keepalive
-status: accepted
+status: superseded
 date: 2026-06-30
 deciders: Abhinav Krishna N
 ---
+
+> **Superseded 2026-08-05** by
+> [ADR-023](ADR-023-transport-adrs-superseded.md): the TCP transport and
+> wire format this ADR describes are deleted; MQTT + the section-list
+> codec is the current transport. Content below preserved as-is per this
+> repo's append-only ADR convention.
 
 ## Context
 

@@ -1,10 +1,18 @@
 ---
 id: ADR-011
 title: MQTT transport added alongside the TCP frame protocol
-status: accepted
+status: superseded
 date: 2026-07-30
 deciders: Abhinav Krishna N
 ---
+
+> **Superseded 2026-08-05** by
+> [ADR-023](ADR-023-transport-adrs-superseded.md): TCP is deleted, so MQTT
+> is no longer "alongside" it — MQTT is now the sole transport. This
+> ADR's findings (frame-shape requirements, component split, base-station
+> validation) remain accurate; only the additive/dual-transport framing is
+> stale. Content below preserved as-is per this repo's append-only ADR
+> convention.
 
 ## Context
 
