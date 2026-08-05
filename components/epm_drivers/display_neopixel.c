@@ -100,6 +100,16 @@ static const led_pattern_t k_pattern[RGB_STATE_MAX] = {
 #define BREATHE_PI 3.14159265f
 #define ANIM_TICK_MS 30
 
+/* Single-slot queue payload: either a local rgb_led_state_t (via
+ * rgb_led_set_state()) or a remote (rgb, mode, period_ms) triple (via
+ * rgb_led_set_remote()) — xQueueOverwrite() makes whichever call lands most
+ * recently the one the task applies next (ADR-025's last-write-wins). */
+typedef struct {
+    bool            is_remote;
+    rgb_led_state_t state;   /* valid when !is_remote */
+    led_pattern_t   remote;  /* valid when is_remote */
+} led_cmd_t;
+
 static led_strip_handle_t s_strip = NULL;
 static QueueHandle_t      s_state_queue = NULL;
 static TaskHandle_t       s_task_handle = NULL;
@@ -136,7 +146,7 @@ void rgb_led_task_init(void)
      * told otherwise, unlike a simple PWM LED that resets to off. */
     led_strip_clear(s_strip);
 
-    s_state_queue = xQueueCreate(1, sizeof(rgb_led_state_t));
+    s_state_queue = xQueueCreate(1, sizeof(led_cmd_t));
     configASSERT(s_state_queue != NULL);
 
     ESP_LOGI(TAG, "WS2812 init: DIN=GPIO%d, %d pixel(s)", WS2812_GPIO, WS2812_NUM_PIXELS);
@@ -144,8 +154,29 @@ void rgb_led_task_init(void)
 
 void rgb_led_set_state(rgb_led_state_t state)
 {
+    led_cmd_t cmd = { .is_remote = false, .state = state };
+
     if (s_state_queue) {
-        xQueueOverwrite(s_state_queue, &state);
+        xQueueOverwrite(s_state_queue, &cmd);
+    }
+    if (s_task_handle) {
+        xTaskNotifyGive(s_task_handle);
+    }
+}
+
+void rgb_led_set_remote(uint32_t rgb, uint8_t mode, uint16_t period_ms)
+{
+    led_cmd_t cmd = {
+        .is_remote = true,
+        .remote = {
+            .rgb = rgb,
+            .mode = (mode <= MODE_STROBE) ? (display_mode_t)mode : MODE_CONST,
+            .period_ms = period_ms,
+        },
+    };
+
+    if (s_state_queue) {
+        xQueueOverwrite(s_state_queue, &cmd);
     }
     if (s_task_handle) {
         xTaskNotifyGive(s_task_handle);
@@ -157,26 +188,22 @@ void rgb_led_task(void *arg)
     (void)arg;
     s_task_handle = xTaskGetCurrentTaskHandle();
 
-    rgb_led_state_t current_state = RGB_BOOT;
-    rgb_led_state_t queued_state;
-    int64_t          state_start_ms = esp_timer_get_time() / 1000;
+    led_pattern_t current_pattern = k_pattern[RGB_BOOT];
+    led_cmd_t     queued_cmd;
+    int64_t       state_start_ms = esp_timer_get_time() / 1000;
 
-    set_ring(k_pattern[RGB_BOOT].rgb, 100);
+    set_ring(current_pattern.rgb, 100);
 
     while (1) {
-        const led_pattern_t *pat = &k_pattern[current_state];
-        bool animated = (pat->mode != MODE_CONST) && (pat->period_ms > 0);
+        bool animated = (current_pattern.mode != MODE_CONST) && (current_pattern.period_ms > 0);
 
         TickType_t wait = animated ? pdMS_TO_TICKS(ANIM_TICK_MS) : portMAX_DELAY;
         ulTaskNotifyTake(pdFALSE, wait);
 
-        if (xQueueReceive(s_state_queue, &queued_state, 0) == pdTRUE) {
-            if (queued_state != current_state) {
-                current_state = queued_state;
-                state_start_ms = esp_timer_get_time() / 1000;
-                pat = &k_pattern[current_state];
-                set_ring(pat->rgb, 100);
-            }
+        if (xQueueReceive(s_state_queue, &queued_cmd, 0) == pdTRUE) {
+            current_pattern = queued_cmd.is_remote ? queued_cmd.remote : k_pattern[queued_cmd.state];
+            state_start_ms = esp_timer_get_time() / 1000;
+            set_ring(current_pattern.rgb, 100);
             continue;
         }
 
@@ -185,14 +212,14 @@ void rgb_led_task(void *arg)
         }
 
         int64_t elapsed = (esp_timer_get_time() / 1000) - state_start_ms;
-        float   phase   = (float)(elapsed % pat->period_ms) / (float)pat->period_ms;
+        float   phase   = (float)(elapsed % current_pattern.period_ms) / (float)current_pattern.period_ms;
         uint8_t scale_pct;
 
-        if (pat->mode == MODE_BREATHE) {
+        if (current_pattern.mode == MODE_BREATHE) {
             scale_pct = (uint8_t)((1.0f - cosf(phase * 2.0f * BREATHE_PI)) * 50.0f);
         } else {
             scale_pct = (phase < 0.5f) ? 100 : 0;
         }
-        set_ring(pat->rgb, scale_pct);
+        set_ring(current_pattern.rgb, scale_pct);
     }
 }

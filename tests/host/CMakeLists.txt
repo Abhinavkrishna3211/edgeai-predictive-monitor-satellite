@@ -71,9 +71,18 @@ target_include_directories(test_scalar_map PRIVATE ${REPO_ROOT}/components/epm_c
 target_link_libraries(test_scalar_map PRIVATE m)
 target_compile_options(test_scalar_map PRIVATE -Wall -Wextra)
 
+# ── STATUS_LED decode test — links the real components/epm_codec/wire_protocol.c ─
+add_executable(test_status_led
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_status_led.c
+    ${REPO_ROOT}/components/epm_codec/wire_protocol.c
+)
+target_include_directories(test_status_led PRIVATE ${REPO_ROOT}/components/epm_codec/include)
+target_compile_options(test_status_led PRIVATE -Wall -Wextra)
+
 enable_testing()
 add_test(NAME scalar_stats COMMAND test_scalar_stats)
 add_test(NAME hann_window  COMMAND test_hann_window)
 add_test(NAME frame_encode COMMAND test_frame_encode WORKING_DIRECTORY ${REPO_ROOT})
 add_test(NAME spectrum     COMMAND test_spectrum)
 add_test(NAME scalar_map   COMMAND test_scalar_map)
+add_test(NAME status_led   COMMAND test_status_led)

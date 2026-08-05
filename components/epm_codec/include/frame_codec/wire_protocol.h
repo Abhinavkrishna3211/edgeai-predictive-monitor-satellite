@@ -53,3 +53,12 @@ size_t mqtt_encode_message(enum mqtt_msg_type type, const uint8_t *payload, size
  * malformed message. */
 bool mqtt_decode_message(const uint8_t *data, size_t len, uint8_t *out_type,
 			  const uint8_t **out_payload, size_t *out_payload_len);
+
+/* Decodes a STATUS_LED command's payload (the out_payload/out_payload_len
+ * mqtt_decode_message() already split off) into a display_rgb_payload.
+ * Returns false, leaving *out unwritten, if payload is too short to hold
+ * one - the caller (link_mqtt.c's cmd-handler dispatch) must not trust a
+ * remote message's declared length without this check before it ever
+ * reaches the display driver. */
+bool mqtt_decode_status_led(const uint8_t *payload, size_t payload_len,
+			     struct display_rgb_payload *out);

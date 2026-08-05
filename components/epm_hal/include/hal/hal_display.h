@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 /*
  * Status-LED contract for the RGB indicator (matches the reference repo's
  * satellite/include/hal/hal_display_rgb.h role: one status enum, driven by
@@ -39,6 +41,19 @@ void rgb_led_task_init(void);
 
 /* Set LED state. Safe from any task context. Non-blocking. */
 void rgb_led_set_state(rgb_led_state_t state);
+
+/* Drives the ring directly from an inbound STATUS_LED command's raw
+ * (rgb, mode, period_ms) triple, bypassing the local rgb_led_state_t enum
+ * table entirely. mode uses the same CONST=0/BREATHE=1/STROBE=2 encoding as
+ * frame_codec/wire_protocol.h's display_rgb_payload — an out-of-range mode
+ * value falls back to CONST rather than being treated as an error, since
+ * the ring must still render *something* sane for a value this API cannot
+ * itself reject earlier in the pipeline. Last write wins against
+ * rgb_led_set_state() on the same underlying single-slot queue — see
+ * docs/decisions/ADR-025-remote-status-led-priority.md for why that's
+ * sufficient instead of a separate priority mechanism. Safe from any task
+ * context. Non-blocking. */
+void rgb_led_set_remote(uint32_t rgb, uint8_t mode, uint16_t period_ms);
 
 /* Task function — pin to core 1, priority 3, stack 3072. */
 void rgb_led_task(void *arg);

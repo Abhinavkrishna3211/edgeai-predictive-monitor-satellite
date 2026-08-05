@@ -19,6 +19,12 @@
  * yet" — zero-filling before real data exists would be indistinguishable
  * from that). Once both sides have delivered once, every tick publishes
  * whatever is currently cached, refreshed opportunistically each tick.
+ *
+ * This task also owns the inbound cmd-topic wiring: it registers the sole
+ * transport_set_cmd_handler() caller in the tree (Phase 7c) so a decoded
+ * STATUS_LED command reaches the display driver instead of only being
+ * logged, and polls transport_is_connected() once per tick to revert the
+ * display to a local state on MQTT disconnect (ADR-025).
  */
 
 #include "threads/net_task.h"
@@ -36,6 +42,8 @@
 #include "frame_codec/scalar_map.h"
 #include "frame_codec/spectrum_codec.h"
 #include "frame_codec/telemetry_schema.h"
+#include "frame_codec/wire_protocol.h"
+#include "hal/hal_display.h"
 #include "hal/hal_transport.h"
 #include "drivers/link_mqtt.h"
 
@@ -140,11 +148,32 @@ static size_t build_real_frame(uint8_t *out_buf, size_t out_buf_size)
 	return telemetry_build_frame(channels, 4, scalars, 24, out_buf, out_buf_size);
 }
 
+/* transport_set_cmd_handler()'s registered callback (Phase 7c). Decodes a
+ * STATUS_LED command and drives the display directly - the only defined
+ * cmd type today (frame_codec/wire_protocol.h). */
+static void net_task_cmd_handler(uint8_t type, const uint8_t *body, size_t len)
+{
+	if (type != MQTT_MSG_TYPE_STATUS_LED) {
+		return;
+	}
+
+	struct display_rgb_payload rgb;
+
+	if (!mqtt_decode_status_led(body, len, &rgb)) {
+		ESP_LOGW(TAG, "cmd handler: malformed STATUS_LED payload (%u bytes)",
+			 (unsigned)len);
+		return;
+	}
+
+	rgb_led_set_remote(rgb.rgb, rgb.mode, rgb.period_ms);
+}
+
 static void net_task_fn(void *arg)
 {
 	net_task_args_t *args = (net_task_args_t *)arg;
 	QueueHandle_t mic_q = args->mic_q;
 	QueueHandle_t imu_q = args->imu_q;
+	bool mqtt_was_connected = false;
 
 	wifi_wait_connected(portMAX_DELAY);
 
@@ -161,7 +190,26 @@ static void net_task_fn(void *arg)
 		ESP_LOGE(TAG, "link_mqtt_start failed: %d", rc);
 	}
 
+	/* Registered after link_mqtt_start() (not before): link_mqtt_start()
+	 * calls transport_init() internally, which unconditionally resets the
+	 * cmd handler to NULL, so registering any earlier would just get
+	 * wiped. Unconditional on rc: transport_init() has already run either
+	 * way, and there's no retry loop that would re-wipe this later. */
+	transport_set_cmd_handler(net_task_cmd_handler);
+
 	while (1) {
+		/* MQTT-level disconnect revert (ADR-025): a broker-session drop
+		 * doesn't imply WiFi dropped too, so wifi_task.c's own
+		 * WIFI_EVENT_STA_DISCONNECTED revert won't fire for this case -
+		 * this is the path that covers it. */
+		bool mqtt_connected = transport_is_connected();
+
+		if (mqtt_was_connected && !mqtt_connected) {
+			ESP_LOGW(TAG, "MQTT disconnected — reverting display to local state");
+			rgb_led_set_state(RGB_WIFI_CONN);
+		}
+		mqtt_was_connected = mqtt_connected;
+
 		if (xQueueReceive(mic_q, &s_last_mic, 0) == pdTRUE) {
 			s_have_mic = true;
 		}

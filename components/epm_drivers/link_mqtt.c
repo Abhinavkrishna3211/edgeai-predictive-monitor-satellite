@@ -127,16 +127,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 		s_stats.cmds_received++;
 
 		if (type == MQTT_MSG_TYPE_STATUS_LED) {
-			if (payload_len < sizeof(struct display_rgb_payload)) {
+			struct display_rgb_payload rgb;
+
+			if (!mqtt_decode_status_led(payload, payload_len, &rgb)) {
 				ESP_LOGW(TAG, "STATUS_LED payload too short (%u < %u)",
 					 (unsigned)payload_len,
 					 (unsigned)sizeof(struct display_rgb_payload));
 				break;
 			}
 
-			struct display_rgb_payload rgb;
-
-			memcpy(&rgb, payload, sizeof(rgb));
 			ESP_LOGI(TAG, "STATUS_LED rgb=0x%06lx mode=%u period_ms=%u",
 				 (unsigned long)rgb.rgb, (unsigned)rgb.mode,
 				 (unsigned)rgb.period_ms);

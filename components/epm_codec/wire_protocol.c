@@ -32,3 +32,14 @@ bool mqtt_decode_message(const uint8_t *data, size_t len, uint8_t *out_type,
 
 	return true;
 }
+
+bool mqtt_decode_status_led(const uint8_t *payload, size_t payload_len,
+			     struct display_rgb_payload *out)
+{
+	if (payload == NULL || out == NULL || payload_len < sizeof(*out)) {
+		return false;
+	}
+
+	memcpy(out, payload, sizeof(*out));
+	return true;
+}
