@@ -24,7 +24,7 @@ Usage (command-line):
   python bearing_math.py 8,33.5,9.5,0 900   # custom with contact angle
 
 Import (used by recv_verify.py for live FFT annotation):
-  from bearing_math import BearingFreqs, parse_bearing_arg, COMMON_BEARINGS
+  from gateway.pipeline.bearing_math import BearingFreqs, parse_bearing_arg, COMMON_BEARINGS
   bf = BearingFreqs.from_rpm(1500, COMMON_BEARINGS['6205'])
   markers = bf.markers(fs_hz=16000)   # {label: freq_hz} within Nyquist limit
 """

@@ -25,15 +25,16 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fault_models import (
     healthy_motor_spectrum, add_bearing_fault, to_dbfs,
     fault_kurtosis, fault_crest, make_severity_fn,
     generate_mic_frame, K0, K_MAX, BETA,
     DEFAULT_BEARING, DEFAULT_SHAFT_HZ,
 )
-from bearing_math import BearingFreqs, COMMON_BEARINGS
-from adaptive_baseline import AdaptiveBaseline
-from bayesian_fusion import BayesianFusion
+from gateway.pipeline.bearing_math import BearingFreqs, COMMON_BEARINGS
+from gateway.pipeline.adaptive_baseline import AdaptiveBaseline
+from gateway.pipeline.bayesian_fusion import BayesianFusion
 
 # ─── Test helpers ─────────────────────────────────────────────────────────────
 

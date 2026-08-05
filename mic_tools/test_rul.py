@@ -20,11 +20,14 @@ True degradation model used throughout:
 """
 
 import math
+import os
+import sys
 import unittest
 
 import numpy as np
 
-from rul_estimator import ExponentialRUL, RULResult
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from gateway.pipeline.rul_estimator import ExponentialRUL, RULResult
 
 # ── Simulation constants ──────────────────────────────────────────────────────
 K0_TRUE  = 3.0

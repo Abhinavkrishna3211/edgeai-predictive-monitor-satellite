@@ -17,12 +17,14 @@ Test suite covers:
 import os
 import pickle
 import socket
+import sys
 import tempfile
 import unittest
 
 import numpy as np
 
-from online_detector import OnlineDetector
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from gateway.pipeline.online_detector import OnlineDetector
 
 
 class TestNormalStability(unittest.TestCase):

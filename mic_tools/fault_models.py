@@ -54,8 +54,13 @@ This gives severity(t) = clamp((K(t) − 3) / (K_max − 3), 0, 1)^(1/β).
 """
 
 import math
+import os
+import sys
+
 import numpy as np
-from bearing_math import BearingFreqs, BearingGeometry, COMMON_BEARINGS
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from gateway.pipeline.bearing_math import BearingFreqs, BearingGeometry, COMMON_BEARINGS
 
 # ─── Default bearing and shaft ────────────────────────────────────────────────
 

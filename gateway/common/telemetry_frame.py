@@ -48,8 +48,8 @@ import struct
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
-from wire_protocol import ChannelSpectrum
-import telemetry_schema as schema
+from gateway.common.wire_protocol import ChannelSpectrum
+import gateway.common.telemetry_schema as schema
 
 # --- section header: source_id, channel_id, data_kind, section_len ----------
 _SECTION_HEADER_FMT = "<BBBH"

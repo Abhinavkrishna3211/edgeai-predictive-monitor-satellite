@@ -24,9 +24,9 @@ import sys
 import os
 import unittest
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bearing_math import BearingGeometry, BearingFreqs, COMMON_BEARINGS, parse_bearing_arg
+from gateway.pipeline.bearing_math import BearingGeometry, BearingFreqs, COMMON_BEARINGS, parse_bearing_arg
 
 MIC_FS_HZ = 16000
 IMU_FS_HZ = 25600

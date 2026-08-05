@@ -35,9 +35,12 @@ Run with:
 """
 
 import math
+import os
+import sys
 import unittest
 
-from bayesian_fusion import BayesianFusion
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from gateway.pipeline.bayesian_fusion import BayesianFusion
 
 
 class TestBasicProperties(unittest.TestCase):

@@ -16,8 +16,8 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(__file__))
-from storage import Storage
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from gateway.pipeline.storage import Storage
 
 
 def migrate(db_path: str, json_path: str, dry_run: bool = False) -> int:

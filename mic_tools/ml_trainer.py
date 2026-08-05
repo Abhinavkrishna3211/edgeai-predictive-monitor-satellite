@@ -33,6 +33,8 @@ from datetime import datetime, timezone
 
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 try:
     import pandas as pd  # type: ignore[import]
 except ImportError:
@@ -195,7 +197,7 @@ def _train_autoencoder_path(satellite, log_dir, model_dir, output, contamination
     prefix = output or os.path.join(model_dir, satellite or 'epm_model')
     os.makedirs(os.path.dirname(prefix) or '.', exist_ok=True)
 
-    from autoencoder import train_and_export
+    from gateway.pipeline.autoencoder import train_and_export
     result = train_and_export(files, prefix, contamination)
     if result is None:
         sys.exit('Autoencoder training failed — check logs above.')
@@ -247,7 +249,7 @@ def main():
     use_autoencoder = not args.isolation_forest
     if use_autoencoder:
         try:
-            import autoencoder as _ae  # noqa: F401
+            import gateway.pipeline.autoencoder as _ae  # noqa: F401
             import tensorflow as _tf   # noqa: F401
             print('[trainer] Mode: Neural Autoencoder → TFLite (Qualcomm NPU on Uno Q)')
         except ImportError:

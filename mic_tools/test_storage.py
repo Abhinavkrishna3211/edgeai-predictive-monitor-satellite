@@ -31,8 +31,8 @@ import threading
 import time
 import unittest
 
-sys.path.insert(0, os.path.dirname(__file__))
-from storage import Storage, rotate_old_csvs
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from gateway.pipeline.storage import Storage, rotate_old_csvs
 
 
 class StorageTestCase(unittest.TestCase):

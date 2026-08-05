@@ -23,13 +23,14 @@ import numpy as np
 import psutil
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fault_models import (generate_mic_frame, make_severity_fn,
                            DEFAULT_BEARING, DEFAULT_SHAFT_HZ)
-from online_detector import OnlineDetector
-from bayesian_fusion import BayesianFusion
-from rul_estimator import ExponentialRUL
-from adaptive_baseline import AdaptiveBaseline
+from gateway.pipeline.online_detector import OnlineDetector
+from gateway.pipeline.bayesian_fusion import BayesianFusion
+from gateway.pipeline.rul_estimator import ExponentialRUL
+from gateway.pipeline.adaptive_baseline import AdaptiveBaseline
 
 # ── Constants (mirror recv_verify.py) ─────────────────────────────────────────
 MIC_FS_HZ           = 16000
@@ -811,7 +812,7 @@ def phase5_numerical(quick: bool = False) -> dict:
 
     # 5b: float32 vs float64 Kalman drift over long run
     print('  5b: float32 vs float64 Kalman precision ...')
-    from rul_estimator import ExponentialRUL as RUL64
+    from gateway.pipeline.rul_estimator import ExponentialRUL as RUL64
     rul32 = ExponentialRUL()  # uses float32 internally (numpy default float)
     rul64_x = np.array([math.log(3.0), 0.0], dtype=np.float64)
     rul64_P = np.array([[1.0, 0.0], [0.0, 1e-3]], dtype=np.float64)

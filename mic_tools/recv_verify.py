@@ -46,11 +46,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-# Optional: bearing fault frequency analysis (bearing_math.py in same directory)
+# Repo root on sys.path so `from gateway.pipeline.X import Y` resolves when
+# this file is run standalone (python recv_verify.py ...).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Optional: bearing fault frequency analysis (gateway/pipeline/bearing_math.py)
 MARKER_COLORS: dict = {}   # populated below if bearing_math is importable
 try:
-    from bearing_math import BearingFreqs, parse_bearing_arg
-    from bearing_math import MARKER_COLORS as MARKER_COLORS  # re-bind module-level name
+    from gateway.pipeline.bearing_math import BearingFreqs, parse_bearing_arg
+    from gateway.pipeline.bearing_math import MARKER_COLORS as MARKER_COLORS  # re-bind module-level name
     _BEARING_AVAILABLE = True
 except ImportError:
     _BEARING_AVAILABLE = False
@@ -58,7 +62,7 @@ except ImportError:
 # Optional: online HST anomaly detection (river — install with: pip install river>=0.21.0)
 _HST_AVAILABLE = False
 try:
-    from online_detector import OnlineDetector as OnlineDetector
+    from gateway.pipeline.online_detector import OnlineDetector as OnlineDetector
     _HST_AVAILABLE = True
 except ImportError:
     OnlineDetector = None  # type: ignore[assignment,misc]
@@ -66,7 +70,7 @@ except ImportError:
 # Optional: Kalman exponential RUL estimator (pure numpy — always available)
 _RUL_AVAILABLE = False
 try:
-    from rul_estimator import ExponentialRUL, RULResult
+    from gateway.pipeline.rul_estimator import ExponentialRUL, RULResult
     _RUL_AVAILABLE = True
 except ImportError:
     ExponentialRUL = None  # type: ignore[assignment,misc]
@@ -75,7 +79,7 @@ except ImportError:
 # Optional: Bayesian posterior fusion of multi-channel anomaly evidence
 _FUSION_AVAILABLE = False
 try:
-    from bayesian_fusion import BayesianFusion
+    from gateway.pipeline.bayesian_fusion import BayesianFusion
     _FUSION_AVAILABLE = True
 except ImportError:
     BayesianFusion = None  # type: ignore[assignment,misc]
@@ -83,7 +87,7 @@ except ImportError:
 # Optional: per-machine adaptive baselines (pure Python — always available if file is present)
 _AB_AVAILABLE = False
 try:
-    from adaptive_baseline import AdaptiveBaseline
+    from gateway.pipeline.adaptive_baseline import AdaptiveBaseline
     _AB_AVAILABLE = True
 except ImportError:
     AdaptiveBaseline = None  # type: ignore[assignment,misc]
@@ -91,7 +95,7 @@ except ImportError:
 # Optional: ONNX Runtime autoencoder inference (reconstruction-error channel)
 _AE_AVAILABLE = False
 try:
-    from inference import InferenceEngine
+    from gateway.pipeline.inference import InferenceEngine
     _AE_AVAILABLE = True
 except ImportError:
     InferenceEngine = None  # type: ignore[assignment,misc]
@@ -99,7 +103,7 @@ except ImportError:
 # Optional: SQLite-backed storage for alert events, maintenance log, and model state
 _STORAGE_AVAILABLE = False
 try:
-    from storage import Storage, rotate_old_csvs
+    from gateway.pipeline.storage import Storage, rotate_old_csvs
     _STORAGE_AVAILABLE = True
 except ImportError:
     Storage = None          # type: ignore[assignment,misc,misc]
@@ -1394,7 +1398,7 @@ def _ml_score_with(frame: dict, model: dict) -> int | None:
 def _ml_score_tflite(frame: dict, model: dict) -> int | None:
     """Score one frame using the TFLite neural autoencoder (NPU path)."""
     try:
-        from autoencoder import make_feature_vector
+        from gateway.pipeline.autoencoder import make_feature_vector
         feat = make_feature_vector(frame)
     except ImportError:
         # Minimal fallback if autoencoder.py is somehow missing
@@ -1437,7 +1441,7 @@ def _try_load_sat_model(sat):
 
     # ── 1. Try TFLite autoencoder (NPU path) ─────────────────────────────────
     try:
-        from autoencoder import load_npu_model
+        from gateway.pipeline.autoencoder import load_npu_model
         for stem in (sat.name, mac_slug):
             model_dict = load_npu_model(os.path.join(model_dir, stem))
             if model_dict is None:
@@ -1651,7 +1655,7 @@ def _train_sat_model_bg(sat, buf):
 
     # ── 1. Neural autoencoder path (preferred — NPU) ──────────────────────────
     try:
-        from autoencoder import make_feature_vector, train_autoencoder, export_tflite, load_npu_model
+        from gateway.pipeline.autoencoder import make_feature_vector, train_autoencoder, export_tflite, load_npu_model
 
         feat_vecs = [make_feature_vector(f) for f in buf]
         X = np.array(feat_vecs, dtype=np.float32)

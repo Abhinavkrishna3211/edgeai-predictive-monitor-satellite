@@ -60,11 +60,12 @@ ALERT_MAP = {0: 'OK', 1: 'WARN', 2: 'FAULT'}
 # ─── Physics-grounded spectrum generation ────────────────────────────────────
 
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fault_models import (
     generate_mic_frame, make_severity_fn, FAULT_CYCLE,
     DEFAULT_BEARING, DEFAULT_SHAFT_HZ,
 )
-from bearing_math import BearingFreqs, parse_bearing_arg, COMMON_BEARINGS
+from gateway.pipeline.bearing_math import BearingFreqs, parse_bearing_arg, COMMON_BEARINGS
 
 
 def _gen_imu_fft(mode: str, axis: str, rng: np.random.Generator) -> list:

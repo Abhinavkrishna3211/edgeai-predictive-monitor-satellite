@@ -19,10 +19,10 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import telemetry_schema as schema
-from telemetry_frame import (
+import gateway.common.telemetry_schema as schema
+from gateway.common.telemetry_frame import (
     MalformedFrameError,
     decode_frame,
     encode_frame,
@@ -30,7 +30,7 @@ from telemetry_frame import (
     encode_section,
     encode_spectrum_body,
 )
-from wire_protocol import ChannelSpectrum
+from gateway.common.wire_protocol import ChannelSpectrum
 
 SOURCE_SATELLITE = schema.SOURCE_ID["satellite"]
 KIND_SPECTRUM = schema.DATA_KIND["SPECTRUM"]

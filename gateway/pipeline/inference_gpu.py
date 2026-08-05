@@ -29,6 +29,10 @@ import time
 
 import numpy as np
 
+# Repo root on sys.path so `from gateway.pipeline.inference import ...` resolves
+# when this file is run standalone (python inference_gpu.py ...).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 _TVM_AVAILABLE = False
 try:
     import tvm
@@ -149,8 +153,7 @@ def load(onnx_model_path: str):
         except Exception as e:
             print(f'[EPM] TVM/OpenCL unavailable ({e}) -- falling back to ONNX Runtime CPU')
 
-    sys.path.insert(0, os.path.dirname(__file__))
-    from inference import InferenceEngine
+    from gateway.pipeline.inference import InferenceEngine
     return InferenceEngine(onnx_model_path)
 
 

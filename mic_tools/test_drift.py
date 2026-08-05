@@ -23,8 +23,8 @@ import os
 import unittest
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(__file__))
-from online_detector import OnlineDetector
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from gateway.pipeline.online_detector import OnlineDetector
 
 
 def _make_detector(seed=0):

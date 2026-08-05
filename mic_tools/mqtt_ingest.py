@@ -48,14 +48,19 @@ import datetime
 import logging
 import math
 import os
+import sys
 import threading
 import time
 
 import numpy as np
 import paho.mqtt.client as mqtt
 
-import telemetry_frame
-import telemetry_schema as schema
+# Repo root on sys.path so `from gateway.common import ...` resolves when
+# this file is imported/run standalone from within mic_tools/.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import gateway.common.telemetry_frame as telemetry_frame
+import gateway.common.telemetry_schema as schema
 
 log = logging.getLogger("mqtt_ingest")
 
