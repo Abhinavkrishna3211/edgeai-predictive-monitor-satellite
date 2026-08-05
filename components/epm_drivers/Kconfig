@@ -2,14 +2,16 @@ menu "EPM Drivers"
 
     config EPM_ACCEL_USE_STUB
         bool "Use synthetic accelerometer stub (no KX134 hardware)"
-        default y
+        default n
         help
             Selects components/epm_drivers/accel_stub.c as the hal_accel.h
             implementation instead of the real accel_kx134_spi.c driver.
-            Default stays y until the real driver is confirmed against
-            physical KX134 hardware (WHO_AM_I, at-rest g-values, zero
-            dropped FIFO frames over a sustained run) -- see
-            docs/decisions/ADR-017.
+            The real driver is hardware-confirmed (WHO_AM_I, at-rest
+            g-values, zero dropped FIFO frames over a sustained run --
+            docs/decisions/ADR-017) and validated running concurrently
+            with real MQTT publishing with zero crashes (ADR-024). Default
+            is now n; set y for development/CI without KX134 hardware
+            wired up.
 
     config EPM_DISPLAY_USE_LEDC
         bool "Use plain-LEDC RGB LED (no WS2812/NeoPixel hardware)"
