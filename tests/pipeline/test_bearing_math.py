@@ -16,15 +16,15 @@ known bug in this module (unlike the firmware side's Hann-normalisation
 issue).
 
 Run with:
-    python -m pytest mic_tools/test_bearing_math.py -v
-    python mic_tools/test_bearing_math.py
+    python -m pytest tests/pipeline/test_bearing_math.py -v
+    python tests/pipeline/test_bearing_math.py
 """
 
 import sys
 import os
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from gateway.pipeline.bearing_math import BearingGeometry, BearingFreqs, COMMON_BEARINGS, parse_bearing_arg
 

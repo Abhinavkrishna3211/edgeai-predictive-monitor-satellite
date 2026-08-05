@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from gateway.pipeline.adaptive_baseline import AdaptiveBaseline, WARMUP_N, EMA_ALPHA
 
 

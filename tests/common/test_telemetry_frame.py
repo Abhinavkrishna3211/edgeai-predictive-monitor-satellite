@@ -11,15 +11,15 @@ going through a broker, mirroring test_bearing_math.py's no-mocking-needed
 style (pure codec, no I/O, no hardware).
 
 Run with:
-    python -m pytest mic_tools/test_telemetry_frame.py -v
-    python mic_tools/test_telemetry_frame.py
+    python -m pytest tests/common/test_telemetry_frame.py -v
+    python tests/common/test_telemetry_frame.py
 """
 
 import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import gateway.common.telemetry_schema as schema
 from gateway.common.telemetry_frame import (

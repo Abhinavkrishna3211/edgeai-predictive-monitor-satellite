@@ -3,9 +3,9 @@
 test_online_detector.py — Unit and isolation tests for OnlineDetector.
 
 Run with:
-    python -m pytest mic_tools/test_online_detector.py -v
+    python -m pytest tests/pipeline/test_online_detector.py -v
     # or directly:
-    python mic_tools/test_online_detector.py
+    python tests/pipeline/test_online_detector.py
 
 Test suite covers:
   1. Normal-distribution stability  — scores on healthy data stabilise near 0.5
@@ -23,7 +23,7 @@ import unittest
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from gateway.pipeline.online_detector import OnlineDetector
 
 

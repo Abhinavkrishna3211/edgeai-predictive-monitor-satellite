@@ -29,9 +29,9 @@ Mathematical reference (prior=0.01, z_mid=3.0, temperature=1.0):
        separately by WARN_PERSIST / CLEAR_PERSIST in recv_verify.py.
 
 Run with:
-    python -m pytest mic_tools/test_fusion.py -v
+    python -m pytest tests/pipeline/test_fusion.py -v
     # or:
-    python mic_tools/test_fusion.py
+    python tests/pipeline/test_fusion.py
 """
 
 import math
@@ -39,7 +39,7 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from gateway.pipeline.bayesian_fusion import BayesianFusion
 
 

@@ -3,9 +3,9 @@
 test_rul.py — Tests for ExponentialRUL Kalman-filter estimator.
 
 Run with:
-    python -m pytest mic_tools/test_rul.py -v
+    python -m pytest tests/pipeline/test_rul.py -v
     # or:
-    python mic_tools/test_rul.py
+    python tests/pipeline/test_rul.py
 
 True degradation model used throughout:
     K(t) = K0_TRUE * exp(LAM_TRUE * t),  t in hours
@@ -26,7 +26,7 @@ import unittest
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from gateway.pipeline.rul_estimator import ExponentialRUL, RULResult
 
 # ── Simulation constants ──────────────────────────────────────────────────────
