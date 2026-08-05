@@ -50,6 +50,11 @@ import matplotlib.gridspec as gridspec
 # this file is run standalone (python recv_verify.py ...).
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# mic_tools/ directory — passed to gateway.registry.{satellite_state,baselines}
+# so their model/logs path resolution matches this file's original
+# os.path.dirname(__file__) behavior even though they no longer live here.
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Optional: bearing fault frequency analysis (gateway/pipeline/bearing_math.py)
 MARKER_COLORS: dict = {}   # populated below if bearing_math is importable
 try:
@@ -109,6 +114,19 @@ except ImportError:
     Storage = None          # type: ignore[assignment,misc,misc]
     rotate_old_csvs = None  # type: ignore[assignment]
 
+# Satellite registry + adaptive-baseline/RUL persistence (gateway/registry/*).
+# satellite_state.py does a *lazy* `import recv_verify` inside its functions
+# (not at module level), so importing it here at module load time is safe —
+# see gateway/registry/satellite_state.py's module docstring.
+from gateway.registry.satellite_state import (
+    SatelliteState, _sat_lock, _satellites,
+    _sat_register, _sat_disconnect, _sat_count, _print_sat_table,
+)
+from gateway.registry.baselines import (
+    _baselines_path, _save_baselines, _load_baselines,
+    _save_rul_state, _load_rul_state,
+    _sat_update_baseline, _recompute_z_baseline,
+)
 # Optional: AES-128-GCM frame decryption (cryptography>=42.0.0)
 _CRYPTO_AVAILABLE = False
 try:
@@ -243,25 +261,6 @@ AB_WARMUP_FRAMES = 30    # warm-up length (matches CAL_FRAMES)
 AB_SAVE_INTERVAL = 1000  # persist baseline state every N healthy-frame updates
 
 # ─── Adaptive-sensing reply (EPM protocol v2) ─────────────────────────────────
-#
-# The gateway closes the AI inference loop back into the satellite's DSP
-# pipeline.  P(fault) drives two FFT parameters sent in the 8-byte v2 reply:
-#
-#   fft_overlap_pct — Welch's windowed overlap.  Higher P(fault) → more overlap
-#     → higher FFT frame rate → better time resolution for transient detection.
-#     Variance of each spectral estimate is unchanged; what improves is
-#     temporal tracking of rapidly-evolving fault signatures.
-#
-#   spec_avg_n — Number of FFT frames averaged before sending.  Lower N →
-#     faster frame delivery at the cost of a higher noise floor.  When the
-#     machine is healthy we want a clean, averaged baseline; when fault
-#     suspicion is high we want rapid response to new transients.
-#
-# Operating points (fault_posterior → commanded parameters):
-#   p < 0.30  →  overlap=0%,  avg=8   (healthy: max averaging, no overlap cost)
-#   p < 0.70  →  overlap=50%, avg=4   (moderate: standard Welch, 2× frame rate)
-#   p ≥ 0.70  →  overlap=75%, avg=2   (high suspicion: 4× frame rate, fast reaction)
-#
 EPM_PROTO_V2_MAGIC = 0xA2  # first byte of v2 reply — distinct from 0x00/0x01/0x02
 
 def _adaptive_overlap(p_fault: float) -> int:
@@ -310,156 +309,9 @@ def led_set_status(worst_state: str) -> None:
 
 
 # ─── Satellite registry ───────────────────────────────────────────────────────
-
-class SatelliteState:
-    def __init__(self, mac_hex, name, fw_major, fw_minor, addr):
-        self.mac_hex     = mac_hex
-        self.name        = name
-        self.fw_major    = fw_major
-        self.fw_minor    = fw_minor
-        self.addr        = addr
-        self.connected   = True
-        self.frame_count = 0
-        self.connect_t   = time.time()
-        self.last_t      = time.time()
-        self.fps         = 0.0
-        self.last_frame  = None
-        self.alert       = EPM_ALERT_OK
-        # Z-score adaptive baseline
-        self._cal_buf    = []
-        self.calibrated  = False
-        self.bl_mean     = None
-        self.bl_std      = None
-        # Alert persistence / hysteresis
-        self.warn_streak  = 0   # consecutive frames above threshold
-        self.ok_streak    = 0   # consecutive frames below threshold
-        self.sent_alert   = EPM_ALERT_OK  # last byte actually sent to satellite
-        # Rolling FPS (last 10 frame timestamps)
-        self._ts_buf     = collections.deque(maxlen=10)
-        # Dashboard / maintenance tracking (cumulative — NOT reset on reconnect)
-        self.warn_frames  = 0
-        self.fault_frames = 0
-        self.last_fault_t = None          # epoch of most recent FAULT frame
-        self.last_z       = 0.0
-        self.last_hb      = 0.0           # most recent high-band energy ratio
-        self.fault_type   = "Normal"   # spectral fault classification label
-        self.history_alerts   = collections.deque([0]   * HISTORY_LEN, maxlen=HISTORY_LEN)
-        self.history_kurtosis = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
-        self.history_crest    = collections.deque([3.0] * HISTORY_LEN, maxlen=HISTORY_LEN)
-        # Per-satellite ML auto-training state
-        self.ml_buf        = []    # feature dicts (OK frames only) for auto-training
-        self.ml_trained    = False
-        self.ml_training   = False
-        self.ml_trained_at = None  # ISO string or float epoch after training
-        self.ml_backend    = 'none'  # 'Qualcomm Adreno 702 GPU', 'CPU (TFLite)', 'IsolationForest', 'none'
-        # Online HST detector — river HalfSpaceTrees, fully on-device
-        self.hst_detector  = None   # OnlineDetector, initialised in _try_load_hst_state
-        self.hst_score     = 0.0    # last HST score for dashboard display
-        # Concept-drift tracking — ADWIN updates only on OK-frame scores
-        self.hst_feat_buf  = collections.deque(maxlen=500)  # recent OK-frame features
-        self.drift_count   = 0      # number of baseline refreshes this session
-        self.last_drift_t  = None   # epoch of most recent baseline refresh
-        # Bayesian posterior fusion
-        self.p_fault       = 0.0    # P(fault | all channels), updated every frame
-        # Kalman exponential RUL estimator — one instance per satellite
-        self.rul_estimator = None   # ExponentialRUL, created at registration
-        self.rul_result    = None   # RULResult from last update (None until n_updates>=30)
-        # Adaptive-sensing parameters currently commanded to this satellite (v2 protocol)
-        self.adapt_overlap = 0     # last commanded fft_overlap_pct
-        self.adapt_avg_n   = 4     # last commanded spec_avg_n
-        # Per-feature adaptive baselines — one per scalar feature, OK-frames only
-        if _AB_AVAILABLE:
-            self.ab_kurtosis = AdaptiveBaseline(alpha=5e-05)  # Phase 4 sweep: alpha=5e-05 optimal
-            self.ab_crest    = AdaptiveBaseline(alpha=5e-05)
-            self.ab_rms      = AdaptiveBaseline(alpha=5e-05)
-            self.ab_hb       = AdaptiveBaseline(alpha=5e-05)
-        else:
-            self.ab_kurtosis = self.ab_crest = self.ab_rms = self.ab_hb = None
-        # Latest per-feature z-scores for feature attribution (updated every frame)
-        self.feat_z: dict = {}
-        # WP-01: set to True if calibration kurtosis suggests pre-damaged bearing
-        self.pre_damaged: bool = False
-
-    def fps_str(self):
-        return f"{self.fps:.1f}" if self.connected else "—"
-
-    def fw_str(self):
-        # fw_major/fw_minor are None for satellites registered over MQTT,
-        # which has no hello-equivalent to report a real version (ADR-027) --
-        # rendering that as "0.0" would misread as a real, very old build.
-        if self.fw_major is None or self.fw_minor is None:
-            return "mqtt"
-        return f"{self.fw_major}.{self.fw_minor}"
-
-    def rolling_fps(self, now):
-        self._ts_buf.append(now)
-        if len(self._ts_buf) < 2:
-            return 0.0
-        return (len(self._ts_buf) - 1) / max(self._ts_buf[-1] - self._ts_buf[0], 1e-3)
-
-
-_sat_lock   = threading.Lock()
-_satellites = {}   # mac_hex → SatelliteState
-
-
-def _sat_register(mac_hex, name, fw_major, fw_minor, addr):
-    with _sat_lock:
-        if mac_hex in _satellites:
-            sat = _satellites[mac_hex]
-            sat.connected    = True
-            sat.name         = name      # update name in case it changed or was corrupt
-            sat.fw_major     = fw_major
-            sat.fw_minor     = fw_minor
-            sat.connect_t    = time.time()
-            sat.frame_count  = 0
-            sat.fps          = 0.0
-            sat.addr         = addr
-        else:
-            sat = SatelliteState(mac_hex, name, fw_major, fw_minor, addr)
-            _satellites[mac_hex] = sat
-    _try_load_sat_model(sat)
-    _try_load_hst_state(sat)
-    _load_baselines(sat)
-    if _RUL_AVAILABLE and sat.rul_estimator is None:
-        sat.rul_estimator = ExponentialRUL(k_fail=K_FAIL)
-    _load_rul_state(sat)
-    # Register in DB and load cached maintenance record for this MAC
-    if _storage is not None:
-        try:
-            _storage.upsert_satellite(sat.name, mac_hex)
-            maint = _storage.get_latest_maintenance(mac_hex)
-            if maint:
-                with _MAINT_LOG_LOCK:
-                    _MAINT_LOG[mac_hex] = maint
-        except Exception:
-            pass
-    return sat
-
-
-def _sat_disconnect(mac_hex):
-    with _sat_lock:
-        if mac_hex in _satellites:
-            _satellites[mac_hex].connected = False
-
-
-def _sat_count():
-    with _sat_lock:
-        return sum(1 for s in _satellites.values() if s.connected)
-
-
-def _print_sat_table():
-    with _sat_lock:
-        sats = list(_satellites.values())
-    if not sats:
-        return
-    print(f"  {'NAME':<12} {'MAC':<17} {'FW':<6} {'FPS':<6} STATUS")
-    # VERIFY-FIX: use ASCII dash to avoid cp1252 UnicodeEncodeError on Windows.
-    print(f"  {'-'*12} {'-'*17} {'-'*6} {'-'*6} {'-'*14}")
-    for s in sats:
-        status    = "CONNECTED" if s.connected else "disconnected"
-        alert_str = ["OK", "WARN", "FAULT"][min(s.alert, 2)] if s.connected else "—"
-        print(f"  {s.name:<12} {s.mac_hex:<17} "
-              f"{s.fw_str():<6} {s.fps_str():<6} {status}  {alert_str}")
+# SatelliteState, _sat_lock, _satellites, _sat_register, _sat_disconnect,
+# _sat_count, _print_sat_table are imported above from
+# gateway.registry.satellite_state (Phase 8b1 task 2).
 
 
 # ─── Display state (most recently updated satellite) ─────────────────────────
@@ -748,29 +600,7 @@ def _classify_fault_type(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
     return "Anomalous Vibration"
 
 
-def _sat_update_baseline(sat, mic_rms, mic_kurtosis):
-    if sat.calibrated:
-        return
-    sat._cal_buf.append([mic_rms, mic_kurtosis])
-    if len(sat._cal_buf) >= CAL_FRAMES:
-        arr = np.array(sat._cal_buf, dtype=np.float32)
-        sat.bl_mean = arr.mean(axis=0)
-        sat.bl_std  = arr.std(axis=0) + 1e-6
-        # WP-01 fix: detect pre-damaged machines during warm-up.
-        # If the median calibration kurtosis already exceeds K_WARN, the baseline
-        # is being learned on a damaged bearing — flag it so operators are warned
-        # and the adaptive path defers until a healthy period is observed.
-        median_kurt = float(np.median(arr[:, 1]))
-        if median_kurt >= K_WARN:
-            print(f"  [{sat.name}] WARNING: calibration kurtosis={median_kurt:.2f} "
-                  f">= K_WARN={K_WARN} — machine may be pre-damaged. "
-                  "Adaptive thresholds deferred; using absolute thresholds only.")
-            sat.pre_damaged = True
-        sat.calibrated = True
-        print(f"  [{sat.name}] Baseline ready: "
-              f"rms_mean={sat.bl_mean[0]:.5f}  "
-              f"kurt_mean={sat.bl_mean[1]:.2f}  "
-              f"kurt_std={sat.bl_std[1]:.2f}")
+# _sat_update_baseline is imported above from gateway.registry.baselines.
 
 
 def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
@@ -795,7 +625,7 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
     imu_crest    = frame['imu_crest']
     mic_rms      = frame['mic_rms']
 
-    _sat_update_baseline(sat, mic_rms, mic_kurtosis)
+    _sat_update_baseline(sat, mic_rms, mic_kurtosis, K_WARN, CAL_FRAMES)
 
     # ── Z-score (active after calibration) ───────────────────────────────────
     z_score = 0.0
@@ -1128,9 +958,9 @@ def _process_satellite_frame(sat, frame, mac_hex, csv_w, csv_f,
     if _should_save_hst:
         _save_hst_state(sat)
     if _should_save_rul:
-        _save_rul_state(sat)
+        _save_rul_state(_storage, sat)
     if _should_save_baseline:
-        _save_baselines(sat)
+        _save_baselines(_BASE_DIR, _storage, sat)
 
     # Uno Q sysfs LED — reflect worst fleet state, at most once per second
     global _led_last_update
@@ -1530,99 +1360,9 @@ def _save_hst_state(sat):
         print(f'[hst] [{sat.name}] State save failed: {e}')
 
 
-# ─── Per-satellite adaptive baseline persistence ──────────────────────────────
-
-def _baselines_path(sat) -> str:
-    model_dir = os.path.join(os.path.dirname(__file__), 'model')
-    os.makedirs(model_dir, exist_ok=True)
-    mac_clean = sat.mac_hex.replace(':', '')
-    return os.path.join(model_dir, f'baselines_{mac_clean}.json')
-
-
-def _save_baselines(sat) -> None:
-    """Persist all four adaptive baselines — SQLite primary, JSON file fallback."""
-    if sat.ab_kurtosis is None:
-        return
-    state = {
-        'kurtosis': sat.ab_kurtosis.state_dict(),
-        'crest':    sat.ab_crest.state_dict(),
-        'rms':      sat.ab_rms.state_dict(),
-        'hb':       sat.ab_hb.state_dict(),
-        'saved_at': time.time(),
-    }
-    if _storage is not None:
-        try:
-            _storage.save_model_state(sat.name, 'baselines', state)
-            return
-        except Exception as e:
-            print(f'[baseline] [{sat.name}] DB save failed: {e} — falling back to JSON')
-    # Fallback: write to model/baselines_{mac}.json
-    try:
-        with open(_baselines_path(sat), 'w') as f:
-            json.dump(state, f)
-    except Exception as e:
-        print(f'[baseline] [{sat.name}] Save failed: {e}')
-
-
-def _load_baselines(sat) -> None:
-    """Restore adaptive baselines — SQLite primary, JSON file migration fallback."""
-    if sat.ab_kurtosis is None:
-        return
-    state = None
-    if _storage is not None:
-        try:
-            state = _storage.load_model_state(sat.name, 'baselines')
-        except Exception as e:
-            print(f'[baseline] [{sat.name}] DB load failed: {e}')
-    # Migration fallback: read legacy JSON file if DB has no entry yet
-    if state is None:
-        path = _baselines_path(sat)
-        if os.path.exists(path):
-            try:
-                with open(path) as f:
-                    state = json.load(f)
-            except Exception:
-                pass
-    if state is None:
-        return
-    try:
-        sat.ab_kurtosis.load_state_dict(state['kurtosis'])
-        sat.ab_crest.load_state_dict(state['crest'])
-        sat.ab_rms.load_state_dict(state['rms'])
-        sat.ab_hb.load_state_dict(state['hb'])
-        print(f'[baseline] [{sat.name}] Resumed adaptive baseline '
-              f'(n={sat.ab_kurtosis.n_updates} OK frames, '
-              f'kurt_mean={sat.ab_kurtosis.mean:.3f}, '
-              f'kurt_std={sat.ab_kurtosis.std:.3f})')
-    except Exception as e:
-        print(f'[baseline] [{sat.name}] Could not load state: {e} — starting fresh')
-
-
-# ─── Kalman RUL state persistence ────────────────────────────────────────────
-
-def _save_rul_state(sat) -> None:
-    """Persist RUL Kalman filter state to SQLite (called every 500 frames)."""
-    if _storage is None or sat.rul_estimator is None:
-        return
-    try:
-        _storage.save_model_state(sat.name, 'rul', sat.rul_estimator.state_dict())
-    except Exception as e:
-        print(f'[rul] [{sat.name}] DB save failed: {e}')
-
-
-def _load_rul_state(sat) -> None:
-    """Restore RUL Kalman filter state from SQLite if available."""
-    if _storage is None or sat.rul_estimator is None:
-        return
-    try:
-        state = _storage.load_model_state(sat.name, 'rul')
-        if state is not None:
-            sat.rul_estimator.load_state_dict(state)
-            print(f'[rul] [{sat.name}] Resumed Kalman RUL '
-                  f'(n={sat.rul_estimator.n_updates} frames, '
-                  f'lam={sat.rul_estimator.x[1]:.6f})')
-    except Exception as e:
-        print(f'[rul] [{sat.name}] Could not load RUL state: {e} — starting fresh')
+# ─── Per-satellite adaptive baseline / Kalman RUL persistence ────────────────
+# _baselines_path, _save_baselines, _load_baselines, _save_rul_state,
+# _load_rul_state are imported above from gateway.registry.baselines.
 
 
 def _trigger_sat_training(sat):
@@ -3045,24 +2785,7 @@ def _log_drift_event(sat_name, mac_hex, n_samples):
             pass
 
 
-def _recompute_z_baseline(sat, feat_buf) -> None:
-    """Recompute z-score calibration baseline from recent OK-frame feature vectors.
-
-    HST feature layout (from _extract_hst_features):
-      feat[0] = mic_kurtosis,  feat[2] = mic_rms
-
-    Baseline uses [mic_rms, mic_kurtosis] order to match _sat_update_baseline().
-    Silently skips if the buffer is too small.
-    """
-    if len(feat_buf) < 10:
-        return
-    arr = np.array([[f[2], f[0]] for f in feat_buf], dtype=np.float32)
-    sat.bl_mean = arr.mean(axis=0)
-    sat.bl_std  = arr.std(axis=0) + 1e-6
-    # Reset adaptive baselines so they re-learn from the post-drift regime
-    for ab in (sat.ab_kurtosis, sat.ab_crest, sat.ab_rms, sat.ab_hb):
-        if ab is not None:
-            ab.reset()
+# _recompute_z_baseline is imported above from gateway.registry.baselines.
 
 
 # ─── Maintenance log ──────────────────────────────────────────────────────────
