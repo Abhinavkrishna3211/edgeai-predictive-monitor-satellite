@@ -20,6 +20,15 @@ extern "C" {
 QueueHandle_t dsp_task_get_queue(void);
 
 /**
+ * Returns the second QueueHandle for mic_frame_t items (dsp_task → net_task),
+ * a separate depth-1 queue exclusively for the MQTT publisher — dsp_task's
+ * primary queue above stays wired to wifi_task unchanged (ADR-021).
+ * Queue depth is 1 — net_task reads; dsp_task posts via xQueueOverwrite.
+ * Call AFTER dsp_task_start().
+ */
+QueueHandle_t dsp_task_get_net_queue(void);
+
+/**
  * Initialises the Hann window table and launches the DSP FreeRTOS task on
  * core 1.  raw_rb must be the ring buffer returned by mic_task_get_raw_ringbuf().
  * Call AFTER mic_task_start().

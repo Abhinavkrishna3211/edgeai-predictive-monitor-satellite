@@ -84,6 +84,7 @@ static float s_pwr_y[IMU_HALF] __attribute__((aligned(16)));
 static float s_pwr_z[IMU_HALF] __attribute__((aligned(16)));
 
 static QueueHandle_t s_queue      = NULL;
+static QueueHandle_t s_net_queue  = NULL;  /* second depth-1 queue, exclusively for net_task.c (ADR-021) */
 static TaskHandle_t  s_task_handle = NULL;
 TaskHandle_t imu_task_get_handle(void) { return s_task_handle; }
 
@@ -246,17 +247,21 @@ static void imu_task_fn(void *arg)
 
         avg_cnt = 0;
         xQueueOverwrite(s_queue, &s_frame);
+        xQueueOverwrite(s_net_queue, &s_frame);
     }
 }
 
 /* ─── Public API ──────────────────────────────────────────────────────────── */
 
 QueueHandle_t imu_task_get_queue(void) { return s_queue; }
+QueueHandle_t imu_task_get_net_queue(void) { return s_net_queue; }
 
 void imu_task_start(void)
 {
     s_queue = xQueueCreate(1, sizeof(imu_frame_t));
     configASSERT(s_queue != NULL);
+    s_net_queue = xQueueCreate(1, sizeof(imu_frame_t));
+    configASSERT(s_net_queue != NULL);
 
     hal_accel_init();
     hal_accel_start();

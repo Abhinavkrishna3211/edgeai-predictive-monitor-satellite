@@ -114,7 +114,8 @@ static EXT_RAM_BSS_ATTR float s_mag_db[FFT_HALF];
 /* ── Frame output buffer (static to keep 2 KB off the task stack) ─────────── */
 static mic_frame_t s_out_frame;
 
-static QueueHandle_t s_queue = NULL;
+static QueueHandle_t s_queue     = NULL;
+static QueueHandle_t s_net_queue = NULL;  /* second depth-1 queue, exclusively for net_task.c (ADR-021) */
 
 /* ── DSP task ─────────────────────────────────────────────────────────────── */
 
@@ -276,6 +277,7 @@ static void dsp_task_fn(void *arg)
             s_out_frame.timestamp_ms     = (uint32_t)(esp_timer_get_time() / 1000);
 
             xQueueOverwrite(s_queue, &s_out_frame);
+            xQueueOverwrite(s_net_queue, &s_out_frame);
 
             hst_frame_count++;
             if (!g_hst_warmed_up && hst_frame_count >= 250) {
@@ -304,10 +306,17 @@ QueueHandle_t dsp_task_get_queue(void)
     return s_queue;
 }
 
+QueueHandle_t dsp_task_get_net_queue(void)
+{
+    return s_net_queue;
+}
+
 void dsp_task_start(RingbufHandle_t raw_rb)
 {
     s_queue = xQueueCreate(1, sizeof(mic_frame_t));
     configASSERT(s_queue != NULL);
+    s_net_queue = xQueueCreate(1, sizeof(mic_frame_t));
+    configASSERT(s_net_queue != NULL);
 
     dsps_wind_hann_f32(s_window, FFT_MIC_N);
 

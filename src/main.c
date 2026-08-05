@@ -160,7 +160,7 @@ void app_main(void)
      * See docs/decisions/ADR-011-mqtt-transport-added.md. net_task blocks
      * on WiFi itself, so it's safe to start before the 30 s wait above
      * resolves. */
-    if (net_task_start() != 0) {
+    if (net_task_start(dsp_task_get_net_queue(), imu_task_get_net_queue()) != 0) {
         ESP_LOGE(TAG, "net_task_start failed");
     }
 

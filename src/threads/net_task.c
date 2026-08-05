@@ -25,6 +25,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 
 #include "frame_codec/spectrum_codec.h"
 #include "frame_codec/telemetry_schema.h"
@@ -35,6 +36,16 @@
 #include "threads/tcp_task.h"
 
 static const char *TAG = "net_task";
+
+/* net_task_start()'s two queue args, handed to net_task_fn via
+ * xTaskCreatePinnedToCore's arg pointer (mirrors tcp_task.c's own
+ * s_task_args pattern) — ADR-021. */
+typedef struct {
+	QueueHandle_t mic_q;
+	QueueHandle_t imu_q;
+} net_task_args_t;
+
+static net_task_args_t s_task_args;
 
 /* Fills bins[0..n) with a decaying-ramp shape plus a slow-moving Gaussian
  * peak so consecutive frames visibly differ on the dashboard's spectrum
@@ -119,7 +130,11 @@ static size_t build_synthetic_frame(uint8_t *out_buf, size_t out_buf_size, uint3
 
 static void net_task_fn(void *arg)
 {
-	(void)arg;
+	net_task_args_t *args = (net_task_args_t *)arg;
+	QueueHandle_t mic_q = args->mic_q;
+	QueueHandle_t imu_q = args->imu_q;
+	(void)mic_q; /* wired into the publish loop in Task 1 */
+	(void)imu_q;
 
 	wifi_wait_connected(portMAX_DELAY);
 
@@ -149,10 +164,13 @@ static void net_task_fn(void *arg)
 	}
 }
 
-int net_task_start(void)
+int net_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q)
 {
+	s_task_args.mic_q = mic_q;
+	s_task_args.imu_q = imu_q;
+
 	TaskHandle_t handle = NULL;
-	BaseType_t ok = xTaskCreatePinnedToCore(net_task_fn, "net", TASK_STACK_NET, NULL,
+	BaseType_t ok = xTaskCreatePinnedToCore(net_task_fn, "net", TASK_STACK_NET, &s_task_args,
 						 TASK_PRIO_NET, &handle, 0);
 
 	return (ok == pdPASS) ? 0 : -ENOMEM;
