@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "esp_event.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
@@ -39,6 +40,23 @@ static const char *TAG = "link_mqtt";
 #endif
 #ifndef EPM_MQTT_BROKER_PORT
 #define EPM_MQTT_BROKER_PORT 1883
+#endif
+
+/* Mitigation, not a fix, for a latent ESP-IDF esp-mqtt bug:
+ * esp_mqtt_client_init() never checks esp_event_loop_create()'s return
+ * value, so if that private event loop's allocation fails under tight heap
+ * margin, event_loop_handle stays NULL and the client crashes with
+ * LoadProhibited one call later in esp_mqtt_client_register_event() (see
+ * docs/decisions/ADR-024-esp-mqtt-heap-guard.md). Live-measured free
+ * internal heap immediately before this call is consistently ~67.5 KB
+ * post-Phase-7a (docs/decisions/ADR-023-transport-adrs-superseded.md); this
+ * threshold sits well below that observed margin so it only trips if
+ * something regresses heap usage upstream of this call, not under today's
+ * normal operating conditions. This is a TOCTOU guard, not a real fix - it
+ * narrows the crash window but can't close it (heap could still drop
+ * between this check and esp_mqtt_client_init() itself). */
+#ifndef EPM_MQTT_MIN_FREE_HEAP_BYTES
+#define EPM_MQTT_MIN_FREE_HEAP_BYTES 32768
 #endif
 
 #define NODE_ID_LEN 6 /* last 3 MAC octets, lowercase hex, no separators */
@@ -201,6 +219,15 @@ int link_mqtt_start(void)
 
 	if (rc != 0) {
 		return rc;
+	}
+
+	size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+
+	if (free_heap < EPM_MQTT_MIN_FREE_HEAP_BYTES) {
+		ESP_LOGE(TAG, "free heap %u below %u-byte MQTT init safety margin - "
+			 "skipping esp_mqtt_client_init() (see ADR-024)",
+			 (unsigned)free_heap, (unsigned)EPM_MQTT_MIN_FREE_HEAP_BYTES);
+		return -ENOMEM;
 	}
 
 	derive_node_id(s_node_id, sizeof(s_node_id));

@@ -26,6 +26,7 @@
 #include <errno.h>
 
 #include "esp_attr.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -146,6 +147,13 @@ static void net_task_fn(void *arg)
 	QueueHandle_t imu_q = args->imu_q;
 
 	wifi_wait_connected(portMAX_DELAY);
+
+	/* Free internal-DRAM heap immediately before esp-mqtt's client init —
+	 * the measurement Phase 7b's ADR-024 decision is based on (ADR-017:
+	 * esp_mqtt_client_init() null-derefs later if esp_event_loop_create()
+	 * fails here under tight margin). */
+	ESP_LOGI(TAG, "free heap before link_mqtt_start(): internal=%lu",
+		 (unsigned long)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
 
 	int rc = link_mqtt_start();
 
