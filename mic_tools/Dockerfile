@@ -1,7 +1,10 @@
 # EPM Gateway — Docker deployment for Arduino Uno Q
 #
-# Build:
-#   docker build -t epm-gateway .
+# Build context is the REPO ROOT, not mic_tools/ — this Dockerfile needs to
+# COPY the gateway/ package (gateway/{ingestion,pipeline,registry,api,common}
+# + main.py, Phase 8b1-8b3) which lives outside mic_tools/. Build from the
+# repo root, or use docker-compose.yml (context: .. relative to mic_tools/):
+#   docker build -f mic_tools/Dockerfile -t epm-gateway .
 #
 # Run (replace values as needed):
 #   docker run -d --name epm \
@@ -35,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Python ML dependencies ────────────────────────────────────────────────────
 # Install in order: numpy first (many packages depend on it),
 # then TFLite runtime, then the rest.
-COPY requirements.txt .
+COPY mic_tools/requirements.txt .
 RUN pip install --no-cache-dir \
     "numpy>=1.24,<2.0" \
     "scipy>=1.11" \
@@ -65,12 +68,15 @@ RUN if [ "$BUILD_TRAINING" = "1" ]; then \
 # If missing, inference falls back to CPU TFLite automatically.
 
 # matplotlib is NOT installed — --no-plot is always used inside Docker
-# Copy gateway source
-COPY recv_verify.py .
-COPY bearing_math.py .
-COPY docker_start.py .
-COPY ml_trainer.py .
-COPY autoencoder.py .
+# Copy gateway source. recv_verify.py's entrypoint (main()) forwards to
+# gateway/main.py (Phase 8b3), which imports gateway.{ingestion,pipeline,
+# registry,api,common} — bearing_math.py and autoencoder.py now live under
+# gateway/pipeline/ (Phase 8b1), not mic_tools/, so the gateway/ tree below
+# is what supplies them; there is no separate COPY for either file anymore.
+COPY gateway/ ./gateway/
+COPY mic_tools/recv_verify.py .
+COPY mic_tools/docker_start.py .
+COPY mic_tools/ml_trainer.py .
 
 # Satellite TCP port
 EXPOSE 5100

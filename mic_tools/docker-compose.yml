@@ -20,8 +20,10 @@
 services:
   epm-gateway:
     build:
-      context: .
-      dockerfile: Dockerfile
+      # Context is the repo root, not mic_tools/ — Dockerfile needs to COPY
+      # the gateway/ package (Phase 8b3), which lives outside mic_tools/.
+      context: ..
+      dockerfile: mic_tools/Dockerfile
     image: epm-gateway:latest
     container_name: epm
     restart: unless-stopped

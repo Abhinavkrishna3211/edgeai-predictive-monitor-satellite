@@ -140,13 +140,9 @@ from gateway.pipeline.ml_scoring import (
     _trigger_sat_training, _train_sat_model_bg,
 )
 
-# Optional: AES-128-GCM frame decryption (cryptography>=42.0.0)
-_CRYPTO_AVAILABLE = False
-try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    _CRYPTO_AVAILABLE = True
-except ImportError:
-    AESGCM = None  # type: ignore[assignment,misc]
+# AES-128-GCM frame decryption (FrameDecryptor, _CRYPTO_AVAILABLE, AESGCM) moved
+# to gateway/ingestion/tcp_legacy.py in Phase 8b3 task 1 along with the rest of
+# the TCP-legacy receiver — nothing in this file needs it anymore.
 
 # Optional: mDNS gateway advertisement (zeroconf>=0.131.0)
 _MDNS_AVAILABLE = False
@@ -194,17 +190,10 @@ _AUTH_PASS          = None
 _FACTORY_NAME       = 'EPM Industrial Monitor'  # set by --factory-name
 
 # ─── Protocol constants ───────────────────────────────────────────────────────
-
-EPM_MAGIC   = 0xEA1DF00D
-HELLO_MAGIC = 0xEA1D0000
-
-HEADER_FMT  = '<IIIHHffffBfffBBB'   # 48 bytes — added mic_kurtosis float; last B is overflow_count
-HEADER_SIZE = struct.calcsize(HEADER_FMT)
-assert HEADER_SIZE == 48, f"Header size {HEADER_SIZE}"
-
-HELLO_FMT   = '<I6sBB12s'
-HELLO_SIZE  = struct.calcsize(HELLO_FMT)
-assert HELLO_SIZE == 24, f"Hello size {HELLO_SIZE}"
+# TCP-wire-format constants (EPM_MAGIC, HELLO_MAGIC, HEADER_FMT, HELLO_FMT, ...)
+# moved to gateway/ingestion/tcp_legacy.py in Phase 8b3 task 1 — EPM_ALERT_OK/
+# WARN/FAULT below are transport-agnostic (used by the shared
+# _process_satellite_frame and by both ingestion paths) and stay here.
 
 EPM_ALERT_OK    = 0x00
 EPM_ALERT_WARN  = 0x01
@@ -275,8 +264,9 @@ AB_SAVE_INTERVAL = 1000  # persist baseline state every N healthy-frame updates
 
 # ─── Adaptive-sensing reply (EPM protocol v2) ─────────────────────────────────
 # _adaptive_overlap / _adaptive_avg_n are imported above from
-# gateway.pipeline.adaptive_control (Phase 8b1 task 3).
-EPM_PROTO_V2_MAGIC = 0xA2  # first byte of v2 reply — distinct from 0x00/0x01/0x02
+# gateway.pipeline.adaptive_control (Phase 8b1 task 3). EPM_PROTO_V2_MAGIC moved
+# to gateway/ingestion/tcp_legacy.py alongside the reply-packing code that uses
+# it (Phase 8b3 task 1).
 
 
 # ─── Satellite registry ───────────────────────────────────────────────────────
@@ -351,40 +341,6 @@ def get_local_ip() -> str:
         return candidates[0] if candidates else '127.0.0.1'
 
 
-# ─── AES-128-GCM frame decryption ─────────────────────────────────────────────
-
-class FrameDecryptor:
-    """Decrypts AES-128-GCM encrypted EPM frames produced by the satellite firmware.
-
-    Wire format (after the uint32_t payload_bytes length prefix):
-        iv[12]           AES-GCM nonce (TRNG-generated per frame on satellite)
-        ciphertext[N]    encrypted epm_header_t + FFT arrays
-        tag[16]          GCM authentication tag
-
-    The `cryptography` library combines ciphertext and tag as `ciphertext||tag`
-    for its decrypt() call — FrameDecryptor handles the split transparently.
-    """
-    def __init__(self, psk_bytes: bytes):
-        if not _CRYPTO_AVAILABLE:
-            raise RuntimeError("cryptography package not installed — run: pip install 'cryptography>=42.0.0'")
-        if len(psk_bytes) != 16:
-            raise ValueError(f"PSK must be exactly 16 bytes (AES-128), got {len(psk_bytes)}")
-        self._aes = AESGCM(psk_bytes)
-
-    def decrypt(self, blob: bytes) -> bytes:
-        """Decrypt a payload blob = iv[12] + ciphertext[N] + tag[16].
-
-        Returns the plaintext bytes on success.
-        Raises an exception (InvalidTag) if authentication fails — caller logs SECURITY.
-        """
-        if len(blob) < 12 + 16:
-            raise ValueError(f"encrypted blob too short ({len(blob)} bytes)")
-        iv         = blob[:12]
-        tag        = blob[-16:]
-        ciphertext = blob[12:-16]
-        return self._aes.decrypt(iv, ciphertext + tag, None)
-
-
 # ─── Security event logging ────────────────────────────────────────────────────
 
 def _log_security_event(sat_name: str, mac_hex: str, detail: str):
@@ -411,69 +367,9 @@ def _log_security_event(sat_name: str, mac_hex: str, detail: str):
     print(f"[SECURITY] {sat_name} ({mac_hex}): {detail}")
 
 
-# ─── TCP helpers ──────────────────────────────────────────────────────────────
-
-def recv_exact(sock, n):
-    buf = bytearray()
-    while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
-        if not chunk:
-            raise ConnectionError("peer closed connection")
-        buf.extend(chunk)
-    return bytes(buf)
-
-
-def parse_frame(raw, exp_mic_bins, exp_imu_bins):
-    if len(raw) < HEADER_SIZE:
-        raise ValueError(f"frame too short ({len(raw)})")
-
-    (magic, frame_id, ts_ms,
-     mic_bins, imu_bins,
-     mic_rms, mic_crest, mic_dc, mic_kurtosis, mic_clip,
-     imu_rms, imu_crest, imu_dc, imu_clip,
-     imu_axes, overflow_count) = struct.unpack_from(HEADER_FMT, raw, 0)
-
-    errs = []
-    if magic != EPM_MAGIC:
-        errs.append(f"BAD MAGIC 0x{magic:08X}")
-    if mic_bins != exp_mic_bins:
-        errs.append(f"mic_bins={mic_bins} exp={exp_mic_bins}")
-    if imu_bins != exp_imu_bins:
-        errs.append(f"imu_bins={imu_bins} exp={exp_imu_bins}")
-    if imu_axes != 3:
-        errs.append(f"imu_axes={imu_axes} exp=3")
-    if mic_clip:
-        errs.append("MIC CLIP")
-    if imu_clip:
-        errs.append("IMU CLIP")
-
-    exp_size = HEADER_SIZE + mic_bins * 4 + imu_bins * 4 * imu_axes
-    if len(raw) != exp_size:
-        # Raise immediately — np.frombuffer on a short buffer silently returns
-        # fewer elements than requested, corrupting all FFT arrays downstream.
-        raise ValueError(
-            f"frame payload {len(raw)} B != expected {exp_size} B "
-            f"(mic_bins={mic_bins} imu_bins={imu_bins} imu_axes={imu_axes}); "
-            f"header errors: {errs or 'none'}"
-        )
-
-    off     = HEADER_SIZE
-    mic_fft = np.frombuffer(raw, dtype='<f4', count=mic_bins, offset=off).copy()
-    off    += mic_bins * 4
-    imu_x   = np.frombuffer(raw, dtype='<f4', count=imu_bins, offset=off).copy()
-    off    += imu_bins * 4
-    imu_y   = np.frombuffer(raw, dtype='<f4', count=imu_bins, offset=off).copy()
-    off    += imu_bins * 4
-    imu_z   = np.frombuffer(raw, dtype='<f4', count=imu_bins, offset=off).copy()
-
-    return dict(frame_id=frame_id, ts_ms=ts_ms,
-                mic_bins=mic_bins, imu_bins=imu_bins, imu_axes=imu_axes,
-                mic_rms=mic_rms, mic_crest=mic_crest, mic_kurtosis=mic_kurtosis,
-                imu_rms=imu_rms, imu_crest=imu_crest,
-                mic_fft=mic_fft, imu_x=imu_x, imu_y=imu_y, imu_z=imu_z,
-                overflow_count=overflow_count,
-                errors=errs)
-
+# recv_exact/parse_frame are now in gateway/ingestion/tcp_legacy.py, alongside
+# the wire-format constants (EPM_MAGIC, HEADER_FMT, ...) they depend on
+# (Phase 8b3 task 1).
 
 # _band_ratios, _high_band_ratio, _spectral_centroid, _extract_hst_features,
 # _classify_fault_type, compute_alert are imported above from
@@ -717,185 +613,14 @@ def _process_satellite_frame(sat, frame, mac_hex, csv_w, csv_f,
     return alert, p_fault, now, warn_streak, ok_streak, sent_alert, last_frame_id
 
 
-# ─── Per-satellite connection thread ─────────────────────────────────────────
-
-def satellite_thread(conn, addr, exp_mic_bins, exp_imu_bins):
-    mac_hex = None
-    sat     = None
-    csv_f   = None
-    csv_w   = None
-    try:
-        conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        conn.settimeout(15.0)   # unblock recv_exact() if satellite goes silent
-
-        # ── Parse hello packet ────────────────────────────────────────────────
-        hello_raw = recv_exact(conn, HELLO_SIZE)
-        magic, mac_bytes, fw_major, fw_minor, name_bytes = \
-            struct.unpack(HELLO_FMT, hello_raw)
-
-        if magic != HELLO_MAGIC:
-            print(f"[{addr[0]}] Bad hello magic 0x{magic:08X} — dropping")
-            return
-
-        mac_hex = ':'.join(f'{b:02X}' for b in mac_bytes)
-        name    = name_bytes.split(b'\x00')[0].decode('ascii', errors='replace')
-        sat     = _sat_register(mac_hex, name, fw_major, fw_minor, addr)
-
-        print(f"\n[+] Satellite connected: {name}  MAC={mac_hex}  "
-              f"fw={fw_major}.{fw_minor}  from {addr[0]}:{addr[1]}")
-        print(f"    Satellites active: {_sat_count()}")
-        _print_sat_table()
-
-        # ── CSV log: logs/csv/YYYY/MM/epm_{name}_{date}.csv, append on reconnect ──
-        # Dated subdirectory layout allows background rotation to gzip by age.
-        log_dir  = os.path.join(os.path.dirname(__file__), 'logs')
-        now_dt   = datetime.datetime.now()
-        csv_dir  = os.path.join(log_dir, 'csv', now_dt.strftime('%Y'), now_dt.strftime('%m'))
-        os.makedirs(csv_dir, exist_ok=True)
-        date_str = now_dt.strftime('%Y%m%d')
-        csv_path = os.path.join(csv_dir, f"epm_{name}_{date_str}.csv")
-        is_new   = not os.path.exists(csv_path)
-        csv_f    = open(csv_path, 'a', newline='')
-        csv_w    = csv.writer(csv_f)
-        if is_new:
-            csv_w.writerow(['wall_time', 'frame_id', 'device_ms',
-                            'mic_rms', 'mic_crest', 'mic_kurtosis',
-                            'imu_rms', 'imu_crest',
-                            'high_band_ratio', 'z_score', 'p_fault', 'alert',
-                            'overflow_count'])
-        print(f"    Logging to: {csv_path}  ({'new' if is_new else 'append'})")
-
-        # Maximum valid payload: header + mic FFT + 3 × IMU FFT + 1 KB margin.
-        # In encrypted mode, add 12 (IV) + 16 (tag) overhead.
-        # Guards against a malicious/buggy satellite sending a huge length prefix
-        # that would cause recv_exact to try to allocate gigabytes.
-        _plaintext_len = HEADER_SIZE + exp_mic_bins * 4 + exp_imu_bins * 4 * 3
-        max_payload = (_plaintext_len + 12 + 16 + 1024)
-
-        # Per-connection streak counters — kept as local variables so mutations
-        # never race with the dashboard HTTP reader (all sat writes go through lock).
-        warn_streak    = 0
-        ok_streak      = 0
-        sent_alert     = EPM_ALERT_OK
-        last_frame_id  = -1   # replay protection: must be monotonically increasing
-
-        while True:
-            (payload_bytes,) = struct.unpack('<I', recv_exact(conn, 4))
-            # Accept either plaintext or encrypted payload sizes
-            min_size = HEADER_SIZE if _decryptor is None else (12 + HEADER_SIZE + 16)
-            if payload_bytes < min_size or payload_bytes > max_payload:
-                raise ValueError(
-                    f"payload_bytes={payload_bytes} out of valid range "
-                    f"[{min_size}..{max_payload}]")
-            raw = recv_exact(conn, payload_bytes)
-
-            # ── AES-128-GCM decryption (if gateway started with --psk-hex) ──────
-            if _decryptor is not None:
-                try:
-                    raw = _decryptor.decrypt(raw)
-                except Exception as exc:
-                    _log_security_event(
-                        sat.name, mac_hex,
-                        f"GCM tag verification failed on frame — possible key mismatch "
-                        f"or injected data ({exc})")
-                    continue   # keep connection; satellite can retry after reboot
-
-            frame = parse_frame(raw, exp_mic_bins, exp_imu_bins)
-
-            _result = _process_satellite_frame(
-                sat, frame, mac_hex, csv_w, csv_f,
-                warn_streak, ok_streak, sent_alert, last_frame_id)
-            if _result is None:
-                continue   # replay — already logged inside _process_satellite_frame
-            (alert, p_fault, now,
-             warn_streak, ok_streak, sent_alert, last_frame_id) = _result
-
-            # ── EPM v2 adaptive reply ──────────────────────────────────────────
-            # Build and send the 8-byte v2 struct.  The AI posterior reshapes
-            # the satellite's FFT pipeline: higher P(fault) → more overlap and
-            # less averaging → faster temporal response to transient fault events.
-            _ov  = _adaptive_overlap(p_fault)
-            _avg = _adaptive_avg_n(p_fault)
-            _v2  = struct.pack('<BBHBBBB',
-                               EPM_PROTO_V2_MAGIC,        # proto_ver
-                               alert,                     # alert_state
-                               min(int(p_fault * 10000), 10000),  # fault_posterior
-                               _ov,                       # fft_overlap_pct
-                               _avg,                      # spec_avg_n
-                               0, 0)                      # reserved
-            try:
-                conn.sendall(_v2)
-            except OSError:
-                break
-
-            # Log ADAPT event when commanded parameters change
-            if _ov != sat.adapt_overlap or _avg != sat.adapt_avg_n:
-                _adapt_event = {
-                    'time':       now,
-                    'satellite':  sat.name,
-                    'mac':        mac_hex,
-                    'event_type': 'ADAPT',
-                    'alert':      'INFO',
-                    'prev':       'INFO',
-                    'kurtosis':   0.0,
-                    'crest':      0.0,
-                    'z_score':    0.0,
-                    'detail':     (f'Sensor adapt: overlap {sat.adapt_overlap}%→{_ov}%  '
-                                   f'avg_n {sat.adapt_avg_n}→{_avg}  '
-                                   f'p_fault={p_fault:.3f}'),
-                }
-                with _ALERT_HISTORY_LOCK:
-                    _ALERT_HISTORY.appendleft(_adapt_event)
-                sat.adapt_overlap = _ov
-                sat.adapt_avg_n   = _avg
-
-    except (ConnectionError, struct.error, OSError) as e:
-        print(f"\n[-] {(sat.name if sat else mac_hex) or addr[0]} disconnected: {e}")
-    except Exception as e:
-        print(f"\n[-] {(sat.name if sat else mac_hex) or addr[0]} error: {e}")
-    finally:
-        if csv_f:
-            try:
-                csv_f.close()
-            except OSError:
-                pass
-        try:
-            conn.close()
-        except OSError:
-            pass
-        if mac_hex:
-            _sat_disconnect(mac_hex)
-        print(f"    Satellites remaining: {_sat_count()}")
-        _print_sat_table()
-
+# satellite_thread/accept_loop are now in gateway/ingestion/tcp_legacy.py
+# (Phase 8b3 task 1), reaching this file's _process_satellite_frame,
+# _log_security_event, and shared state via a lazy `import recv_verify as _rv`.
 
 # _load_ml_model, _ml_score, _ml_score_with, _ml_score_tflite,
 # _try_load_sat_model, _try_load_hst_state, _save_hst_state,
 # _trigger_sat_training, _train_sat_model_bg are imported above from
 # gateway.pipeline.ml_scoring (Phase 8b2 task 3).
-
-# ─── Accept loop ─────────────────────────────────────────────────────────────
-
-def accept_loop(host, port, fft_mic_n, fft_imu_n):
-    exp_mic = fft_mic_n // 2
-    exp_imu = fft_imu_n // 2
-
-    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind((host, port))
-    srv.listen(16)
-    print(f"[server] Listening on {host}:{port}  "
-          f"(mic={fft_mic_n}-pt  imu={fft_imu_n}-pt × 3 axes)  up to 16 satellites")
-
-    while True:
-        conn, addr = srv.accept()
-        threading.Thread(
-            target=satellite_thread,
-            args=(conn, addr, exp_mic, exp_imu),
-            daemon=True,
-            name=f"sat-{addr[0]}",
-        ).start()
-
 
 # ─── Live plot ────────────────────────────────────────────────────────────────
 
@@ -1116,323 +841,16 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
+# Argument parsing + startup wiring moved to gateway/main.py (Phase 8b3 task 2).
+# This stays a one-line forwarding shim rather than being retired outright so
+# `python recv_verify.py ...` (direct invocation, existing muscle-memory/docs)
+# and `import recv_verify; recv_verify.main()` (mic_tools/docker_start.py) both
+# keep working unchanged. See
+# docs/decisions/ADR-029-recv-verify-fate-and-main-py-split.md.
 
 def main():
-    global CREST_WARN, CREST_FAULT, _NOTIFY_WEBHOOK, _NOTIFY_EMAIL_CFG
-    global _AUTH_USER, _AUTH_PASS, _FACTORY_NAME
-    global _FAULT_PRIOR, _EVIDENCE_Z_MID, _bayesian_fusion
-    global Z_WARN_SIGMA, Z_FAULT_SIGMA, _storage
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--port',      type=int,   default=5100)
-    parser.add_argument('--listen-ip', type=str,   default='0.0.0.0')
-    parser.add_argument('--fft-mic-n', type=int,   default=1024)
-    parser.add_argument('--fft-imu-n', type=int,   default=2048)
-    parser.add_argument('--shaft-hz',   type=float, default=None,
-                        help='Shaft frequency Hz — marks harmonics on all FFT panels')
-    parser.add_argument('--shaft-rpm',  type=float, default=None,
-                        help='Shaft speed RPM — alternative to --shaft-hz')
-    parser.add_argument('--bearing',    type=str,   default=None,
-                        help='Bearing type for fault freq markers: e.g. 6205 or n,D,d[,alpha]. '
-                             'Requires --shaft-hz or --shaft-rpm. '
-                             'Run: python bearing_math.py --list')
-    parser.add_argument('--model',      type=str,   default=None,
-                        help='ML model prefix from ml_trainer.py (e.g. model/epm_model). '
-                             'Enables ML-based alerting alongside threshold detection.')
-    parser.add_argument('--crest-warn',  type=float, default=None,
-                        help=f'Crest factor WARN threshold (default {CREST_WARN})')
-    parser.add_argument('--crest-fault', type=float, default=None,
-                        help=f'Crest factor FAULT threshold (default {CREST_FAULT})')
-    parser.add_argument('--dashboard-port', type=int, default=8080,
-                        help='HTTP port for the web dashboard (default 8080)')
-    parser.add_argument('--no-plot', action='store_true',
-                        help='Skip the live matplotlib plot — for SSH / headless / '
-                             'Uno Q / server environments with no display')
-    parser.add_argument('--auth', type=str, default=None, metavar='USER:PASS',
-                        help='Protect dashboard with HTTP Basic Auth (e.g. admin:secret). '
-                             'Required for production deployments.')
-    parser.add_argument('--notify-webhook', type=str, default=None, metavar='URL',
-                        help='Webhook URL for FAULT alerts — supports Discord, Slack, Teams, '
-                             'or any generic JSON endpoint.')
-    parser.add_argument('--notify-email', type=str, default=None,
-                        metavar='FROM:TO:HOST[:PORT[:USER:PASS]]',
-                        help='SMTP config for email FAULT alerts (colon-separated). '
-                             'Example: alerts@co.com:ops@co.com:smtp.co.com:587:user:pass')
-    parser.add_argument('--factory-name', type=str, default=None,
-                        help='Site/factory name shown in the dashboard header '
-                             '(default: "EPM Industrial Monitor")')
-    parser.add_argument('--fault-prior', type=float, default=0.01,
-                        help='Bayesian prior P(fault per frame) for multi-channel '
-                             'fusion (default 0.01). Raise to 0.05 for noisier sites.')
-    parser.add_argument('--evidence-midpoint', type=float, default=_EVIDENCE_Z_MID,
-                        help='Z-score at which a channel contributes 50/50 fault '
-                             'evidence (default %.1f — Phase 3 sweep optimum).' % _EVIDENCE_Z_MID)
-    parser.add_argument('--threshold-sigma', type=float, default=4.0,
-                        help='Adaptive z-sigma threshold for WARN from per-machine baseline '
-                             '(default 4.0; FAULT is set to this value + 2.0). '
-                             'Lower values increase sensitivity on quiet machines.')
-    parser.add_argument('--psk-hex', type=str, default=None,
-                        metavar='HEX32',
-                        help='32-character hex AES-128 key for frame decryption '
-                             '(e.g. deadbeefdeadbeefdeadbeefdeadbeef). '
-                             'Must match EPM_PSK in wifi_creds.h or the NVS key on satellites. '
-                             'Also readable from the EPM_PSK env-var. '
-                             'Omit to run in plaintext mode (dev/debug only).')
-    parser.add_argument('--autoencoder', type=str, default=None,
-                        metavar='PATH',
-                        help='Path to ONNX autoencoder model (e.g. model/autoencoder.onnx). '
-                             'Adds reconstruction-error as a 4th Bayesian fusion channel. '
-                             'Stats sidecar <model>_stats.npz must exist alongside the model. '
-                             'Omit to run without neural autoencoder channel.')
-    parser.add_argument('--mqtt-host', type=str, default=None,
-                        help='Broker host for the MQTT section-list ingestion path '
-                             '(Phase 8a) -- e.g. 192.168.1.8. Runs alongside the existing '
-                             'TCP+AES receiver (does not replace it); omit to disable. '
-                             'See mqtt_ingest.py and ADR-027 for the satellite-identity '
-                             'and imu_rms/imu_crest derivation this path uses.')
-    parser.add_argument('--mqtt-port', type=int, default=1883,
-                        help='Broker port for --mqtt-host (default 1883)')
-    args = parser.parse_args()
-
-    # Port-in-use guard — prevents silent conflicts with orphaned gateway instances.
-    # SO_REUSEADDR would let a new instance bind but the old process keeps accepting
-    # connections first, causing partial/lost frames. Fail fast instead.
-    _guard = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    _guard.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    try:
-        _guard.bind((args.listen_ip, args.port))
-        _guard.close()
-    except OSError as _e:
-        print(f'[ERROR] Port {args.port} is already in use: {_e}')
-        print(f'        Find & kill the old process:')
-        print(f'          netstat -ano | findstr :{args.port}')
-        print(f'          Stop-Process -Id <PID> -Force')
-        sys.exit(1)
-
-    if args.crest_warn is not None:
-        CREST_WARN = args.crest_warn
-    if args.crest_fault is not None:
-        CREST_FAULT = args.crest_fault
-    _FAULT_PRIOR    = args.fault_prior
-    _EVIDENCE_Z_MID = args.evidence_midpoint
-    Z_WARN_SIGMA    = args.threshold_sigma
-    Z_FAULT_SIGMA   = args.threshold_sigma + 2.0
-    if _FUSION_AVAILABLE:
-        _bayesian_fusion = BayesianFusion(
-            prior=_FAULT_PRIOR, z_mid=_EVIDENCE_Z_MID, temperature=1.0)
-
-    # ── Autoencoder ONNX model ─────────────────────────────────────────────────
-    global _ae_engine, _ae_stats
-    if args.autoencoder is not None:
-        if not _AE_AVAILABLE:
-            sys.exit('[EPM] --autoencoder requires onnxruntime. '
-                     'Run: pip install onnxruntime>=1.17.0')
-        stats_path = args.autoencoder.replace('.onnx', '_stats.npz')
-        if not os.path.exists(stats_path):
-            sys.exit(f'[EPM] Stats sidecar not found: {stats_path}\n'
-                     '      Run train_autoencoder.py to generate it alongside the model.')
-        _ae_engine = InferenceEngine(args.autoencoder)
-        _ae_stats  = np.load(stats_path)
-        print(f'[EPM] Autoencoder: {args.autoencoder}')
-        print(f'[EPM]   healthy mean_recon_err={float(_ae_stats["mean_recon_err"]):.6f}'
-              f'  backend={_ae_engine.backend_label}')
-
-    # ── Auth ──────────────────────────────────────────────────────────────────
-    if args.auth:
-        if ':' not in args.auth:
-            sys.exit('--auth must be USER:PASS (e.g. admin:secret)')
-        _AUTH_USER, _AUTH_PASS = args.auth.split(':', 1)
-
-    # ── Notifications ─────────────────────────────────────────────────────────
-    if args.notify_webhook:
-        _NOTIFY_WEBHOOK = args.notify_webhook
-
-    if args.notify_email:
-        parts = args.notify_email.split(':')
-        if len(parts) < 3:
-            sys.exit('--notify-email must be FROM:TO:HOST[:PORT[:USER:PASS]]')
-        _NOTIFY_EMAIL_CFG = {
-            'from': parts[0],
-            'to':   parts[1],
-            'host': parts[2],
-            'port': int(parts[3]) if len(parts) > 3 else 587,
-            'user': parts[4] if len(parts) > 4 else None,
-            'pass': parts[5] if len(parts) > 5 else None,
-        }
-
-    # ── Factory name ──────────────────────────────────────────────────────────
-    if args.factory_name:
-        _FACTORY_NAME = args.factory_name
-
-    for n, name in ((args.fft_mic_n, 'fft-mic-n'), (args.fft_imu_n, 'fft-imu-n')):
-        if n <= 0 or (n & (n - 1)):
-            sys.exit(f"--{name} must be a power of 2 (got {n})")
-
-    # Resolve shaft_hz from either --shaft-hz or --shaft-rpm
-    shaft_hz = args.shaft_hz
-    if args.shaft_rpm is not None and shaft_hz is None:
-        shaft_hz = args.shaft_rpm / 60.0
-
-    # Parse bearing geometry and compute fault frequencies for FFT annotation
-    bearing_freqs_mic = None
-    bearing_freqs_imu = None
-    if args.bearing:
-        if not _BEARING_AVAILABLE:
-            print('WARNING: bearing_math.py not found in the same directory — ignoring --bearing')
-        elif shaft_hz is None:
-            print('WARNING: --bearing requires --shaft-hz or --shaft-rpm — ignoring')
-        else:
-            geom = parse_bearing_arg(args.bearing)
-            if geom is None:
-                print(f'WARNING: unknown bearing "{args.bearing}" — ignoring. '
-                      f'Run: python bearing_math.py --list')
-            else:
-                bf = BearingFreqs.from_shaft_hz(shaft_hz, geom)
-                bf.print_table()
-                bearing_freqs_mic = bf.markers(MIC_FS_HZ)
-                bearing_freqs_imu = bf.markers(IMU_FS_HZ)
-
-    # Load ML model if requested
-    if args.model:
-        _load_ml_model(args.model)
-
-    # ── SQLite storage ────────────────────────────────────────────────────────
-    global _storage
-    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
-    os.makedirs(log_dir, exist_ok=True)
-    if _STORAGE_AVAILABLE:
-        try:
-            _storage = Storage(os.path.join(log_dir, 'epm.db'))
-            print(f'[storage] SQLite DB: {os.path.join(log_dir, "epm.db")}  (WAL mode)')
-        except Exception as e:
-            print(f'[storage] WARNING: could not open DB: {e} — using JSON fallback')
-
-    # ── Load maintenance log (from SQLite or legacy JSON) ─────────────────────
-    _load_maint_log(os.path.join(log_dir, 'maintenance_log.json'))
-
-    # ── CSV rotation background thread — gzip files older than 90 days ────────
-    if _STORAGE_AVAILABLE and rotate_old_csvs is not None:
-        def _csv_rotation_loop():
-            csv_root = os.path.join(log_dir, 'csv')
-            while True:
-                time.sleep(3600)   # check hourly
-                try:
-                    n = rotate_old_csvs(csv_root, max_age_days=90)
-                    if n:
-                        print(f'[csv-rotation] Gzipped {n} CSV file(s) older than 90 days')
-                except Exception as e:
-                    print(f'[csv-rotation] Error: {e}')
-        threading.Thread(target=_csv_rotation_loop, daemon=True,
-                         name='csv-rotation').start()
-
-    # ── AES-128-GCM frame decryption ──────────────────────────────────────────
-    global _decryptor
-    psk_hex = args.psk_hex or os.environ.get('EPM_PSK')
-    if psk_hex:
-        if not _CRYPTO_AVAILABLE:
-            sys.exit('[crypto] ERROR: --psk-hex requires the cryptography package: '
-                     'pip install "cryptography>=42.0.0"')
-        psk_hex = psk_hex.strip()
-        if len(psk_hex) != 32 or not all(c in '0123456789abcdefABCDEF' for c in psk_hex):
-            sys.exit(f'[crypto] ERROR: --psk-hex must be exactly 32 hex characters (got {len(psk_hex)})')
-        _decryptor = FrameDecryptor(bytes.fromhex(psk_hex))
-        print(f'[crypto] AES-128-GCM decryption enabled — PSK: {psk_hex[:8]}...{psk_hex[-4:]} '
-              f'(all {len(psk_hex)//2} bytes)')
-    else:
-        print('[crypto] Plaintext mode — pass --psk-hex or set EPM_PSK env-var to enable '
-              'AES-128-GCM encryption (required for production)')
-
-    # ── mDNS service advertisement ─────────────────────────────────────────────
-    global _zc_instance
-    if _MDNS_AVAILABLE:
-        try:
-            my_ip = get_local_ip()
-            # Bind Zeroconf to the specific interface IP so it targets the correct
-            # subnet (hotspot 192.168.137.x) instead of probing all interfaces.
-            try:
-                from zeroconf import InterfaceChoice
-                zc = Zeroconf(interfaces=[my_ip])
-            except (ImportError, TypeError):
-                zc = Zeroconf()
-            info  = ServiceInfo(
-                type_     = '_epm-gateway._tcp.local.',
-                name      = 'EPM-Gateway._epm-gateway._tcp.local.',
-                addresses = [socket.inet_aton(my_ip)],
-                port      = args.port,
-                properties= {'version': '2.0', 'factory': _FACTORY_NAME},
-                server    = 'epm-gateway.local.',
-            )
-            zc.register_service(info)
-            _zc_instance = zc
-            print(f'[mDNS] Advertised: epm-gateway.local:{args.port} -> {my_ip}')
-            print('[mDNS] Satellites will auto-discover the gateway (SERVER_IP becomes optional)')
-        except Exception as e:
-            print(f'[mDNS] WARNING: registration failed ({type(e).__name__}: {e}) — satellites must use static SERVER_IP')
-    else:
-        print('[mDNS] zeroconf not installed — satellites must use static SERVER_IP. '
-              'Install: pip install "zeroconf>=0.131.0"')
-
-    print("EPM gateway — multi-satellite predictive maintenance receiver")
-    print(f"Factory: {_FACTORY_NAME}")
-    print(f"Expecting: mic={args.fft_mic_n}-pt  imu={args.fft_imu_n}-pt × 3 axes")
-    if shaft_hz:
-        print(f"Shaft: {shaft_hz:.3f} Hz  ({shaft_hz*60:.0f} RPM)")
-    if bearing_freqs_mic:
-        print(f"Bearing: {geom.name}  BPFO={bearing_freqs_mic.get('BPFO', 0):.1f} Hz  "
-              f"BPFI={bearing_freqs_mic.get('BPFI', 0):.1f} Hz")
-    if _ML_MODEL:
-        print(f"ML alerting: active")
-    if _HST_AVAILABLE:
-        print(f"[EPM] OnlineDetector: river HalfSpaceTrees, fully on-device.")
-        print(f"[EPM]   - n_trees=10 height=15 window=250 features={FEATURE_DIM}")
-        print(f"[EPM]   - No network calls, no telemetry, no cloud dependencies.")
-        print(f"[EPM]   - To verify: tcpdump -i any not port 22 and not port 5100 and not port 8080")
-    else:
-        print("[EPM] OnlineDetector: river not installed — HST scoring disabled.")
-        print("[EPM]   Install: pip install 'river>=0.21.0'")
-    if _FUSION_AVAILABLE:
-        print(f"[EPM] BayesianFusion: multi-channel posterior P(fault|evidence).")
-        print(f"[EPM]   prior={_FAULT_PRIOR:.3f}  z_mid={_EVIDENCE_Z_MID:.1f}  "
-              f"WARN@p>{P_FUSION_WARN:.0%}  FAULT@p>{P_FUSION_FAULT:.0%}")
-        _ae_ch = ' + z_ae (autoencoder)' if _ae_engine is not None else ''
-        print(f"[EPM]   Channels: z_kurtosis, z_rms (+ z_hst when HST warmed up){_ae_ch}")
-    else:
-        print("[EPM] BayesianFusion: bayesian_fusion.py not found — multi-channel fusion disabled.")
-    print("Firewall rule for TCP receiver (elevated PowerShell, run once):")
-    print(f"  New-NetFirewallRule -DisplayName EPM-{args.port} -Direction Inbound "
-          f"-Protocol TCP -LocalPort {args.port} -Action Allow")
-
-    start_dashboard(args.dashboard_port)
-
-    threading.Thread(
-        target=accept_loop,
-        args=(args.listen_ip, args.port, args.fft_mic_n, args.fft_imu_n),
-        daemon=True,
-    ).start()
-
-    # ── MQTT section-list ingestion (Phase 8a) — additive, off by default ────
-    if args.mqtt_host:
-        import mqtt_ingest
-        mqtt_ingest.start(sys.modules[__name__], args.mqtt_host, args.mqtt_port)
-        print(f"[mqtt] Ingesting {mqtt_ingest.DATA_TOPIC_FILTER} from "
-              f"{args.mqtt_host}:{args.mqtt_port}")
-
-    if args.no_plot:
-        print("[plot] --no-plot: running headless (TCP receiver + dashboard only)")
-        print("[plot] Dashboard: http://localhost:{}/".format(args.dashboard_port))
-        try:
-            while True:
-                time.sleep(60)
-        except KeyboardInterrupt:
-            print("\nExiting.")
-    else:
-        try:
-            run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
-                     bearing_freqs_mic=bearing_freqs_mic,
-                     bearing_freqs_imu=bearing_freqs_imu)
-        except KeyboardInterrupt:
-            print("\nExiting.")
+    from gateway.main import main as _main
+    _main()
 
 
 if __name__ == '__main__':
