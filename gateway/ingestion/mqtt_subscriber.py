@@ -221,7 +221,7 @@ class MqttIngestor:
                 csv_w, csv_f = _open_csv_for_node(node_id, rv)
                 node = _NodeState(csv_w, csv_f, rv.EPM_ALERT_OK)
                 self._nodes[node_id] = node
-                print(f"\n[+] Satellite registered (MQTT): {sat.name}  node_id={node_id}")
+                log.info("Satellite registered (MQTT): %s  node_id=%s", sat.name, node_id)
             else:
                 sat = rv._satellites[node_id]
 

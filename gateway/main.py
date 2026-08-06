@@ -28,6 +28,7 @@ so `python recv_verify.py` keeps working as a direct invocation; it is not
 protecting against a circular import.
 """
 import argparse
+import logging
 import os
 import socket
 import sys
@@ -50,8 +51,17 @@ from gateway.ingestion import mqtt_subscriber
 from gateway.api.dashboard import start_dashboard
 from gateway.api.live_plot import run_plot
 
+log = logging.getLogger("gateway.main")
+
 
 def main():
+    # Without this, the `logging` module's default root level (WARNING) silently
+    # drops every log.info()/log.debug() call -- mqtt_subscriber.py's connect/
+    # subscribe messages included -- since nothing else in the gateway configures
+    # a handler or level.
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+
     parser = argparse.ArgumentParser(
         description=rv.__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -249,9 +259,9 @@ def main():
                 try:
                     n = rv.rotate_old_csvs(csv_root, max_age_days=90)
                     if n:
-                        print(f'[csv-rotation] Gzipped {n} CSV file(s) older than 90 days')
+                        log.info("Gzipped %d CSV file(s) older than 90 days", n)
                 except Exception as e:
-                    print(f'[csv-rotation] Error: {e}')
+                    log.error("CSV rotation failed: %s", e)
         threading.Thread(target=_csv_rotation_loop, daemon=True,
                          name='csv-rotation').start()
 
