@@ -65,6 +65,7 @@
 #include "dsps_wind.h"
 #include "dsps_math.h"
 
+#include "dsp/envelope.h"
 #include "dsp/scalar_stats.h"
 
 #include "epm_config.h"
@@ -74,6 +75,8 @@
 static const char *TAG = "imu_task";
 
 #define IMU_HALF    (FFT_IMU_N / 2)
+#define ENV_N       IMU_ENVELOPE_N     /* 256 — decimated envelope block   */
+#define ENV_HALF    IMU_ENVELOPE_HALF  /* 128 — matches EPM_MODEL_SPECTRUM_BINS */
 
 /* ─── Shared compute buffers (sequential axis processing) ─────────────────── */
 
@@ -86,6 +89,26 @@ static float s_fft     [FFT_IMU_N * 2] __attribute__((aligned(16)));
 static float s_pwr_x[IMU_HALF] __attribute__((aligned(16)));
 static float s_pwr_y[IMU_HALF] __attribute__((aligned(16)));
 static float s_pwr_z[IMU_HALF] __attribute__((aligned(16)));
+
+/* ─── Envelope-analysis compute buffers (Phase 11a / ADR-032) ──────────────
+ * Reuses s_block (post DC-removal, pre-Hann) as the band-pass filter's input
+ * — the same raw axis block fft_axis_accumulate() already produced, so no
+ * extra capture or copy is needed. One epm_dsp_envelope_t per axis: the
+ * band/envelope biquads carry IIR state across epochs (continuity between
+ * 80 ms blocks), so each axis needs its own persistent filter state even
+ * though axes share the downstream FFT scratch buffers sequentially. */
+static float s_env_block   [ENV_N]     __attribute__((aligned(16)));
+static float s_env_window  [ENV_N]     __attribute__((aligned(16)));
+static float s_env_windowed[ENV_N]     __attribute__((aligned(16)));
+static float s_env_fft     [ENV_N * 2] __attribute__((aligned(16)));
+
+static float s_env_pwr_x[ENV_HALF] __attribute__((aligned(16)));
+static float s_env_pwr_y[ENV_HALF] __attribute__((aligned(16)));
+static float s_env_pwr_z[ENV_HALF] __attribute__((aligned(16)));
+
+static epm_dsp_envelope_t s_env_state_x;
+static epm_dsp_envelope_t s_env_state_y;
+static epm_dsp_envelope_t s_env_state_z;
 
 static QueueHandle_t s_queue      = NULL;
 static TaskHandle_t  s_task_handle = NULL;
@@ -188,12 +211,44 @@ static void fft_axis_accumulate(float *pwr_acc)
     }
 }
 
+/* ─── Envelope: band-pass -> rectify -> low-pass -> decimate -> FFT ──────── *
+ * Consumes s_block as left by fft_axis_accumulate() (DC already removed —
+ * harmless either way, since the band-pass's own high-pass stage removes
+ * any residual DC/gravity component too). Mirrors fft_axis_accumulate()'s
+ * Hann-window-then-FFT structure at ENV_N instead of FFT_IMU_N. */
+
+static void envelope_axis_accumulate(epm_dsp_envelope_t *env, float *pwr_acc)
+{
+    int rc = epm_dsp_envelope_process(env, s_block, FFT_IMU_N, IMU_ENVELOPE_DECIM,
+                                       s_env_block, ENV_N);
+    if (rc != 0) {
+        return;
+    }
+
+    dsps_mul_f32(s_env_block, s_env_window, s_env_windowed, ENV_N, 1, 1, 1);
+
+    for (int i = 0; i < ENV_N; i++) {
+        s_env_fft[2 * i]     = s_env_windowed[i];
+        s_env_fft[2 * i + 1] = 0.0f;
+    }
+
+    dsps_fft2r_fc32(s_env_fft, ENV_N);
+    dsps_bit_rev2r_fc32(s_env_fft, ENV_N);
+
+    const float nf = 2.0f / ENV_N;
+    for (int i = 0; i < ENV_HALF; i++) {
+        float re = s_env_fft[2 * i]     * nf;
+        float im = s_env_fft[2 * i + 1] * nf;
+        pwr_acc[i] += re * re + im * im;
+    }
+}
+
 /* ─── Convert accumulated power to dBFS array, reset accumulator ─────────── */
 
-static void pwr_to_db(float *pwr_acc, float *db_out)
+static void pwr_to_db(float *pwr_acc, float *db_out, int n)
 {
     const float inv_n = 1.0f / SPEC_AVG_N;
-    for (int i = 0; i < IMU_HALF; i++) {
+    for (int i = 0; i < n; i++) {
         db_out[i]  = 10.0f * log10f(pwr_acc[i] * inv_n + 1e-12f);
         pwr_acc[i] = 0.0f;
     }
@@ -233,6 +288,7 @@ static void imu_task_fn(void *arg)
         if (ok_x) {
             st_x = compute_axis_stats();
             fft_axis_accumulate(s_pwr_x);
+            envelope_axis_accumulate(&s_env_state_x, s_env_pwr_x);
         }
 
         /* ── Y axis (radial B): 50 Hz + 150 Hz (3× harmonic) ── */
@@ -241,6 +297,7 @@ static void imu_task_fn(void *arg)
         if (ok_y) {
             st_y = compute_axis_stats();
             fft_axis_accumulate(s_pwr_y);
+            envelope_axis_accumulate(&s_env_state_y, s_env_pwr_y);
         }
 
         /* ── Z axis (axial): 100 Hz (2× shaft — mild misalignment) ── */
@@ -249,6 +306,7 @@ static void imu_task_fn(void *arg)
         if (ok_z) {
             st_z = compute_axis_stats();
             fft_axis_accumulate(s_pwr_z);
+            envelope_axis_accumulate(&s_env_state_z, s_env_pwr_z);
         }
 
         s_epochs++;
@@ -293,9 +351,12 @@ static void imu_task_fn(void *arg)
         if (avg_cnt < SPEC_AVG_N) continue;
 
         /* ── Build frame after SPEC_AVG_N blocks ── */
-        pwr_to_db(s_pwr_x, s_frame.fft_x);
-        pwr_to_db(s_pwr_y, s_frame.fft_y);
-        pwr_to_db(s_pwr_z, s_frame.fft_z);
+        pwr_to_db(s_pwr_x, s_frame.fft_x, IMU_HALF);
+        pwr_to_db(s_pwr_y, s_frame.fft_y, IMU_HALF);
+        pwr_to_db(s_pwr_z, s_frame.fft_z, IMU_HALF);
+        pwr_to_db(s_env_pwr_x, s_frame.fft_x_env, ENV_HALF);
+        pwr_to_db(s_env_pwr_y, s_frame.fft_y_env, ENV_HALF);
+        pwr_to_db(s_env_pwr_z, s_frame.fft_z_env, ENV_HALF);
 
         s_frame.rms_x   = st_x.rms;
         s_frame.rms_y   = st_y.rms;
@@ -347,11 +408,20 @@ void imu_task_start(void)
      * that never becomes responsive after this point. */
 
     dsps_wind_hann_f32(s_window, FFT_IMU_N);
+    dsps_wind_hann_f32(s_env_window, ENV_N);
     /* FFT twiddle-factor table initialised in app_main */
 
+    epm_dsp_envelope_init(&s_env_state_x, (float)IMU_FS_HZ, IMU_ENVELOPE_BAND_LO_HZ,
+                           IMU_ENVELOPE_BAND_HI_HZ, IMU_ENVELOPE_LP_HZ);
+    epm_dsp_envelope_init(&s_env_state_y, (float)IMU_FS_HZ, IMU_ENVELOPE_BAND_LO_HZ,
+                           IMU_ENVELOPE_BAND_HI_HZ, IMU_ENVELOPE_LP_HZ);
+    epm_dsp_envelope_init(&s_env_state_z, (float)IMU_FS_HZ, IMU_ENVELOPE_BAND_LO_HZ,
+                           IMU_ENVELOPE_BAND_HI_HZ, IMU_ENVELOPE_LP_HZ);
+
     ESP_LOGI(TAG, "imu_task starting (3-axis): %d-pt × 3 axes, "
-             "avg=%d, %.2f Hz/bin, Fs=%d Hz",
-             FFT_IMU_N, SPEC_AVG_N, (float)IMU_FS_HZ / FFT_IMU_N, IMU_FS_HZ);
+             "avg=%d, %.2f Hz/bin, Fs=%d Hz, envelope %.0f-%.0f Hz -> %d-pt/%d",
+             FFT_IMU_N, SPEC_AVG_N, (float)IMU_FS_HZ / FFT_IMU_N, IMU_FS_HZ,
+             IMU_ENVELOPE_BAND_LO_HZ, IMU_ENVELOPE_BAND_HI_HZ, ENV_N, IMU_ENVELOPE_DECIM);
 
     xTaskCreatePinnedToCore(imu_task_fn, "imu_task", TASK_STACK_IMU, NULL,
                             TASK_PRIO_IMU, &s_task_handle, 0);

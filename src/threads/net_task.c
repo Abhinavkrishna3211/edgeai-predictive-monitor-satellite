@@ -101,10 +101,15 @@ void net_task_get_stats(struct net_task_stats *out)
 	out->disconnect_reverts = s_disconnect_reverts;
 }
 
-/* Builds the 5-section frame (4 SPECTRUM + 1 SCALAR_SET) from the currently
+/* Builds the 8-section frame (7 SPECTRUM + 1 SCALAR_SET) from the currently
  * cached s_last_mic/s_last_imu. Returns the encoded length, or 0 if
  * out_buf_size is too small or a bin-reduction call fails
- * (telemetry_build_frame()'s / epm_dsp_reduce_bins()'s convention). */
+ * (telemetry_build_frame()'s / epm_dsp_reduce_bins()'s convention).
+ *
+ * The 3 envelope channels (Phase 11a / ADR-032) need no epm_dsp_reduce_bins()
+ * call: imu_task.c's envelope pipeline decimates+FFTs down to
+ * IMU_ENVELOPE_HALF bins directly, which epm_config.h's build-time check
+ * guarantees equals EPM_MODEL_SPECTRUM_BINS. */
 static size_t build_real_frame(uint8_t *out_buf, size_t out_buf_size)
 {
 	if (epm_dsp_reduce_bins(s_last_mic.fft_db, FFT_MIC_N / 2, s_mic_bins, EPM_MODEL_SPECTRUM_BINS) != 0 ||
@@ -115,7 +120,9 @@ static size_t build_real_frame(uint8_t *out_buf, size_t out_buf_size)
 		return 0;
 	}
 
-	struct spectrum_channel channels[4] = {
+	const float envelope_fs = (float)IMU_FS_HZ / IMU_ENVELOPE_DECIM;
+
+	struct spectrum_channel channels[7] = {
 		{.channel_id = TELEM_CHANNEL_MIC,
 		 .fs = (float)MIC_FS_HZ,
 		 .fft_size = (uint16_t)FFT_MIC_N,
@@ -136,6 +143,21 @@ static size_t build_real_frame(uint8_t *out_buf, size_t out_buf_size)
 		 .fft_size = (uint16_t)FFT_IMU_N,
 		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
 		 .bins = s_accel_z_bins},
+		{.channel_id = TELEM_CHANNEL_ACCEL_X_ENVELOPE,
+		 .fs = envelope_fs,
+		 .fft_size = (uint16_t)IMU_ENVELOPE_N,
+		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
+		 .bins = s_last_imu.fft_x_env},
+		{.channel_id = TELEM_CHANNEL_ACCEL_Y_ENVELOPE,
+		 .fs = envelope_fs,
+		 .fft_size = (uint16_t)IMU_ENVELOPE_N,
+		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
+		 .bins = s_last_imu.fft_y_env},
+		{.channel_id = TELEM_CHANNEL_ACCEL_Z_ENVELOPE,
+		 .fs = envelope_fs,
+		 .fft_size = (uint16_t)IMU_ENVELOPE_N,
+		 .bin_count = EPM_MODEL_SPECTRUM_BINS,
+		 .bins = s_last_imu.fft_z_env},
 	};
 
 	struct axis_scalars sc_x = {
@@ -162,7 +184,7 @@ static size_t build_real_frame(uint8_t *out_buf, size_t out_buf_size)
 	scalar_map_build_axis(&sc_z, TELEM_SCALAR_RMS_Z, &scalars[12]);
 	scalar_map_build_axis(&sc_mic, TELEM_SCALAR_RMS_MIC, &scalars[18]);
 
-	return telemetry_build_frame(channels, 4, scalars, 24, out_buf, out_buf_size);
+	return telemetry_build_frame(channels, 7, scalars, 24, out_buf, out_buf_size);
 }
 
 /* transport_set_cmd_handler()'s registered callback (Phase 7c). Decodes a

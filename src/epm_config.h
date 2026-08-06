@@ -69,7 +69,37 @@
 #endif
 
 #ifndef EPM_NET_FRAME_BUF_BYTES
-#define EPM_NET_FRAME_BUF_BYTES 4096 /* 5-section frame at EPM_MODEL_SPECTRUM_BINS is 2251 B; ample headroom */
+#define EPM_NET_FRAME_BUF_BYTES 4096 /* 8-section frame (7 SPECTRUM + 1 SCALAR_SET) at
+                                      * EPM_MODEL_SPECTRUM_BINS is 1 + 7*(13+128*4) + (6+24*6)
+                                      * = 3826 B (Phase 11a added 3 envelope SPECTRUM sections,
+                                      * 525 B each); 270 B headroom under the 4096 buffer,
+                                      * re-checked in ADR-032 rather than assumed */
+#endif
+
+/* ─── Envelope analysis (HFRT: band-pass -> rectify -> low-pass -> decimate ->
+ * FFT) for bearing-defect detection, Part G Phase 11a / ADR-032. Band matches
+ * mic_tools/fault_models.py's 2-8 kHz structural-resonance convention -- the
+ * KX134 driver work (docs/decisions/ADR-017) documents no sensor-specific
+ * resonance frequency to derive an alternative from. Decimate-by-8 of a
+ * FFT_IMU_N=2048 block lands the decimated block at exactly 256 samples, so
+ * its FFT half (128 bins) matches EPM_MODEL_SPECTRUM_BINS directly -- no
+ * epm_dsp_reduce_bins() needed for these channels, unlike the raw spectra. */
+#ifndef IMU_ENVELOPE_BAND_LO_HZ
+#define IMU_ENVELOPE_BAND_LO_HZ 2000.0f
+#endif
+#ifndef IMU_ENVELOPE_BAND_HI_HZ
+#define IMU_ENVELOPE_BAND_HI_HZ 8000.0f
+#endif
+#ifndef IMU_ENVELOPE_LP_HZ
+#define IMU_ENVELOPE_LP_HZ 1000.0f
+#endif
+#ifndef IMU_ENVELOPE_DECIM
+#define IMU_ENVELOPE_DECIM 8
+#endif
+#define IMU_ENVELOPE_N    (FFT_IMU_N / IMU_ENVELOPE_DECIM) /* 256 */
+#define IMU_ENVELOPE_HALF (IMU_ENVELOPE_N / 2)              /* 128 */
+#if IMU_ENVELOPE_HALF != EPM_MODEL_SPECTRUM_BINS
+#error "IMU_ENVELOPE_HALF must equal EPM_MODEL_SPECTRUM_BINS -- envelope channels are wire-encoded directly without epm_dsp_reduce_bins()"
 #endif
 
 /* ─── Fault thresholds ───────────────────────────────────────────────────── */
@@ -229,6 +259,9 @@ typedef struct {
     float    fft_x[FFT_IMU_N / 2];  /* X axis radial FFT in dBFS           */
     float    fft_y[FFT_IMU_N / 2];  /* Y axis radial FFT in dBFS           */
     float    fft_z[FFT_IMU_N / 2];  /* Z axis axial  FFT in dBFS           */
+    float    fft_x_env[IMU_ENVELOPE_HALF]; /* X axis envelope spectrum, dBFS (Phase 11a) */
+    float    fft_y_env[IMU_ENVELOPE_HALF]; /* Y axis envelope spectrum, dBFS (Phase 11a) */
+    float    fft_z_env[IMU_ENVELOPE_HALF]; /* Z axis envelope spectrum, dBFS (Phase 11a) */
     float    rms_x, rms_y, rms_z;   /* per-axis RMS                        */
     float    crest_x, crest_y, crest_z; /* per-axis crest factor           */
     float    kurtosis_x, kurtosis_y, kurtosis_z; /* excess/Fisher, ADR-018 */
