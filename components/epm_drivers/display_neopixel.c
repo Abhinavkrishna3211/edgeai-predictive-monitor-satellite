@@ -20,11 +20,12 @@
  *
  * Color/mode table matches the reference's base-station/python/registry/
  * status_color.py exactly for every rgb_led_state_t that has a NodeStatus
- * analog (OK/WARN/FAULT/CALIBRATING/LEARNING), so status meaning is
+ * analog (OK/WARN/FAULT/CALIBRATING/LEARNING/TRIPPED), so status meaning is
  * identical on both sides of the wire. States with no NodeStatus analog
- * (BOOT/WIFI_CONN/TCP_CONN/TRIPPED — connectivity bring-up and a local
- * alarm condition, neither of which status_color.py's NodeStatus enum
- * represents) keep locally-chosen near-primary colors. See
+ * (BOOT/WIFI_CONN/TCP_CONN — connectivity bring-up before the node has
+ * joined the network at all, a state status_color.py's NodeStatus enum has
+ * no concept of since a node isn't in the registry until it's already
+ * reporting) keep locally-chosen near-primary colors. See
  * docs/decisions/ADR-016 for the full rationale.
  */
 
@@ -66,29 +67,30 @@ typedef struct {
     uint16_t       period_ms;
 } led_pattern_t;
 
-/* rgb/mode/period_ms per state. OK/WARN/FAULT/CALIBRATING/LEARNING match
- * status_color.py's _GREEN_HEALTHY / _YELLOW_WARNING_BREATHE /
- * _RED_FAULT_STROBE / _CYAN_NEW exactly (color, mode, and period_ms).
- * CALIBRATING and LEARNING both map to his single "commissioning" cyan
- * (_CYAN_NEW covers UNCOMMISSIONED + COMMISSIONING_COLLECTING +
- * COMMISSIONING_TRAINING) -- CONST vs BREATHE distinguishes our two local
- * sub-phases on-device without deviating from the shared on-wire color.
- * BOOT/WIFI_CONN/TCP_CONN/TRIPPED have no NodeStatus analog (status_color.
- * py has nothing for "not yet reachable" or "local alarm tripped") --
- * colors chosen locally, kept in the blue family for the connectivity
- * states (mirrors display_ledc.c's old blue-wifi/cyan-tcp pattern, recolored
- * off cyan since that's now reserved for CALIBRATING) and a distinct
- * magenta strobe for TRIPPED so it cannot be confused with FAULT's red. */
+/* rgb/mode/period_ms per state. OK/WARN/FAULT/CALIBRATING/LEARNING/TRIPPED
+ * match status_color.py's _GREEN_HEALTHY / _YELLOW_WARNING_BREATHE /
+ * _RED_FAULT_STROBE / _CYAN_NEW / _RED_TRIPPED_SLOW exactly (color, mode,
+ * and period_ms). CALIBRATING and LEARNING both map to his single
+ * "commissioning" cyan (_CYAN_NEW covers UNCOMMISSIONED +
+ * COMMISSIONING_COLLECTING + COMMISSIONING_TRAINING) and both use CONST,
+ * matching status_color.py exactly rather than distinguishing our two local
+ * sub-phases on-device (see ADR-016's 2026-08-06 addendum for why exact
+ * parity was chosen over that local distinction). BOOT/WIFI_CONN/TCP_CONN
+ * have no NodeStatus analog (status_color.py has nothing for "not yet
+ * joined the network" -- a node isn't in his registry until it's already
+ * reporting) -- colors chosen locally, kept in the blue family (mirrors
+ * display_ledc.c's old blue-wifi/cyan-tcp pattern, recolored off cyan since
+ * that's now reserved for CALIBRATING). */
 static const led_pattern_t k_pattern[RGB_STATE_MAX] = {
     [RGB_BOOT]        = { 0xFFFFFF, MODE_CONST,   0    },
     [RGB_WIFI_CONN]   = { 0x0000FF, MODE_BREATHE, 1200 },
     [RGB_TCP_CONN]    = { 0x0000FF, MODE_STROBE,  300  },
     [RGB_CALIBRATING] = { 0x22D3EE, MODE_CONST,   0    },
-    [RGB_LEARNING]    = { 0x22D3EE, MODE_BREATHE, 800  },
+    [RGB_LEARNING]    = { 0x22D3EE, MODE_CONST,   0    },
     [RGB_OK]          = { 0x00FF00, MODE_CONST,   0    },
     [RGB_WARN]        = { 0xF59E0B, MODE_BREATHE, 1500 },
     [RGB_FAULT]       = { 0xFF0000, MODE_STROBE,  200  },
-    [RGB_TRIPPED]     = { 0xFF00FF, MODE_STROBE,  150  },
+    [RGB_TRIPPED]     = { 0xFF0000, MODE_STROBE,  1000 },
 };
 
 #define BREATHE_PI 3.14159265f
