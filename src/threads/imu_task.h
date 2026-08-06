@@ -31,8 +31,10 @@ void imu_task_start(void);
 TaskHandle_t imu_task_get_handle(void);
 
 struct imu_task_stats {
-    uint32_t epochs;       /* 3-axis capture epochs attempted since boot */
-    uint32_t read_errors;  /* epochs with >= 1 failed hal_accel_read_block() call */
+    uint32_t epochs;           /* 3-axis capture epochs attempted since boot */
+    uint32_t read_errors;      /* epochs with >= 1 failed hal_accel_read_block() call */
+    uint32_t reinit_attempts;  /* hal_accel_reinit() calls after an IMU_FAIL_MAX streak */
+    uint32_t reinit_successes; /* of the above, how many returned 0 */
 };
 
 /* Per Part I's one-<module>_get_stats()-per-module convention. */

@@ -93,14 +93,18 @@ TaskHandle_t imu_task_get_handle(void) { return s_task_handle; }
 
 /* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
 
-static uint32_t s_epochs      = 0;
-static uint32_t s_read_errors = 0;
+static uint32_t s_epochs           = 0;
+static uint32_t s_read_errors      = 0;
+static uint32_t s_reinit_attempts  = 0;
+static uint32_t s_reinit_successes = 0;
 
 void imu_task_get_stats(struct imu_task_stats *out)
 {
     if (out == NULL) return;
-    out->epochs      = s_epochs;
-    out->read_errors = s_read_errors;
+    out->epochs           = s_epochs;
+    out->read_errors      = s_read_errors;
+    out->reinit_attempts  = s_reinit_attempts;
+    out->reinit_successes = s_reinit_successes;
 }
 
 /* s_frame in PSRAM: confirmed working (8 MB free, SESSION_7). */
@@ -254,8 +258,27 @@ static void imu_task_fn(void *arg)
             fail_cnt++;
             if (fail_cnt >= IMU_FAIL_MAX) {
                 ESP_LOGE(TAG, "hal_accel_read_block: %d consecutive failed epochs "
-                         "(x=%d y=%d z=%d) — check KX134 SPI wiring/power",
+                         "(x=%d y=%d z=%d) — reinitializing KX134",
                          fail_cnt, rc_x, rc_y, rc_z);
+                /* A KX134 that lost and regained power (not the ESP32 side —
+                 * that infrastructure is untouched) needs its registers,
+                 * interrupt routing included, reprogrammed before it will
+                 * ever assert INT1 again; nothing else does this
+                 * automatically. One attempt per streak, not per failed
+                 * epoch, so a genuinely still-unplugged sensor doesn't get
+                 * fought every 80ms — fail_cnt resets below regardless of
+                 * outcome, so a sensor still absent will simply climb back
+                 * to IMU_FAIL_MAX and trigger another attempt in due course. */
+                s_reinit_attempts++;
+                int rc_reinit = hal_accel_reinit();
+                if (rc_reinit == 0) {
+                    s_reinit_successes++;
+                    ESP_LOGW(TAG, "hal_accel_reinit OK — resuming read attempts");
+                } else {
+                    ESP_LOGE(TAG, "hal_accel_reinit failed: %d — sensor still absent, "
+                             "will retry after next %d failures", rc_reinit, IMU_FAIL_MAX);
+                }
+                fail_cnt = 0;
             } else {
                 ESP_LOGW(TAG, "hal_accel_read_block failed this epoch "
                          "(x=%d y=%d z=%d) (%d/%d)",

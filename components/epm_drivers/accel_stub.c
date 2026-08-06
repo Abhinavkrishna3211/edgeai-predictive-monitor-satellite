@@ -60,9 +60,10 @@ static void generate_stub_axis(float *out, size_t n,
     }
 }
 
-int hal_accel_init(void)  { return 0; }
-int hal_accel_start(void) { return 0; }
-void hal_accel_stop(void) { }
+int hal_accel_init(void)   { return 0; }
+int hal_accel_start(void)  { return 0; }
+int hal_accel_reinit(void) { return 0; }
+void hal_accel_stop(void)  { }
 
 uint32_t hal_accel_get_sample_rate(void) { return IMU_FS_HZ; }
 

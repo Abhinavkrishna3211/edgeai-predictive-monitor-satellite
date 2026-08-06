@@ -218,6 +218,43 @@ static esp_err_t kx134_read_regs(uint8_t addr, uint8_t *data, size_t len)
     return err;
 }
 
+/* WHO_AM_I readback — shared by hal_accel_init() (first boot) and
+ * hal_accel_reinit() (post-fault recovery): both need to confirm the chip
+ * is actually present/responding before programming registers into it. */
+static int kx134_check_who_am_i(void)
+{
+    uint8_t who_am_i = 0;
+    if (kx134_read_regs(KX134_REG_WHO_AM_I, &who_am_i, 1) != ESP_OK) {
+        return -EIO;
+    }
+    if (who_am_i != KX134_WHO_AM_I_VALUE) {
+        ESP_LOGE(TAG, "WHO_AM_I mismatch: got 0x%02x, expected 0x%02x",
+                  who_am_i, KX134_WHO_AM_I_VALUE);
+        return -ENODEV;
+    }
+    ESP_LOGI(TAG, "WHO_AM_I OK (0x%02x)", who_am_i);
+    return 0;
+}
+
+/* CNTL1/ODCNTL/INC1/INC4/BUF_CNTL1/BUF_CNTL2 program sequence — the part of
+ * bring-up that lives on the KX134 itself, not the ESP32 side (SPI bus,
+ * semaphore, GPIO/ISR). A full power-loss to the sensor resets exactly this
+ * state (interrupt routing included) and nothing else, so this is also the
+ * whole of what hal_accel_reinit() below needs to re-run. */
+static int kx134_program_registers(void)
+{
+    /* Standby (PC1=0) before touching any other register — required by the
+     * TRM for CNTL1/ODCNTL/INC1/INC4 writes. */
+    if (kx134_write_reg(KX134_REG_CNTL1, 0x00) != ESP_OK) return -EIO;
+    if (kx134_write_reg(KX134_REG_ODCNTL, KX134_ODCNTL_OSA_12800HZ) != ESP_OK) return -EIO;
+    if (kx134_write_reg(KX134_REG_INC1, KX134_INC1_CONFIG) != ESP_OK) return -EIO;
+    if (kx134_write_reg(KX134_REG_INC4, KX134_INC4_CONFIG) != ESP_OK) return -EIO;
+    if (kx134_write_reg(KX134_REG_CNTL1, KX134_CNTL1_CONFIG_BITS) != ESP_OK) return -EIO;
+    if (kx134_write_reg(KX134_REG_BUF_CNTL1, KX134_BUF_CNTL1_SMP_TH) != ESP_OK) return -EIO;
+    if (kx134_write_reg(KX134_REG_BUF_CNTL2, KX134_BUF_CNTL2_CONFIG) != ESP_OK) return -EIO;
+    return 0;
+}
+
 int hal_accel_init(void)
 {
     esp_err_t err;
@@ -257,16 +294,8 @@ int hal_accel_init(void)
         return -EIO;
     }
 
-    uint8_t who_am_i = 0;
-    if (kx134_read_regs(KX134_REG_WHO_AM_I, &who_am_i, 1) != ESP_OK) {
-        return -EIO;
-    }
-    if (who_am_i != KX134_WHO_AM_I_VALUE) {
-        ESP_LOGE(TAG, "WHO_AM_I mismatch: got 0x%02x, expected 0x%02x",
-                  who_am_i, KX134_WHO_AM_I_VALUE);
-        return -ENODEV;
-    }
-    ESP_LOGI(TAG, "WHO_AM_I OK (0x%02x)", who_am_i);
+    int rc = kx134_check_who_am_i();
+    if (rc != 0) return rc;
 
     /* Arm the INT1 GPIO before enabling the chip's own INC1/INC4 interrupt
      * routing below. */
@@ -290,17 +319,7 @@ int hal_accel_init(void)
     }
     gpio_isr_handler_add(KX134_PIN_INT1, kx134_int1_isr, NULL);
 
-    /* Standby (PC1=0) before touching any other register — required by the
-     * TRM for CNTL1/ODCNTL/INC1/INC4 writes. */
-    if (kx134_write_reg(KX134_REG_CNTL1, 0x00) != ESP_OK) return -EIO;
-    if (kx134_write_reg(KX134_REG_ODCNTL, KX134_ODCNTL_OSA_12800HZ) != ESP_OK) return -EIO;
-    if (kx134_write_reg(KX134_REG_INC1, KX134_INC1_CONFIG) != ESP_OK) return -EIO;
-    if (kx134_write_reg(KX134_REG_INC4, KX134_INC4_CONFIG) != ESP_OK) return -EIO;
-    if (kx134_write_reg(KX134_REG_CNTL1, KX134_CNTL1_CONFIG_BITS) != ESP_OK) return -EIO;
-    if (kx134_write_reg(KX134_REG_BUF_CNTL1, KX134_BUF_CNTL1_SMP_TH) != ESP_OK) return -EIO;
-    if (kx134_write_reg(KX134_REG_BUF_CNTL2, KX134_BUF_CNTL2_CONFIG) != ESP_OK) return -EIO;
-
-    return 0;
+    return kx134_program_registers();
 }
 
 int hal_accel_start(void)
@@ -308,6 +327,34 @@ int hal_accel_start(void)
     if (kx134_write_reg(KX134_REG_BUF_CLEAR, 0x00) != ESP_OK) return -EIO;
     if (kx134_write_reg(KX134_REG_CNTL1, KX134_CNTL1_CONFIG_BITS | KX134_CNTL1_PC1) != ESP_OK) return -EIO;
     return 0;
+}
+
+int hal_accel_reinit(void)
+{
+    /* Drain a stale semaphore count that may have accumulated while the
+     * sensor was faulted: INT1 (a real GPIO, still armed edge-triggered
+     * the whole time) can float and pick up a spurious edge while the
+     * KX134 is unpowered/disconnected. Without this, the first
+     * xSemaphoreTake() after this reinit could return immediately on that
+     * leftover count instead of waiting for a genuine post-reinit
+     * interrupt, and kx134_fill_epoch() would read BUF_STATUS_1 from a
+     * chip whose FIFO the BUF_CLEAR in hal_accel_start() below hasn't run
+     * on yet. Non-blocking take, result deliberately discarded either way.
+     *
+     * s_stage_n/s_stage_y/s_stage_z need no reset here: kx134_fill_epoch()
+     * already zeroes s_stage_n at the top of every call and both stage
+     * arrays are only ever read back within that same call's bounds, so no
+     * state carries across epochs or reinits (confirmed by reading that
+     * function in full, not just its header comment). */
+    xSemaphoreTake(s_data_ready_sem, 0);
+
+    int rc = kx134_check_who_am_i();
+    if (rc != 0) return rc;
+
+    rc = kx134_program_registers();
+    if (rc != 0) return rc;
+
+    return hal_accel_start();
 }
 
 /* Drains FIFO bursts (blocking on the BFI semaphore each time) until

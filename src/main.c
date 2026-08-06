@@ -144,8 +144,9 @@ static void diagnostics_task_fn(void *arg)
 
         struct imu_task_stats imu_st;
         imu_task_get_stats(&imu_st);
-        ESP_LOGI("DIAG", "imu: epochs=%lu read_errors=%lu",
-            (unsigned long)imu_st.epochs, (unsigned long)imu_st.read_errors);
+        ESP_LOGI("DIAG", "imu: epochs=%lu read_errors=%lu reinit_attempts=%lu reinit_successes=%lu",
+            (unsigned long)imu_st.epochs, (unsigned long)imu_st.read_errors,
+            (unsigned long)imu_st.reinit_attempts, (unsigned long)imu_st.reinit_successes);
 
         struct hal_accel_stats accel_st;
         hal_accel_get_stats(&accel_st);

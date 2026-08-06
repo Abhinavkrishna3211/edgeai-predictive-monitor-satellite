@@ -29,6 +29,19 @@ enum hal_accel_axis {
 int hal_accel_init(void);
 int hal_accel_start(void);
 
+/* Re-programs the sensor's own registers (ODR/range/interrupt-routing/FIFO
+ * config) without touching host-side SPI bus/semaphore/GPIO-ISR state —
+ * that infrastructure lives on the ESP32 and survives a sensor-side power
+ * loss untouched, only the sensor's registers do not. Call after a
+ * sustained read-failure streak (task's call when "sustained" means enough
+ * to rule out a single transient miss) to recover a KX134 that lost and
+ * regained power without a full board reset. Returns the same errno
+ * conventions as hal_accel_init(); a non-zero return (e.g. sensor still
+ * disconnected) is expected and not fatal — the caller's normal failure
+ * counting resumes and will trigger another attempt after the next streak.
+ * No-op returning 0 on the stub. */
+int hal_accel_reinit(void);
+
 /* Fills out_samples[0..max_samples) with one axis' normalised-g samples
  * (oldest first). Returns the number of samples written, or a negative
  * errno. */
