@@ -7,7 +7,7 @@ Use this only after confirming OpenCL is functional on your board:
     clinfo | grep -E 'Platform|Device|Version'
 
 Build TVM with OpenCL support before using this module.
-See docs/gpu_setup.md for step-by-step build instructions.
+See docs/GPU_SETUP.md for step-by-step build instructions.
 
 Falls back to inference.InferenceEngine (ONNX Runtime / CPU) if TVM is
 not installed or OpenCL initialisation fails.
@@ -65,7 +65,7 @@ class GPUInferenceEngine:
         if not _TVM_AVAILABLE:
             raise ImportError(
                 'TVM is not installed.\n'
-                'See docs/gpu_setup.md for build instructions.\n'
+                'See docs/GPU_SETUP.md for build instructions.\n'
                 'Use inference.InferenceEngine for CPU fallback.'
             )
         try:

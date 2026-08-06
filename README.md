@@ -152,7 +152,7 @@ edgeai-predictive-monitor-satellite/
 │   └── requirements.txt
 │
 ├── docs/
-│   └── gpu_setup.md            # TVM + OpenCL build guide for Adreno 702
+│   └── GPU_SETUP.md            # TVM + OpenCL build guide for Adreno 702
 │
 ├── CMakeLists.txt          # Root ESP-IDF project
 ├── platformio.ini          # PlatformIO build + upload config
@@ -504,7 +504,7 @@ python3 ml_infer.py --export report.csv    # export per-frame predictions
 EdgeAI Predictive Monitor uses ONNX Runtime with ARMv8 NEON SIMD acceleration
 on the Uno Q's Cortex-A53 cores. For the larger Conv1D autoencoder, optional
 OpenCL acceleration on the Adreno 702 GPU is available via Apache TVM
-(see [docs/gpu_setup.md](docs/gpu_setup.md) for build instructions).
+(see [docs/GPU_SETUP.md](docs/GPU_SETUP.md) for build instructions).
 Both paths are fully open-source — no Qualcomm proprietary SDK required.
 
 > EPM uses only MIT- and Apache 2.0-licensed tooling that can be audited,
@@ -541,7 +541,7 @@ python3 mic_tools/inference.py --model model/autoencoder.onnx
 ### Optional Adreno 702 GPU path
 
 For the Conv1D autoencoder on raw FFT input, GPU inference via Apache TVM + OpenCL
-can reduce latency by 2–4×. See [docs/gpu_setup.md](docs/gpu_setup.md).
+can reduce latency by 2–4×. See [docs/GPU_SETUP.md](docs/GPU_SETUP.md).
 
 ```bash
 # Verify OpenCL first, then:
