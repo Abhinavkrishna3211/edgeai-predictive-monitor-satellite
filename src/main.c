@@ -46,6 +46,7 @@
 #include "threads/wifi_task.h"
 #include "drivers/mic_inmp441_i2s.h"
 #include "threads/net_task.h"
+#include "hal/hal_accel.h"
 
 static const char *TAG = "main";
 
@@ -96,14 +97,65 @@ static void diagnostics_task_fn(void *arg)
             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_EXEC));
 
+        /* Per-module health counters (Part I's <module>_get_stats() convention).
+         * Logged every cycle so a field failure shows up here well before it
+         * escalates to a crash/reboot, even on units nobody is watching live. */
+        struct wifi_task_stats wifi_st;
+        wifi_task_get_stats(&wifi_st);
+        ESP_LOGI("DIAG", "wifi: connects=%lu disconnects=%lu retry_cnt=%lu",
+            (unsigned long)wifi_st.connects, (unsigned long)wifi_st.disconnects,
+            (unsigned long)wifi_st.retry_cnt);
+
+        struct mic_task_stats mic_st;
+        mic_task_get_stats(&mic_st);
+        ESP_LOGI("DIAG", "mic: blocks_ok=%lu capture_failures=%lu rb_drops=%lu",
+            (unsigned long)mic_st.blocks_ok, (unsigned long)mic_st.capture_failures,
+            (unsigned long)mic_st.rb_drops);
+
         /* I2S DMA overflow health — non-zero means audio gaps occurred */
-        uint32_t ov = mic_capture_get_overflow_count();
-        if (ov > 0) {
-            ESP_LOGW("DIAG", "I2S DMA overflows (cumulative): %lu — check CPU load",
-                     (unsigned long)ov);
+        struct mic_inmp441_i2s_stats mic_i2s_st;
+        mic_inmp441_i2s_get_stats(&mic_i2s_st);
+        if (mic_i2s_st.overflow_count > 0) {
+            ESP_LOGW("DIAG", "mic i2s: overflow_count=%lu (cumulative) read_errors=%lu "
+                     "short_reads=%lu — check CPU load",
+                (unsigned long)mic_i2s_st.overflow_count,
+                (unsigned long)mic_i2s_st.read_errors,
+                (unsigned long)mic_i2s_st.short_reads);
         } else {
-            ESP_LOGI("DIAG", "I2S DMA overflows: 0 (clean)");
+            ESP_LOGI("DIAG", "mic i2s: overflow_count=0 (clean) read_errors=%lu short_reads=%lu",
+                (unsigned long)mic_i2s_st.read_errors, (unsigned long)mic_i2s_st.short_reads);
         }
+
+        struct dsp_task_stats dsp_st;
+        dsp_task_get_stats(&dsp_st);
+        ESP_LOGI("DIAG", "dsp: fft_count=%lu frames_emitted=%lu rb_timeouts=%lu last_fft_us=%lu",
+            (unsigned long)dsp_st.fft_count, (unsigned long)dsp_st.frames_emitted,
+            (unsigned long)dsp_st.rb_timeouts, (unsigned long)dsp_st.last_fft_us);
+
+        struct imu_task_stats imu_st;
+        imu_task_get_stats(&imu_st);
+        ESP_LOGI("DIAG", "imu: epochs=%lu read_errors=%lu",
+            (unsigned long)imu_st.epochs, (unsigned long)imu_st.read_errors);
+
+        struct hal_accel_stats accel_st;
+        hal_accel_get_stats(&accel_st);
+        ESP_LOGI("DIAG", "accel: reads_ok=%lu read_errors=%lu fifo_max_hits=%lu",
+            (unsigned long)accel_st.reads_ok, (unsigned long)accel_st.read_errors,
+            (unsigned long)accel_st.fifo_max_hits);
+
+        struct net_task_stats net_st;
+        net_task_get_stats(&net_st);
+        ESP_LOGI("DIAG", "net: frames_built=%lu build_failures=%lu publish_failures=%lu "
+                 "cmd_malformed=%lu disconnect_reverts=%lu",
+            (unsigned long)net_st.frames_built, (unsigned long)net_st.build_failures,
+            (unsigned long)net_st.publish_failures, (unsigned long)net_st.cmd_malformed,
+            (unsigned long)net_st.disconnect_reverts);
+
+        struct rgb_led_stats led_st;
+        led_task_get_stats(&led_st);
+        ESP_LOGI("DIAG", "led: state_changes=%lu remote_updates=%lu hw_errors=%lu",
+            (unsigned long)led_st.state_changes, (unsigned long)led_st.remote_updates,
+            (unsigned long)led_st.hw_errors);
     }
 }
 
