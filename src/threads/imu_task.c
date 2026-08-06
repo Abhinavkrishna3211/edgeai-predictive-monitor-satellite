@@ -87,6 +87,18 @@ static QueueHandle_t s_queue      = NULL;
 static TaskHandle_t  s_task_handle = NULL;
 TaskHandle_t imu_task_get_handle(void) { return s_task_handle; }
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_epochs      = 0;
+static uint32_t s_read_errors = 0;
+
+void imu_task_get_stats(struct imu_task_stats *out)
+{
+    if (out == NULL) return;
+    out->epochs      = s_epochs;
+    out->read_errors = s_read_errors;
+}
+
 /* s_frame in PSRAM: confirmed working (8 MB free, SESSION_7). */
 static EXT_RAM_BSS_ATTR imu_frame_t s_frame;
 
@@ -188,6 +200,7 @@ static void imu_task_fn(void *arg)
 
     /* Local to this task — single owner, no cross-task access. */
     int avg_cnt = 0;
+    int fail_cnt = 0;
 
     /* Per-axis stats from the final block of the averaging window */
     axis_stats_t st_x = {0}, st_y = {0}, st_z = {0};
@@ -198,20 +211,55 @@ static void imu_task_fn(void *arg)
          * integer division (1000/IMU_FS_HZ) truncates to 0 when Fs > 1000. */
         vTaskDelay(pdMS_TO_TICKS((FFT_IMU_N * 1000) / IMU_FS_HZ));
 
+        /* Each hal_accel_read_block() call returns the sample count written,
+         * or a negative errno (e.g. -ETIMEDOUT from an unplugged/unresponsive
+         * KX134). The return value used to be discarded here, so a sensor
+         * read failure went completely unnoticed: the task processed
+         * whatever garbage/stale bytes were left in s_block and republished
+         * it as if it were a fresh reading, forever. Each axis is now
+         * skipped (accumulator left untouched) on failure instead. */
+
         /* ── X axis (radial A): 50 Hz imbalance tone ── */
-        hal_accel_read_block(HAL_ACCEL_AXIS_X, s_block, FFT_IMU_N);
-        st_x = compute_axis_stats();
-        fft_axis_accumulate(s_pwr_x);
+        int rc_x = hal_accel_read_block(HAL_ACCEL_AXIS_X, s_block, FFT_IMU_N);
+        bool ok_x = (rc_x >= 0);
+        if (ok_x) {
+            st_x = compute_axis_stats();
+            fft_axis_accumulate(s_pwr_x);
+        }
 
         /* ── Y axis (radial B): 50 Hz + 150 Hz (3× harmonic) ── */
-        hal_accel_read_block(HAL_ACCEL_AXIS_Y, s_block, FFT_IMU_N);
-        st_y = compute_axis_stats();
-        fft_axis_accumulate(s_pwr_y);
+        int rc_y = hal_accel_read_block(HAL_ACCEL_AXIS_Y, s_block, FFT_IMU_N);
+        bool ok_y = (rc_y >= 0);
+        if (ok_y) {
+            st_y = compute_axis_stats();
+            fft_axis_accumulate(s_pwr_y);
+        }
 
         /* ── Z axis (axial): 100 Hz (2× shaft — mild misalignment) ── */
-        hal_accel_read_block(HAL_ACCEL_AXIS_Z, s_block, FFT_IMU_N);
-        st_z = compute_axis_stats();
-        fft_axis_accumulate(s_pwr_z);
+        int rc_z = hal_accel_read_block(HAL_ACCEL_AXIS_Z, s_block, FFT_IMU_N);
+        bool ok_z = (rc_z >= 0);
+        if (ok_z) {
+            st_z = compute_axis_stats();
+            fft_axis_accumulate(s_pwr_z);
+        }
+
+        s_epochs++;
+
+        if (!ok_x || !ok_y || !ok_z) {
+            s_read_errors++;
+            fail_cnt++;
+            if (fail_cnt >= IMU_FAIL_MAX) {
+                ESP_LOGE(TAG, "hal_accel_read_block: %d consecutive failed epochs "
+                         "(x=%d y=%d z=%d) — check KX134 SPI wiring/power",
+                         fail_cnt, rc_x, rc_y, rc_z);
+            } else {
+                ESP_LOGW(TAG, "hal_accel_read_block failed this epoch "
+                         "(x=%d y=%d z=%d) (%d/%d)",
+                         rc_x, rc_y, rc_z, fail_cnt, IMU_FAIL_MAX);
+            }
+        } else {
+            fail_cnt = 0;
+        }
 
         avg_cnt++;
 

@@ -80,6 +80,13 @@
 #define MIC_FAIL_MAX  50
 #endif
 
+/* Consecutive imu_task epochs (all 3 axes) with at least one failed
+ * hal_accel_read_block() before escalating to LOGE. At ~80 ms/epoch
+ * (FFT_IMU_N=2048, Fs=25600) this gives ~3.2 s before alarm. */
+#ifndef IMU_FAIL_MAX
+#define IMU_FAIL_MAX  40
+#endif
+
 /* ─── WiFi TX power ──────────────────────────────────────────────────────── */
 
 /* HW-OPT: WiFi TX power cap — limits peak current on 3.3V rail (XIAO USB-C).
