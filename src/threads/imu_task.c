@@ -13,14 +13,19 @@
  *   s_pwr_x/y/z[N/2] — per-axis power accumulators (kept for SPEC_AVG_N avg)
  *   s_db_x/y/z[N/2]  — per-axis dBFS output (built into imu_frame_t)
  *
- * Axis samples come from hal/hal_accel.h. components/epm_drivers/accel_stub.c
- * is the only implementation until the real KX134 SPI driver lands (Phase 9)
- * — see that file for the synthetic per-axis signal (X: 50 Hz radial
- * imbalance, Y: 50+150 Hz, Z: 100 Hz axial misalignment).
+ * Axis samples come from hal/hal_accel.h. components/epm_drivers/accel_kx134_spi.c
+ * is the default implementation (hardware-confirmed WHO_AM_I, at-rest
+ * g-values, zero dropped FIFO frames — docs/decisions/ADR-017); Kconfig's
+ * EPM_ACCEL_USE_STUB selects components/epm_drivers/accel_stub.c instead for
+ * development/CI without KX134 hardware wired up — see that file for the
+ * synthetic per-axis signal (X: 50 Hz radial imbalance, Y: 50+150 Hz, Z:
+ * 100 Hz axial misalignment).
  */
 
 /*
- * HW-OPT: KX134 SPI DMA stub — driver fixes to apply when hardware arrives:
+ * HW-OPT: KX134 SPI DMA implementation notes, applied to accel_kx134_spi.c
+ * once hardware arrived (ADR-017) — kept as a record of what each point
+ * required, not a pending TODO list:
  *
  *   3a: CONFIG_SPI_MASTER_ISR_IN_IRAM=y in sdkconfig.defaults +
  *       .intr_flags = ESP_INTR_FLAG_IRAM on spi_bus_add_device().
@@ -43,7 +48,6 @@
  *       semaphore; imu_task waits on the semaphore rather than busy-spinning.
  *       This returns the SPI bus to the RTOS scheduler during the 3 ms burst.
  */
-#warning "IMU task is a stub — replace with KX134 SPI driver when hardware arrives"
 
 #include <math.h>
 #include <string.h>
@@ -306,13 +310,23 @@ void imu_task_start(void)
     s_queue = xQueueCreate(1, sizeof(imu_frame_t));
     configASSERT(s_queue != NULL);
 
-    hal_accel_init();
-    hal_accel_start();
+    int rc = hal_accel_init();
+    if (rc != 0) {
+        ESP_LOGE(TAG, "hal_accel_init failed: %d", rc);
+    }
+    rc = hal_accel_start();
+    if (rc != 0) {
+        ESP_LOGE(TAG, "hal_accel_start failed: %d", rc);
+    }
+    /* Non-fatal either way, matching net_task_start()'s link_mqtt_start()
+     * convention: the task still starts, and imu_task_fn's per-axis
+     * fail-streak escalation (see below) already handles an accelerometer
+     * that never becomes responsive after this point. */
 
     dsps_wind_hann_f32(s_window, FFT_IMU_N);
     /* FFT twiddle-factor table initialised in app_main */
 
-    ESP_LOGI(TAG, "imu_task starting (3-axis STUB): %d-pt × 3 axes, "
+    ESP_LOGI(TAG, "imu_task starting (3-axis): %d-pt × 3 axes, "
              "avg=%d, %.2f Hz/bin, Fs=%d Hz",
              FFT_IMU_N, SPEC_AVG_N, (float)IMU_FS_HZ / FFT_IMU_N, IMU_FS_HZ);
 
