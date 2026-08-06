@@ -11,9 +11,9 @@ signatures: BPFO/BPFI/BSF/FTF tones derived from real bearing geometry (SKF 6205
 default), with amplitude-modulated sidebands, broadband resonance excitation, and
 time-domain kurtosis/crest matching ISO 10816 run-to-failure data.
 
-Usage:
-  python satellite_sim.py [host] [port] [n_satellites]
-  python satellite_sim.py 127.0.0.1 5100 3
+Usage (run from the repo root):
+  python tools/satellite_sim.py [host] [port] [n_satellites]
+  python tools/satellite_sim.py 127.0.0.1 5100 3
 
 Fault injection:
   --fault ID    Satellite ID sends progressive bearing fault (severity ramps 0→1)
@@ -59,8 +59,12 @@ ALERT_MAP = {0: 'OK', 1: 'WARN', 2: 'FAULT'}
 
 # ─── Physics-grounded spectrum generation ────────────────────────────────────
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# This file lives in tools/ (repo-root sibling of mic_tools/, Phase 8c task 2)
+# — fault_models.py stays in mic_tools/, so it needs its own path entry
+# alongside the repo root (for gateway.pipeline.bearing_math).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _REPO_ROOT)
+sys.path.insert(0, os.path.join(_REPO_ROOT, 'mic_tools'))
 from fault_models import (
     generate_mic_frame, make_severity_fn, FAULT_CYCLE,
     DEFAULT_BEARING, DEFAULT_SHAFT_HZ,
