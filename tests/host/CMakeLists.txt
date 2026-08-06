@@ -79,10 +79,19 @@ add_executable(test_status_led
 target_include_directories(test_status_led PRIVATE ${REPO_ROOT}/components/epm_codec/include)
 target_compile_options(test_status_led PRIVATE -Wall -Wextra)
 
+# ── http_form_parse test — links the real components/epm_drivers/http_form_parse.c ─
+add_executable(test_http_form_parse
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_http_form_parse.c
+    ${REPO_ROOT}/components/epm_drivers/http_form_parse.c
+)
+target_include_directories(test_http_form_parse PRIVATE ${REPO_ROOT}/components/epm_drivers/include)
+target_compile_options(test_http_form_parse PRIVATE -Wall -Wextra)
+
 enable_testing()
-add_test(NAME scalar_stats COMMAND test_scalar_stats)
-add_test(NAME hann_window  COMMAND test_hann_window)
-add_test(NAME frame_encode COMMAND test_frame_encode WORKING_DIRECTORY ${REPO_ROOT})
-add_test(NAME spectrum     COMMAND test_spectrum)
-add_test(NAME scalar_map   COMMAND test_scalar_map)
-add_test(NAME status_led   COMMAND test_status_led)
+add_test(NAME scalar_stats     COMMAND test_scalar_stats)
+add_test(NAME hann_window      COMMAND test_hann_window)
+add_test(NAME frame_encode     COMMAND test_frame_encode WORKING_DIRECTORY ${REPO_ROOT})
+add_test(NAME spectrum         COMMAND test_spectrum)
+add_test(NAME scalar_map       COMMAND test_scalar_map)
+add_test(NAME status_led       COMMAND test_status_led)
+add_test(NAME http_form_parse  COMMAND test_http_form_parse)

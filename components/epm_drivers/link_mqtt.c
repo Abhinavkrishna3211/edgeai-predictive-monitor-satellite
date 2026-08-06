@@ -7,21 +7,22 @@
 #include "esp_event.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
-#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "mqtt_client.h"
 
+#include "drivers/node_id.h"
 #include "frame_codec/wire_protocol.h"
 #include "hal/hal_transport.h"
 
 /*
  * MQTT link driver - implements hal/hal_transport.h on top of ESP-IDF's
  * esp-mqtt component. WiFi STA itself is owned by src/wifi_task.c (see
- * docs/decisions/ADR-011-mqtt-transport-added.md); this driver only reads
- * the STA MAC (esp_wifi_get_mac()) to derive the node id and starts the
- * MQTT client once that WiFi link is already up (caller's job - see
- * src/threads/net_task.c, which blocks on wifi_wait_connected() first).
+ * docs/decisions/ADR-011-mqtt-transport-added.md); this driver derives the
+ * node id via drivers/node_id.h (shared with provisioning.c's AP SSID,
+ * Phase 12b) and starts the MQTT client once that WiFi link is already up
+ * (caller's job - see src/threads/net_task.c, which blocks on
+ * wifi_wait_connected() first).
  *
  * Analog of the reference repo's satellite/src/threads/transport_task.cpp,
  * split into this HAL-conforming driver behind hal/hal_transport.h.
@@ -61,7 +62,6 @@ static const char *TAG = "link_mqtt";
 #define EPM_MQTT_MIN_FREE_HEAP_BYTES 32768
 #endif
 
-#define NODE_ID_LEN 6 /* last 3 MAC octets, lowercase hex, no separators */
 #define TOPIC_BUF_SIZE 32
 
 static char s_node_id[NODE_ID_LEN + 1];
@@ -74,16 +74,6 @@ static volatile bool s_connected;
 static transport_cmd_fn s_cmd_handler;
 
 static struct link_mqtt_stats s_stats;
-
-/* Same name/behavior as the reference repo's transport_task.cpp -
- * last 3 octets of the STA MAC, lowercase hex, no separators. */
-static void derive_node_id(char *out, size_t out_size)
-{
-	uint8_t mac[6] = {0};
-
-	esp_wifi_get_mac(WIFI_IF_STA, mac);
-	snprintf(out, out_size, "%02x%02x%02x", mac[3], mac[4], mac[5]);
-}
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id,
 				void *event_data)
@@ -231,7 +221,7 @@ int link_mqtt_start(void)
 		return -ENOMEM;
 	}
 
-	derive_node_id(s_node_id, sizeof(s_node_id));
+	node_id_derive(s_node_id, sizeof(s_node_id));
 	snprintf(s_data_topic, sizeof(s_data_topic), "epm/%s/data", s_node_id);
 	snprintf(s_cmd_topic, sizeof(s_cmd_topic), "epm/%s/cmd", s_node_id);
 

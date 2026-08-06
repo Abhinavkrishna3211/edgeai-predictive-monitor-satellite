@@ -97,18 +97,13 @@ static void provision_task_fn(void *arg)
 
         struct net_credentials submitted;
         while (!hal_provisioning_take_submission(&submitted)) {
-            /* Phase 12a's stub (components/epm_drivers/provisioning_stub.c)
-             * never produces a submission — this polls forever without
-             * spinning (POLL_INTERVAL_MS between checks) until Phase 12b
-             * replaces that stub with a real captive portal. This is the
-             * exact "waiting for provisioning, never resolves" state
-             * Phase 12a's own scope calls for: stable, no crash, no
-             * busy-loop, negligible CPU. */
+            /* Polls without spinning (POLL_INTERVAL_MS between checks)
+             * until a form submission arrives via components/epm_drivers/
+             * provisioning.c's captive portal (Phase 12b) — negligible CPU
+             * while nobody has submitted anything yet. */
             vTaskDelay(pdMS_TO_TICKS(POLL_INTERVAL_MS));
         }
 
-        /* Unreachable until Phase 12b's real hal_provisioning
-         * implementation replaces the stub above. */
         enter_state(WIFI_PROV_STA_TESTING);
         ESP_LOGI(TAG, "testing submitted credential for \"%s\"...", submitted.wifi_ssid);
         wifi_sta_reconfigure(submitted.wifi_ssid, submitted.wifi_password);
