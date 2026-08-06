@@ -115,6 +115,16 @@ static void provision_task_fn(void *arg)
              * never on an unverified submission (matches the reference
              * design's rule). */
             net_credentials_save(&submitted);
+
+            /* Grace period before tearing down the portal:
+             * s_submitted_html's meta-refresh polls /status every 2s, and
+             * hal_provisioning_report_result() just above flipped it to
+             * STATUS_SUCCESS. Without this delay, hal_provisioning_stop()
+             * can tear down the AP before that poll ever lands, so the
+             * phone just sees an abrupt disconnect instead of the
+             * "Connected" confirmation page. */
+            vTaskDelay(pdMS_TO_TICKS(5000));
+
             hal_provisioning_stop();
             connected = true;
         } else {
