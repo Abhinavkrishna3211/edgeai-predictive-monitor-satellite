@@ -1,4 +1,4 @@
-set(epm_drivers_srcs "link_mqtt.c" "mic_inmp441_i2s.c")
+set(epm_drivers_srcs "link_mqtt.c" "mic_inmp441_i2s.c" "net_credentials.c" "provisioning_stub.c")
 
 if(CONFIG_EPM_DISPLAY_USE_LEDC)
     list(APPEND epm_drivers_srcs "display_ledc.c")
@@ -15,5 +15,5 @@ endif()
 idf_component_register(
     SRCS ${epm_drivers_srcs}
     INCLUDE_DIRS "include"
-    REQUIRES epm_hal epm_codec mqtt esp_wifi esp_event log freertos driver esp_common espressif__led_strip
+    REQUIRES epm_hal epm_codec mqtt esp_wifi esp_event log freertos driver esp_common espressif__led_strip nvs_flash
 )
