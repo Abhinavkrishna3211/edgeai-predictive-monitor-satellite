@@ -53,6 +53,19 @@ uint32_t mic_capture_get_overflow_count(void)
     return s_i2s_overflow_count;
 }
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_read_errors = 0;
+static uint32_t s_short_reads = 0;
+
+void mic_inmp441_i2s_get_stats(struct mic_inmp441_i2s_stats *out)
+{
+    if (out == NULL) return;
+    out->overflow_count = s_i2s_overflow_count;
+    out->read_errors    = s_read_errors;
+    out->short_reads    = s_short_reads;
+}
+
 /* ── PSRAM pre-trigger ring buffer ──────────────────────────────────────────
  * 4 seconds × 16000 Hz × 2 bytes = 128 KB.  int16_t truncation (raw >> 16)
  * keeps the 16 most-significant bits — equivalent to 96 dB dynamic range.
@@ -242,6 +255,7 @@ esp_err_t mic_capture_read_block(int32_t *out_raw, float *out_normalized,
     esp_err_t err = i2s_channel_read(s_rx_chan, raw_buf, want_bytes, &got_bytes,
                                       pdMS_TO_TICKS(500));
     if (err != ESP_OK) {
+        s_read_errors++;
         ESP_LOGW(TAG, "i2s_channel_read failed: %s", esp_err_to_name(err));
         return err;
     }
@@ -250,6 +264,7 @@ esp_err_t mic_capture_read_block(int32_t *out_raw, float *out_normalized,
     snapshot_push_block(raw_buf, n);
 
     if (got_bytes != want_bytes) {
+        s_short_reads++;
         ESP_LOGW(TAG, "short read: got %u of %u bytes — zero-padding remainder",
                  (unsigned)got_bytes, (unsigned)want_bytes);
         /* Zero-pad so the FFT never sees stale samples from the previous call. */

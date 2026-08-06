@@ -158,6 +158,20 @@ static size_t  s_stage_n = 0;
  * into that task's stack budget on every FIFO burst. */
 static uint8_t s_raw_frame_buf[KX134_FIFO_MAX_FRAMES * KX134_FIFO_BYTES_PER_FRAME];
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_reads_ok      = 0;
+static uint32_t s_read_errors   = 0;
+static uint32_t s_fifo_max_hits = 0;
+
+void hal_accel_get_stats(struct hal_accel_stats *out)
+{
+    if (out == NULL) return;
+    out->reads_ok      = s_reads_ok;
+    out->read_errors   = s_read_errors;
+    out->fifo_max_hits = s_fifo_max_hits;
+}
+
 static IRAM_ATTR void kx134_int1_isr(void *arg)
 {
     (void)arg;
@@ -363,6 +377,7 @@ static int kx134_fill_epoch(float *out_x, size_t want)
      * have already silently dropped data before this poll. */
     size_t max_smp_frames = max_smp_lev / KX134_FIFO_BYTES_PER_FRAME;
     if (max_smp_frames >= KX134_FIFO_MAX_FRAMES) {
+        s_fifo_max_hits++;
         ESP_LOGW(TAG, "FIFO seen at max capacity (%u/%u frames) -- possible dropped samples",
                   (unsigned)max_smp_frames, (unsigned)KX134_FIFO_MAX_FRAMES);
     }
@@ -375,25 +390,29 @@ static int kx134_fill_epoch(float *out_x, size_t want)
 
 int hal_accel_read_block(enum hal_accel_axis axis, float *out_samples, size_t max_samples)
 {
+    int ret;
+
     if (axis == HAL_ACCEL_AXIS_X) {
-        int ret = kx134_fill_epoch(out_samples, max_samples);
-        if (ret < 0) return ret;
-        return ret;
+        ret = kx134_fill_epoch(out_samples, max_samples);
+    } else if (axis == HAL_ACCEL_AXIS_Y || axis == HAL_ACCEL_AXIS_Z) {
+        /* Y/Z: served from the cache the X call just filled. Per this
+         * driver's documented ordering requirement, X is always called
+         * first each epoch (verified against src/threads/imu_task.c).
+         * Cache holds raw counts (see s_stage_y/s_stage_z above),
+         * converted to g here. */
+        size_t n = (max_samples < s_stage_n) ? max_samples : s_stage_n;
+        if (axis == HAL_ACCEL_AXIS_Y) {
+            for (size_t i = 0; i < n; i++) out_samples[i] = (float)s_stage_y[i] / KX134_COUNTS_PER_G;
+        } else {
+            for (size_t i = 0; i < n; i++) out_samples[i] = (float)s_stage_z[i] / KX134_COUNTS_PER_G;
+        }
+        ret = (int)n;
+    } else {
+        ret = -1;
     }
 
-    /* Y/Z: served from the cache the X call just filled. Per this driver's
-     * documented ordering requirement, X is always called first each
-     * epoch (verified against src/threads/imu_task.c). Cache holds raw
-     * counts (see s_stage_y/s_stage_z above), converted to g here. */
-    size_t n = (max_samples < s_stage_n) ? max_samples : s_stage_n;
-    if (axis == HAL_ACCEL_AXIS_Y) {
-        for (size_t i = 0; i < n; i++) out_samples[i] = (float)s_stage_y[i] / KX134_COUNTS_PER_G;
-    } else if (axis == HAL_ACCEL_AXIS_Z) {
-        for (size_t i = 0; i < n; i++) out_samples[i] = (float)s_stage_z[i] / KX134_COUNTS_PER_G;
-    } else {
-        return -1;
-    }
-    return (int)n;
+    if (ret >= 0) s_reads_ok++; else s_read_errors++;
+    return ret;
 }
 
 uint32_t hal_accel_get_sample_rate(void)

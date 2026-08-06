@@ -66,6 +66,19 @@ void hal_accel_stop(void) { }
 
 uint32_t hal_accel_get_sample_rate(void) { return IMU_FS_HZ; }
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_reads_ok    = 0;
+static uint32_t s_read_errors = 0;
+
+void hal_accel_get_stats(struct hal_accel_stats *out)
+{
+    if (out == NULL) return;
+    out->reads_ok      = s_reads_ok;
+    out->read_errors   = s_read_errors;
+    out->fifo_max_hits = 0; /* stub has no FIFO */
+}
+
 int hal_accel_read_block(enum hal_accel_axis axis, float *out_samples, size_t max_samples)
 {
     switch (axis) {
@@ -82,7 +95,9 @@ int hal_accel_read_block(enum hal_accel_axis axis, float *out_samples, size_t ma
                             100.0f, 0.003f, 0.0f, 0.0f, 0.0008f);
         break;
     default:
+        s_read_errors++;
         return -1;
     }
+    s_reads_ok++;
     return (int)max_samples;
 }

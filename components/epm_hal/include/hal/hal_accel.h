@@ -36,3 +36,15 @@ int hal_accel_read_block(enum hal_accel_axis axis, float *out_samples, size_t ma
 
 uint32_t hal_accel_get_sample_rate(void);
 void hal_accel_stop(void);
+
+struct hal_accel_stats {
+    uint32_t reads_ok;      /* hal_accel_read_block() calls that returned >= 0 */
+    uint32_t read_errors;   /* hal_accel_read_block() calls that returned a negative errno */
+    uint32_t fifo_max_hits; /* KX134 FIFO seen at max capacity (possible dropped samples); always 0 on the stub */
+};
+
+/* Per Part I's one-<module>_get_stats()-per-module convention. Shared HAL
+ * contract (not module-prefixed): both accel_kx134_spi.c and accel_stub.c
+ * implement this, matching the naming precedent of the other hal_accel_*
+ * functions above. */
+void hal_accel_get_stats(struct hal_accel_stats *out);

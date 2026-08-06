@@ -116,6 +116,15 @@ size_t snapshot_read_chunk(size_t chunk_byte_offset, void *dst, size_t nbytes);
  * Returns the total cumulative count since boot (never wraps in normal use). */
 uint32_t mic_capture_get_overflow_count(void);
 
+struct mic_inmp441_i2s_stats {
+    uint32_t overflow_count; /* same value as mic_capture_get_overflow_count() */
+    uint32_t read_errors;    /* i2s_channel_read() calls that returned != ESP_OK */
+    uint32_t short_reads;    /* successful reads that returned fewer bytes than requested */
+};
+
+/* Per Part I's one-<module>_get_stats()-per-module convention. */
+void mic_inmp441_i2s_get_stats(struct mic_inmp441_i2s_stats *out);
+
 #ifdef __cplusplus
 }
 #endif
