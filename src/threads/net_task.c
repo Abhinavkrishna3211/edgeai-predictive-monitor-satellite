@@ -240,17 +240,28 @@ static void net_task_fn(void *arg)
 	ESP_LOGI(TAG, "free heap before link_mqtt_start(): internal=%lu",
 		 (unsigned long)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
 
+	/* link_mqtt_start() can transiently fail ADR-024's heap-margin guard
+	 * right at boot: this task and wifi_provision_task.c both wake on the
+	 * same "WiFi connected" event, and if the provisioning captive portal
+	 * (AP+DNS+HTTP) hasn't finished tearing down yet it holds heap a few
+	 * hundred bytes below the 32768-byte margin for a matter of seconds.
+	 * Retry instead of giving up for the rest of the boot — there's
+	 * nothing else useful this task can do without a transport (the
+	 * publish loop below already treats "not connected" as a no-op, not
+	 * an error), and both producer queues are depth-1 xQueueOverwrite
+	 * (mic_task.c, imu_task.c), so delaying entry into that loop can't
+	 * backpressure or stall them. */
 	int rc = link_mqtt_start();
 
-	if (rc != 0) {
-		ESP_LOGE(TAG, "link_mqtt_start failed: %d", rc);
+	while (rc != 0) {
+		vTaskDelay(pdMS_TO_TICKS(2000));
+		rc = link_mqtt_start();
 	}
 
-	/* Registered after link_mqtt_start() (not before): link_mqtt_start()
-	 * calls transport_init() internally, which unconditionally resets the
-	 * cmd handler to NULL, so registering any earlier would just get
-	 * wiped. Unconditional on rc: transport_init() has already run either
-	 * way, and there's no retry loop that would re-wipe this later. */
+	/* Registered after link_mqtt_start() succeeds (not before): it calls
+	 * transport_init() internally, which unconditionally resets the cmd
+	 * handler to NULL, so registering any earlier — including between
+	 * failed retries above — would just get wiped by the next attempt. */
 	transport_set_cmd_handler(net_task_cmd_handler);
 
 #if CONFIG_EPM_STATUS_LED_SELFTEST
