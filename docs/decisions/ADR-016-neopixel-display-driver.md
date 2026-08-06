@@ -83,3 +83,64 @@ this ADR flagged for exactly this update. All 8 pixels are driven
 identically (`display_neopixel.c`'s per-pixel loop was already written for
 this, per this ADR's Decision section), so the change is a one-line count
 update, not a logic change.
+
+## Addendum (2026-08-06)
+
+Found during a live comparison audit against the reference repo's actual
+`base-station/python/registry/status_color.py` (fetched directly, not
+assumed — see `docs/RAHUL_COMPARISON_AUDIT.md`): the Decision table above
+was wrong about `RGB_TRIPPED` having "no NodeStatus analog." His file does
+define a `TRIPPED` entry:
+
+```python
+_RED_TRIPPED_SLOW = ("#ff0000", strobe, 1000)  # TRIPPED
+```
+
+(his own comment on this line: "1000ms as a deliberate, latched 'I already
+acted'"). Our `RGB_TRIPPED` was `{0xFF00FF, MODE_STROBE, 150}` — a
+different color (magenta) *and* a different, much faster period. Worse,
+that magenta was byte-identical to his `_MAGENTA_IDLE` (`"#ff00ff", const,
+0`, for `IDLE`), so it was a genuine cross-status color collision, not
+merely "no equivalent chosen locally." Corrected to
+`{0xFF0000, MODE_STROBE, 1000}` — exact match to `_RED_TRIPPED_SLOW`.
+
+Separately, and by Abhinav's explicit instruction to prioritize exact
+color-scheme parity: `RGB_LEARNING` (previously `{0x22D3EE, MODE_BREATHE,
+800}`) is collapsed to `{0x22D3EE, MODE_CONST, 0}`, identical to
+`RGB_CALIBRATING`. `status_color.py` uses `_CYAN_NEW` (CONST) for every
+commissioning sub-phase (`UNCOMMISSIONED` / `COMMISSIONING_COLLECTING` /
+`COMMISSIONING_TRAINING`) with no BREATHE distinction anywhere in it. The
+original Decision section's CONST-vs-BREATHE split was a deliberate choice
+to give the two local commissioning sub-phases distinct on-device visual
+feedback without deviating from the shared wire color — that tradeoff is
+now deliberately reversed in favor of byte-identical parity with
+`status_color.py`. This is a reversal of a considered decision, not a bug
+fix: BREATHE at CALIBRATING-vs-LEARNING boundaries was working as designed.
+
+The Decision table's `| Reference analog |` column is corrected
+accordingly: `RGB_TRIPPED` now reads `_RED_TRIPPED_SLOW (TRIPPED)` instead
+of `none`, and `RGB_LEARNING`'s mode is CONST instead of BREATHE. (Per this
+project's append-only ADR convention, the original table text is left as
+written above; this addendum is the record of what changed and why.)
+
+No new `rgb_led_state_t` entries were added for `status_color.py`'s
+`PAUSED`, `OFFLINE`, or `IDLE` (`_GREY_PAUSED`, `_GREY_OFFLINE`,
+`_MAGENTA_IDLE`). These are gateway-decided statuses our satellite firmware
+has no local trigger condition for — nothing in our own state machine ever
+decides "I am paused" or "I am offline" from the inside. The existing
+`rgb_led_set_remote()` path (arbitrary `(rgb, mode, period_ms)` pushed over
+MQTT, wired since Phase 7c) already renders any of these correctly if a
+real base station ever sends one; this is not a gap needing a pre-emptive
+local entry, just three statuses this side never originates on its own.
+
+Hardware note: current physical hardware is a temporary WS2812B-64 (8x8
+matrix) stand-in for the real 8-LED ring — `WS2812_NUM_PIXELS` stays at 8,
+matching the reference's `satellite/src/drivers/rgb_ws2812.cpp`
+(`RING_NUM_PIXELS 8`) exactly, and is not changed by this addendum. Driving
+8-pixel data into the 64-LED stand-in lighting up only a subset of its
+physical LEDs is expected given that mismatch, not a bug to chase. No
+visual/hardware re-validation of this color and timing change was possible
+in this session (no real ring available yet) — the "Not confirmed" gap this
+ADR's own Validation section already flagged for physical LED color output
+remains open, now also covering `RGB_TRIPPED`'s and `RGB_LEARNING`'s new
+values specifically.
