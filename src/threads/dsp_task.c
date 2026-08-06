@@ -71,6 +71,22 @@ static const char *TAG = "dsp_task";
 static TaskHandle_t s_task_handle = NULL;
 TaskHandle_t dsp_task_get_handle(void) { return s_task_handle; }
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_fft_count      = 0;
+static uint32_t s_frames_emitted = 0;
+static uint32_t s_rb_timeouts    = 0;
+static uint32_t s_last_fft_us    = 0;
+
+void dsp_task_get_stats(struct dsp_task_stats *out)
+{
+    if (out == NULL) return;
+    out->fft_count      = s_fft_count;
+    out->frames_emitted = s_frames_emitted;
+    out->rb_timeouts    = s_rb_timeouts;
+    out->last_fft_us    = s_last_fft_us;
+}
+
 /* ── FFT working buffers (internal DRAM — fast, SIMD-accessible) ─────────── */
 
 /* HW-OPT: aligned(16) satisfies LX7 128-bit SIMD lane requirements. */
@@ -149,6 +165,7 @@ static void dsp_task_fn(void *arg)
             xRingbufferReceive(raw_rb, &item_sz, pdMS_TO_TICKS(2000));
 
         if (blk == NULL) {
+            s_rb_timeouts++;
             ESP_LOGW(TAG, "raw_rb timeout — no data from mic_task");
             continue;
         }
@@ -201,11 +218,13 @@ static void dsp_task_fn(void *arg)
                          (unsigned long)(t1 - t0),
                          (float)(t1 - t0) / 240000.0f,
                          FFT_MIC_N);
+                s_last_fft_us = (uint32_t)((t1 - t0) / 240);
                 fft_benchmarked = true;
             } else {
                 dsps_fft2r_fc32(s_fft, FFT_MIC_N);
                 dsps_bit_rev2r_fc32(s_fft, FFT_MIC_N);
             }
+            s_fft_count++;
 
             /* --- 6. Accumulate linear power (normalised so full-scale sine → 0 dBFS) ---
              * /s_coherent_gain corrects for the Hann window's amplitude loss
@@ -255,6 +274,7 @@ static void dsp_task_fn(void *arg)
             s_out_frame.timestamp_ms     = (uint32_t)(esp_timer_get_time() / 1000);
 
             xQueueOverwrite(s_queue, &s_out_frame);
+            s_frames_emitted++;
 
             hst_frame_count++;
             if (!s_hst_warmed_up && hst_frame_count >= 250) {

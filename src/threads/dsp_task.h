@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/ringbuf.h"
@@ -28,6 +30,16 @@ void dsp_task_start(RingbufHandle_t raw_rb);
 
 /** Returns the task handle (valid after dsp_task_start()). Used by diagnostics_task. */
 TaskHandle_t dsp_task_get_handle(void);
+
+struct dsp_task_stats {
+    uint32_t fft_count;       /* FFT windows computed since boot */
+    uint32_t frames_emitted;  /* averaged mic_frame_t frames posted to net_task */
+    uint32_t rb_timeouts;     /* raw_rb receive timeouts (no data from mic_task) */
+    uint32_t last_fft_us;     /* one-shot FFT benchmark duration, microseconds */
+};
+
+/* Per Part I's one-<module>_get_stats()-per-module convention. */
+void dsp_task_get_stats(struct dsp_task_stats *out);
 
 #ifdef __cplusplus
 }

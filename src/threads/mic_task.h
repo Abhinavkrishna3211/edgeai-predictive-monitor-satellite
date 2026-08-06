@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
 
@@ -28,6 +30,15 @@ void mic_task_start(void);
 
 /** Returns the task handle (valid after mic_task_start()). Used by diagnostics_task. */
 TaskHandle_t mic_task_get_handle(void);
+
+struct mic_task_stats {
+    uint32_t blocks_ok;         /* blocks successfully captured and posted */
+    uint32_t capture_failures;  /* mic_capture_read_block() failures */
+    uint32_t rb_drops;          /* blocks dropped: raw_rb full (dsp_task backlogged) */
+};
+
+/* Per Part I's one-<module>_get_stats()-per-module convention. */
+void mic_task_get_stats(struct mic_task_stats *out);
 
 #ifdef __cplusplus
 }

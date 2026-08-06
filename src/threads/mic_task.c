@@ -53,6 +53,20 @@ static float s_scratch[FFT_MIC_N] __attribute__((aligned(16)));  /* temp for SIM
 static TaskHandle_t s_task_handle = NULL;
 TaskHandle_t mic_task_get_handle(void) { return s_task_handle; }
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_blocks_ok        = 0;
+static uint32_t s_capture_failures = 0;
+static uint32_t s_rb_drops         = 0;
+
+void mic_task_get_stats(struct mic_task_stats *out)
+{
+    if (out == NULL) return;
+    out->blocks_ok        = s_blocks_ok;
+    out->capture_failures = s_capture_failures;
+    out->rb_drops         = s_rb_drops;
+}
+
 /* ── Ring buffer for mic_task → dsp_task handoff ─────────────────────────── */
 
 /* HW-OPT: DRAM_ATTR guarantees internal DRAM placement.  PSRAM cannot be used
@@ -95,6 +109,7 @@ static void mic_task_fn(void *arg)
         /* --- 1. Capture --- */
         if (mic_capture_read_block(NULL, s_norm, FFT_MIC_N) != ESP_OK) {
             fail_cnt++;
+            s_capture_failures++;
             if (fail_cnt >= MIC_FAIL_MAX) {
                 ESP_LOGE(TAG, "mic_capture_read_block: %d consecutive failures — "
                          "check I2S wiring / clock", fail_cnt);
@@ -168,7 +183,10 @@ static void mic_task_fn(void *arg)
          * drop the oldest data path — identical behaviour to xQueueOverwrite
          * but avoids an extra memcpy on the receive side. */
         if (xRingbufferSend(s_raw_rb, &s_blk, sizeof(s_blk), 0) != pdTRUE) {
+            s_rb_drops++;
             ESP_LOGD(TAG, "raw_rb full — dropping block (dsp_task backlogged)");
+        } else {
+            s_blocks_ok++;
         }
     }
 }

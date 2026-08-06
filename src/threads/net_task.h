@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
@@ -29,6 +31,17 @@ extern "C" {
  * task creation fails.
  */
 int net_task_start(QueueHandle_t mic_q, QueueHandle_t imu_q);
+
+struct net_task_stats {
+	uint32_t frames_built;      /* build_real_frame() calls that returned a nonzero length */
+	uint32_t build_failures;    /* build_real_frame() calls that returned 0 */
+	uint32_t publish_failures;  /* transport_publish_spectrum() calls that failed, excluding -ENOTCONN */
+	uint32_t cmd_malformed;     /* net_task_cmd_handler() STATUS_LED payloads that failed to decode */
+	uint32_t disconnect_reverts; /* MQTT-level disconnects that reverted the display to local state */
+};
+
+/* Per Part I's one-<module>_get_stats()-per-module convention. */
+void net_task_get_stats(struct net_task_stats *out);
 
 #ifdef __cplusplus
 }

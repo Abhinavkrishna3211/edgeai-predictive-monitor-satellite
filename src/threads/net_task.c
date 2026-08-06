@@ -85,6 +85,22 @@ static float s_accel_z_bins[EPM_MODEL_SPECTRUM_BINS];
 
 static uint8_t frame_buf[EPM_NET_FRAME_BUF_BYTES];
 
+static uint32_t s_frames_built = 0;
+static uint32_t s_build_failures = 0;
+static uint32_t s_publish_failures = 0;
+static uint32_t s_cmd_malformed = 0;
+static uint32_t s_disconnect_reverts = 0;
+
+void net_task_get_stats(struct net_task_stats *out)
+{
+	if (out == NULL) return;
+	out->frames_built       = s_frames_built;
+	out->build_failures     = s_build_failures;
+	out->publish_failures   = s_publish_failures;
+	out->cmd_malformed      = s_cmd_malformed;
+	out->disconnect_reverts = s_disconnect_reverts;
+}
+
 /* Builds the 5-section frame (4 SPECTRUM + 1 SCALAR_SET) from the currently
  * cached s_last_mic/s_last_imu. Returns the encoded length, or 0 if
  * out_buf_size is too small or a bin-reduction call fails
@@ -161,6 +177,7 @@ static void net_task_cmd_handler(uint8_t type, const uint8_t *body, size_t len)
 	struct display_rgb_payload rgb;
 
 	if (!mqtt_decode_status_led(body, len, &rgb)) {
+		s_cmd_malformed++;
 		ESP_LOGW(TAG, "cmd handler: malformed STATUS_LED payload (%u bytes)",
 			 (unsigned)len);
 		return;
@@ -251,6 +268,7 @@ static void net_task_fn(void *arg)
 		bool mqtt_connected = transport_is_connected();
 
 		if (mqtt_was_connected && !mqtt_connected) {
+			s_disconnect_reverts++;
 			ESP_LOGW(TAG, "MQTT disconnected — reverting display to local state");
 			rgb_led_set_state(RGB_WIFI_CONN);
 		}
@@ -271,11 +289,14 @@ static void net_task_fn(void *arg)
 		size_t len = build_real_frame(frame_buf, sizeof(frame_buf));
 
 		if (len == 0) {
+			s_build_failures++;
 			ESP_LOGE(TAG, "frame build failed (buffer too small?)");
 		} else {
+			s_frames_built++;
 			int pub_rc = transport_publish_spectrum(frame_buf, len);
 
 			if (pub_rc != 0 && pub_rc != -ENOTCONN) {
+				s_publish_failures++;
 				ESP_LOGW(TAG, "publish failed: %d", pub_rc);
 			}
 		}

@@ -37,6 +37,8 @@ static const char *TAG = "wifi_task";
 
 static EventGroupHandle_t s_wifi_event_group  = NULL;
 static int                s_retry_cnt         = 0;
+static uint32_t           s_connects          = 0;
+static uint32_t           s_disconnects       = 0;
 
 /* JTAG-readable: 0=init 1=rf_init_done 2=sta_start 3=connecting 4=got_ip */
 volatile uint32_t         g_wifi_debug_state  = 0;
@@ -58,6 +60,7 @@ static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
     rgb_led_set_state(RGB_WIFI_CONN);
     xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     s_retry_cnt++;
+    s_disconnects++;
     const char *reason_str =
         (d->reason == 200) ? "BEACON_TIMEOUT"         :
         (d->reason == 201) ? "NO_AP_FOUND"            :
@@ -85,6 +88,7 @@ static void on_got_ip(ip_event_got_ip_t *ev)
     ESP_LOGI(TAG, "Got IP: " IPSTR " (after %d attempt(s))",
              IP2STR(&ev->ip_info.ip), s_retry_cnt + 1);
     s_retry_cnt = 0;
+    s_connects++;
     rgb_led_set_state(RGB_TCP_CONN);
     xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 }
@@ -195,4 +199,12 @@ bool wifi_wait_connected(TickType_t ticks_to_wait)
                                            pdFALSE, pdTRUE,
                                            ticks_to_wait);
     return (bits & WIFI_CONNECTED_BIT) != 0;
+}
+
+void wifi_task_get_stats(struct wifi_task_stats *out)
+{
+    if (out == NULL) return;
+    out->connects    = s_connects;
+    out->disconnects = s_disconnects;
+    out->retry_cnt   = (uint32_t)s_retry_cnt;
 }

@@ -38,6 +38,15 @@ bool wifi_wait_connected(TickType_t ticks_to_wait);
  * 3=connecting 4=got_ip. */
 extern volatile uint32_t g_wifi_debug_state;
 
+struct wifi_task_stats {
+    uint32_t connects;    /* got_ip events since boot */
+    uint32_t disconnects; /* STA_DISCONNECTED events since boot */
+    uint32_t retry_cnt;   /* consecutive failures since the last successful connect */
+};
+
+/* Per Part I's one-<module>_get_stats()-per-module convention. */
+void wifi_task_get_stats(struct wifi_task_stats *out);
+
 #ifdef __cplusplus
 }
 #endif
