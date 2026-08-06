@@ -133,9 +133,11 @@ edgeai-predictive-monitor-satellite/
 │       ├── mic_capture.c
 │       └── include/mic_capture.h
 │
+├── tools/
+│   └── satellite_sim.py        # Test gateway without hardware (N simulated satellites)
+│
 ├── mic_tools/
 │   ├── recv_verify.py          # Gateway: receive, score, alert, CSV log, dashboard, reports
-│   ├── satellite_sim.py        # Test gateway without hardware (N simulated satellites)
 │   ├── bearing_math.py         # ISO bearing fault frequencies — BPFO/BPFI/BSF/FTF
 │   ├── ml_trainer.py           # Train IsolationForest anomaly model from CSV logs
 │   ├── ml_infer.py             # Offline anomaly analysis with trained model
@@ -400,14 +402,14 @@ The browser caches credentials for the session — one login per browser.
 ## Testing Without Hardware — Satellite Simulator
 
 ```bash
-# Terminal 1: start gateway
-python3 recv_verify.py --no-plot
+# Terminal 1: start gateway (from the repo root)
+python3 mic_tools/recv_verify.py --no-plot
 
-# Terminal 2: simulate 3 healthy satellites
-python3 satellite_sim.py 127.0.0.1 5100 3
+# Terminal 2: simulate 3 healthy satellites (also from the repo root)
+python3 tools/satellite_sim.py 127.0.0.1 5100 3
 
 # Inject fault conditions — test alert logic and LED patterns
-python3 satellite_sim.py 127.0.0.1 5100 5 --fault 1 --warn 2
+python3 tools/satellite_sim.py 127.0.0.1 5100 5 --fault 1 --warn 2
 ```
 
 Each simulated satellite has a unique fake MAC, sends realistic FFT data, and

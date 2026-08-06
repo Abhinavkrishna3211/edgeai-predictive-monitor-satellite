@@ -6,9 +6,10 @@ decodes the old fixed-header TCP+AES wire format (`HEADER_FMT`/`EPM_MAGIC`)
 that `tcp_task.c` used to send. That firmware transport was deleted outright
 in Phase 7a in favor of MQTT (`gateway.ingestion.mqtt_subscriber`) — no real
 satellite has spoken this format since. Its only remaining reason to exist is
-that `mic_tools/satellite_sim.py` (the manual multi-satellite test double)
-still speaks it, so this stays alive as *the thing satellite_sim.py connects
-to* for interactive testing, not as a path any deployed satellite uses.
+that `tools/satellite_sim.py` (the manual multi-satellite test double, moved
+out of `mic_tools/` in Phase 8c task 2) still speaks it, so this stays alive
+as *the thing satellite_sim.py connects to* for interactive testing, not as
+a path any deployed satellite uses.
 See docs/decisions/ADR-028-tcp-legacy-path-kept-for-dev-testing.md for the
 keep-vs-retire decision and why. Do not treat this as parity with the MQTT
 path — it is a relocated legacy receiver, named accordingly.
@@ -37,7 +38,7 @@ thread() below reaches it via the same lazy `_rv` import as everything else.
 `EPM_MAGIC`/`HEADER_FMT`/`HELLO_FMT`/`EPM_PROTO_V2_MAGIC` and friends moved
 here from recv_verify.py because they are pure TCP-wire-format constants with
 zero other consumers inside gateway/ (confirmed via grep — the only other
-files with copies are the fully-standalone `mic_tools/satellite_sim.py` and
+files with copies are the fully-standalone `tools/satellite_sim.py` and
 `mic_tools/mic_char_analyze.py`, which define their own and import nothing
 from here or recv_verify.py).
 """
