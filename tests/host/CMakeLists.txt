@@ -52,6 +52,15 @@ target_include_directories(test_spectrum PRIVATE ${REPO_ROOT}/components/epm_dsp
 target_link_libraries(test_spectrum PRIVATE m)
 target_compile_options(test_spectrum PRIVATE -Wall -Wextra)
 
+# ── envelope-analysis test — links the real components/epm_dsp/envelope.c ──
+add_executable(test_envelope
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_envelope.c
+    ${REPO_ROOT}/components/epm_dsp/envelope.c
+)
+target_include_directories(test_envelope PRIVATE ${REPO_ROOT}/components/epm_dsp/include)
+target_link_libraries(test_envelope PRIVATE m)
+target_compile_options(test_envelope PRIVATE -Wall -Wextra)
+
 # ── Existing frame_encode test — wired in unmodified; its own raw-gcc
 #    one-liner documented in its header comment still works standalone ─────
 add_executable(test_frame_encode
@@ -92,6 +101,7 @@ add_test(NAME scalar_stats     COMMAND test_scalar_stats)
 add_test(NAME hann_window      COMMAND test_hann_window)
 add_test(NAME frame_encode     COMMAND test_frame_encode WORKING_DIRECTORY ${REPO_ROOT})
 add_test(NAME spectrum         COMMAND test_spectrum)
+add_test(NAME envelope         COMMAND test_envelope)
 add_test(NAME scalar_map       COMMAND test_scalar_map)
 add_test(NAME status_led       COMMAND test_status_led)
 add_test(NAME http_form_parse  COMMAND test_http_form_parse)
