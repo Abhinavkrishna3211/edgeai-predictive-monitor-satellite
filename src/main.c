@@ -44,6 +44,7 @@
 #include "threads/dsp_task.h"
 #include "threads/imu_task.h"
 #include "threads/wifi_task.h"
+#include "threads/wifi_provision_task.h"
 #include "drivers/mic_inmp441_i2s.h"
 #include "threads/net_task.h"
 #include "hal/hal_accel.h"
@@ -105,6 +106,15 @@ static void diagnostics_task_fn(void *arg)
         ESP_LOGI("DIAG", "wifi: connects=%lu disconnects=%lu retry_cnt=%lu",
             (unsigned long)wifi_st.connects, (unsigned long)wifi_st.disconnects,
             (unsigned long)wifi_st.retry_cnt);
+
+        struct wifi_provision_stats prov_st;
+        wifi_provision_task_get_stats(&prov_st);
+        ESP_LOGI("DIAG", "wifi_prov: state=%lu provisioning_entries=%lu "
+                 "recovery_entries=%lu recovery_successes=%lu",
+            (unsigned long)g_wifi_provision_state,
+            (unsigned long)prov_st.provisioning_entries,
+            (unsigned long)prov_st.recovery_entries,
+            (unsigned long)prov_st.recovery_successes);
 
         struct mic_task_stats mic_st;
         mic_task_get_stats(&mic_st);
@@ -199,11 +209,19 @@ void app_main(void)
     /* --- Start WiFi RF before any I2S/DMA ---
      * I2S DMA interrupts disrupt the WiFi firmware RF state-machine timing
      * if armed concurrently, causing TG1WDT_SYS_RST during the initial scan.
-     * Connect first, then start the DSP tasks. */
+     * wifi_rf_init() itself is still synchronous and still completes (incl.
+     * esp_wifi_start(), which begins the RF scan) before any DMA task
+     * starts below — that ordering constraint is unchanged.
+     *
+     * What changed (Phase 12a): the old code then blocked here for up to
+     * 30 s waiting for a connection before continuing regardless. The
+     * provisioning state machine (src/threads/wifi_provision_task.c) now
+     * owns that wait in its own task instead — it still attempts saved/
+     * seeded credentials with a bounded join (15 s) but does not block
+     * app_main(), so the tasks below start immediately either way, same
+     * as the old "connect or warn and continue anyway" behavior. */
     wifi_rf_init();
-    if (!wifi_wait_connected(pdMS_TO_TICKS(30000))) {
-        ESP_LOGW(TAG, "WiFi not connected after 30 s — starting DSP anyway");
-    }
+    wifi_provision_task_start();
 
     /* --- Start application tasks --- */
     mic_task_start();

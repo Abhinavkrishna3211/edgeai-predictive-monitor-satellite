@@ -101,9 +101,10 @@
 /* ─── FreeRTOS task sizing ───────────────────────────────────────────────── */
 
 /*
- * Priority hierarchy (WiFi STA lifecycle is event-driven — see
- * src/threads/wifi_task.h — and has no task/priority/stack of its own):
- *   Core 0: net_task(4), mic_task(5), imu_task(3), diagnostics_task(1)
+ * Priority hierarchy (WiFi STA lifecycle itself is event-driven — see
+ * src/threads/wifi_task.h — and has no task/priority/stack of its own;
+ * wifi_provision_task IS a real task, see its own header comment for why):
+ *   Core 0: net_task(4), mic_task(5), imu_task(3), wifi_provision_task(2), diagnostics_task(1)
  *   Core 1: dsp_task(6), rgb_led_task(3)
  *
  *   6 = dsp_task   : compute-bound, must complete FFT before next DMA buffer fills
@@ -111,6 +112,9 @@
  *   4 = net_task   : MQTT publish, blocking radio-side I/O, preemptible by capture tasks
  *   3 = imu/rgb_led: imu_task is kept below net_task so the radio stack is
  *                    never starved; rgb_led is nearly always blocked on queue/notify
+ *   2 = wifi_provision_task: mostly vTaskDelay-blocked polling (see below);
+ *                    kept above diagnostics since a stuck provisioning
+ *                    state matters more than a missed 30 s health log
  *   1 = diagnostics: background HWM monitoring, runs every 30 s, never time-critical
  *
  * Stack sizes are set conservatively above spec minimums:
@@ -134,18 +138,32 @@
  *   net=4096  — esp-mqtt publish loop; receive destinations are file-scope
  *               statics (ADR-021), not stack, so this stays small
  *   diag=3072 (spec 3072) — only vTaskGetRunTimeStats 1024-byte static buffer
+ *   wifi_prov=4096 — NOT YET MEASURED ON HARDWARE (Phase 12a landed without
+ *              board access). Sized to match net_task/imu_task's precedent
+ *              rather than guessed from scratch: the task's own body is a
+ *              vTaskDelay polling loop over stack-local wifi_config_t/
+ *              net_credentials structs (~250 bytes combined, see
+ *              src/threads/wifi_provision_task.c), well under net_task's
+ *              4096, which itself covers a heavier esp-mqtt call stack.
+ *              A future session with hardware access should log this
+ *              task's uxTaskGetStackHighWaterMark() (add it to
+ *              diagnostics_task_fn alongside the others) and shrink this
+ *              value to measured-peak-plus-margin per this file's own
+ *              "measure, don't guess" discipline.
  */
 #define TASK_STACK_MIC   8192
 #define TASK_STACK_DSP   6144
 #define TASK_STACK_IMU   4096
 #define TASK_STACK_DIAG  3072
 #define TASK_STACK_NET   4096  /* net_task: blocks on WiFi, then esp-mqtt publish loop */
+#define TASK_STACK_WIFI_PROV 4096  /* wifi_provision_task — see comment above */
 
 #define TASK_PRIO_MIC    5   /* I2S DMA callback — must not be starved by DSP */
 #define TASK_PRIO_DSP    6   /* FFT compute — highest: must drain raw_rb before next block */
 #define TASK_PRIO_IMU    3   /* SPI DMA capture — below net_task(4) so the radio stack is never starved */
 #define TASK_PRIO_DIAG   1   /* background health monitor */
 #define TASK_PRIO_NET    4   /* MQTT publish — radio-side I/O, preemptible by capture tasks */
+#define TASK_PRIO_WIFI_PROV 2  /* provisioning state machine — see comment above */
 
 /* ─── Inter-task data structures ─────────────────────────────────────────── */
 

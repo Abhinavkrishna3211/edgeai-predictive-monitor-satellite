@@ -15,6 +15,9 @@
  * On WIFI_EVENT_STA_DISCONNECTED: clears WIFI_CONNECTED_BIT and reconnects.
  */
 
+#include <string.h>
+#include <errno.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
@@ -27,11 +30,29 @@
 #include "epm_config.h"
 #include "hal/hal_display.h"
 #include "threads/wifi_task.h"
+#include "drivers/net_credentials.h"
 
 static const char *TAG = "wifi_task";
 
 #define WIFI_CONNECTED_BIT  BIT0
 #define WIFI_MAX_RETRY      10
+
+/* Mirrors link_mqtt.c's own MQTT broker defaults, not shared via a header:
+ * epm_drivers must not depend back on the main component's config (see
+ * link_mqtt.c's header comment), and net_credentials.c must not depend on
+ * either side (see drivers/net_credentials.h). Both files use the same
+ * macro name and default literal so a single -DEPM_MQTT_BROKER_HOST=...
+ * build_flag in platformio.ini still overrides both consistently. Only
+ * used here to seed NVS's mqtt_broker_host/port fields on a genuinely
+ * first boot; net_task/link_mqtt.c do not read these fields back from NVS
+ * yet — that wiring is Phase 12b's job, once a provisioning submission can
+ * actually carry a non-default broker address. */
+#ifndef EPM_MQTT_BROKER_HOST
+#define EPM_MQTT_BROKER_HOST "10.42.0.1"
+#endif
+#ifndef EPM_MQTT_BROKER_PORT
+#define EPM_MQTT_BROKER_PORT 1883
+#endif
 
 /* ---------- module state ---------- */
 
@@ -39,6 +60,11 @@ static EventGroupHandle_t s_wifi_event_group  = NULL;
 static int                s_retry_cnt         = 0;
 static uint32_t           s_connects          = 0;
 static uint32_t           s_disconnects       = 0;
+
+/* SSID currently configured via esp_wifi_set_config() — set in
+ * wifi_rf_init() and wifi_sta_reconfigure(), read by the event handlers
+ * below for logging only (not used for any connection decision). */
+static char s_current_ssid[NET_CRED_SSID_MAX_LEN + 1] = {0};
 
 /* JTAG-readable: 0=init 1=rf_init_done 2=sta_start 3=connecting 4=got_ip */
 volatile uint32_t         g_wifi_debug_state  = 0;
@@ -49,7 +75,7 @@ static void on_wifi_sta_start(void)
 {
     g_wifi_debug_state = 2;  /* sta_start event received */
     rgb_led_set_state(RGB_WIFI_CONN);
-    ESP_LOGI(TAG, "STA started — connecting to \"%s\"...", WIFI_SSID);
+    ESP_LOGI(TAG, "STA started — connecting to \"%s\"...", s_current_ssid);
     g_wifi_debug_state = 3;  /* esp_wifi_connect() about to be called */
     esp_wifi_connect();
 }
@@ -74,8 +100,9 @@ static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
     ESP_LOGW(TAG, "Disconnect reason: %s (%d) attempt=%d",
              reason_str, d->reason, s_retry_cnt);
     if (s_retry_cnt % WIFI_MAX_RETRY == 0) {
-        ESP_LOGE(TAG, "WiFi: %d consecutive failures [%s] — verify SSID/password "
-                 "in wifi_creds.h", s_retry_cnt, reason_str);
+        ESP_LOGE(TAG, "WiFi: %d consecutive failures [%s] on \"%s\" — verify "
+                 "saved credentials (NVS epm_net namespace, seeded from "
+                 "wifi_creds.h on first boot)", s_retry_cnt, reason_str, s_current_ssid);
     }
     /* Do NOT vTaskDelay here — this runs in the system event loop.
      * Blocking triggers the interrupt watchdog. */
@@ -140,10 +167,33 @@ void wifi_rf_init(void)
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
+    /* Phase 12a: join with whatever's saved in NVS (net_credentials.c)
+     * instead of the compiled WIFI_SSID/WIFI_PASS directly. On a genuinely
+     * first boot (nothing saved yet) this seeds NVS from WIFI_SSID/
+     * WIFI_PASS/EPM_MQTT_BROKER_HOST/PORT first — the dev-bench escape
+     * hatch — so behavior here is unchanged from before this phase unless
+     * a real provisioning submission has since been saved. */
+    struct net_credentials creds;
+    int cred_rc = net_credentials_load(&creds);
+    if (cred_rc == -ENOENT) {
+        struct net_credentials seed = {0};
+        strncpy(seed.wifi_ssid, WIFI_SSID, sizeof(seed.wifi_ssid) - 1);
+        strncpy(seed.wifi_password, WIFI_PASS, sizeof(seed.wifi_password) - 1);
+        strncpy(seed.mqtt_host, EPM_MQTT_BROKER_HOST, sizeof(seed.mqtt_host) - 1);
+        seed.mqtt_port = EPM_MQTT_BROKER_PORT;
+        net_credentials_seed_defaults(&seed);
+        cred_rc = net_credentials_load(&creds);
+    }
+    if (cred_rc != 0) {
+        ESP_LOGE(TAG, "net_credentials_load failed (%d) — falling back to "
+                 "compiled WIFI_SSID/WIFI_PASS directly", cred_rc);
+        memset(&creds, 0, sizeof(creds));
+        strncpy(creds.wifi_ssid, WIFI_SSID, sizeof(creds.wifi_ssid) - 1);
+        strncpy(creds.wifi_password, WIFI_PASS, sizeof(creds.wifi_password) - 1);
+    }
+
     wifi_config_t wifi_cfg = {
         .sta = {
-            .ssid     = WIFI_SSID,
-            .password = WIFI_PASS,
             /* WPA_WPA2_PSK: accept WPA or WPA2 AP.  Avoids the silent stall
              * caused by WIFI_AUTH_WPA2_PSK + pmf_capable=true on Windows Mobile
              * Hotspot (WPA2-Personal without 802.11w). */
@@ -151,7 +201,10 @@ void wifi_rf_init(void)
             .pmf_cfg            = { .capable = false, .required = false },
         },
     };
+    strncpy((char *)wifi_cfg.sta.ssid, creds.wifi_ssid, sizeof(wifi_cfg.sta.ssid) - 1);
+    strncpy((char *)wifi_cfg.sta.password, creds.wifi_password, sizeof(wifi_cfg.sta.password) - 1);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg));
+    strncpy(s_current_ssid, creds.wifi_ssid, sizeof(s_current_ssid) - 1);
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -188,7 +241,7 @@ void wifi_rf_init(void)
      * intervals, which upstream code (net_task's MQTT keepalive) relies on
      * not happening. */
 
-    ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\"", WIFI_SSID);
+    ESP_LOGI(TAG, "WiFi RF init — SSID: \"%s\"", creds.wifi_ssid);
 }
 
 /* Phase 2: block until IP assigned (or timeout). Returns true if connected. */
@@ -207,4 +260,29 @@ void wifi_task_get_stats(struct wifi_task_stats *out)
     out->connects    = s_connects;
     out->disconnects = s_disconnects;
     out->retry_cnt   = (uint32_t)s_retry_cnt;
+}
+
+void wifi_sta_reconfigure(const char *ssid, const char *password)
+{
+    wifi_config_t wifi_cfg = {
+        .sta = {
+            .threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            .pmf_cfg            = { .capable = false, .required = false },
+        },
+    };
+    strncpy((char *)wifi_cfg.sta.ssid, ssid, sizeof(wifi_cfg.sta.ssid) - 1);
+    strncpy((char *)wifi_cfg.sta.password, password, sizeof(wifi_cfg.sta.password) - 1);
+
+    /* esp_wifi_disconnect() first: esp_wifi_set_config() while a connect/
+     * retry cycle is in flight does not interrupt it, so without this the
+     * STA could keep retrying the OLD credentials for up to WIFI_MAX_RETRY
+     * attempts before ever trying the new ones. */
+    esp_wifi_disconnect();
+    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg));
+    strncpy(s_current_ssid, ssid, sizeof(s_current_ssid) - 1);
+    s_current_ssid[sizeof(s_current_ssid) - 1] = '\0';
+    s_retry_cnt = 0;
+    ESP_LOGI(TAG, "STA reconfigured — connecting to \"%s\"...", s_current_ssid);
+    esp_wifi_connect();
 }

@@ -30,9 +30,22 @@ void wifi_rf_init(void);
 /**
  * Phase 2 — call after wifi_rf_init(), still before I2S tasks.
  * Blocks until WIFI_CONNECTED_BIT is set or ticks_to_wait expires.
- * Returns true if connected, false on timeout.
+ * Returns true if connected, false on timeout. ticks_to_wait=0 is a
+ * non-blocking poll of the bit's current state.
  */
 bool wifi_wait_connected(TickType_t ticks_to_wait);
+
+/*
+ * Reconfigures STA SSID/password and triggers a fresh connection attempt.
+ * Safe to call any time after wifi_rf_init(), including while already
+ * connected or mid-retry — reuses the same event-driven reconnect/backoff
+ * path wifi_rf_init()'s initial config joins through (see wifi_task.c's
+ * on_wifi_disconnected()). Used by wifi_provision_task.c's STA_TESTING
+ * state (Phase 12a) to test a freshly-submitted credential without a
+ * reboot. ssid/password are copied; the caller's buffers need not outlive
+ * the call.
+ */
+void wifi_sta_reconfigure(const char *ssid, const char *password);
 
 /* JTAG-readable WiFi state machine step: 0=init 1=rf_init_done 2=sta_start
  * 3=connecting 4=got_ip. */
