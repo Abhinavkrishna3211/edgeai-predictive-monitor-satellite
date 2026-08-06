@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """gateway/main.py — EPM gateway entry point (Phase 8b3 task 2).
 
-Argument parsing + wiring only. All per-frame pipeline logic, shared CLI-
-mutable state, and the live matplotlib plot stay in recv_verify.py (see
+Argument parsing + wiring only. All per-frame pipeline logic and shared
+CLI-mutable state stay in recv_verify.py (see
 docs/decisions/ADR-029-recv-verify-fate-and-main-py-split.md for why this
 file exists as a thin wiring layer rather than absorbing recv_verify.py
-wholesale, and why recv_verify.py wasn't simply retired).
+wholesale, and why recv_verify.py wasn't simply retired). The live
+matplotlib plot itself moved to gateway/api/live_plot.py (Phase 8c task 1);
+this file just calls into it.
 
 This module mutates recv_verify's module-level globals via plain attribute
 assignment (`rv.NAME = value`) everywhere the old recv_verify.main() used a
@@ -46,6 +48,7 @@ import recv_verify as rv
 from gateway.ingestion import tcp_legacy
 from gateway.ingestion import mqtt_subscriber
 from gateway.api.dashboard import start_dashboard
+from gateway.api.live_plot import run_plot
 
 
 def main():
@@ -351,9 +354,9 @@ def main():
             print("\nExiting.")
     else:
         try:
-            rv.run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
-                        bearing_freqs_mic=bearing_freqs_mic,
-                        bearing_freqs_imu=bearing_freqs_imu)
+            run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
+                     bearing_freqs_mic=bearing_freqs_mic,
+                     bearing_freqs_imu=bearing_freqs_imu)
         except KeyboardInterrupt:
             print("\nExiting.")
 
