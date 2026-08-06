@@ -57,3 +57,15 @@ void rgb_led_set_remote(uint32_t rgb, uint8_t mode, uint16_t period_ms);
 
 /* Task function — pin to core 1, priority 3, stack 3072. */
 void rgb_led_task(void *arg);
+
+struct rgb_led_stats {
+    uint32_t state_changes;  /* rgb_led_set_state() calls */
+    uint32_t remote_updates; /* rgb_led_set_remote() calls */
+    uint32_t hw_errors;      /* underlying LED hardware write failures */
+};
+
+/* Per Part I's one-<module>_get_stats()-per-module convention. Shared HAL
+ * contract (not module-prefixed): both display_ledc.c and display_neopixel.c
+ * implement this, matching the naming precedent of the other rgb_led_*
+ * functions above. */
+void rgb_led_get_stats(struct rgb_led_stats *out);

@@ -22,3 +22,8 @@ TaskHandle_t led_task_get_handle(void)
 {
     return s_task_handle;
 }
+
+void led_task_get_stats(struct rgb_led_stats *out)
+{
+    rgb_led_get_stats(out);
+}

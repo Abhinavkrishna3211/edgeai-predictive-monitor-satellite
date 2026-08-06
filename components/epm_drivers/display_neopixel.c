@@ -108,16 +108,42 @@ static led_strip_handle_t s_strip = NULL;
 static QueueHandle_t      s_state_queue = NULL;
 static TaskHandle_t       s_task_handle = NULL;
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_state_changes  = 0;
+static uint32_t s_remote_updates = 0;
+static uint32_t s_hw_errors      = 0;
+static bool     s_hw_fail_logged = false; /* log once per failure streak, not every tick */
+
+void rgb_led_get_stats(struct rgb_led_stats *out)
+{
+    if (out == NULL) return;
+    out->state_changes  = s_state_changes;
+    out->remote_updates = s_remote_updates;
+    out->hw_errors      = s_hw_errors;
+}
+
 static void set_ring(uint32_t rgb, uint8_t scale_pct)
 {
     uint8_t r = (uint8_t)((((rgb >> 16) & 0xFF) * scale_pct) / 100);
     uint8_t g = (uint8_t)((((rgb >> 8)  & 0xFF) * scale_pct) / 100);
     uint8_t b = (uint8_t)(((rgb & 0xFF) * scale_pct) / 100);
 
+    bool ok = true;
     for (int i = 0; i < WS2812_NUM_PIXELS; i++) {
-        led_strip_set_pixel(s_strip, i, r, g, b);
+        if (led_strip_set_pixel(s_strip, i, r, g, b) != ESP_OK) ok = false;
     }
-    led_strip_refresh(s_strip);
+    if (led_strip_refresh(s_strip) != ESP_OK) ok = false;
+
+    if (!ok) {
+        s_hw_errors++;
+        if (!s_hw_fail_logged) {
+            ESP_LOGW(TAG, "WS2812 hardware write failed (RMT/strip error)");
+            s_hw_fail_logged = true;
+        }
+    } else {
+        s_hw_fail_logged = false;
+    }
 }
 
 void rgb_led_task_init(void)
@@ -149,6 +175,7 @@ void rgb_led_task_init(void)
 void rgb_led_set_state(rgb_led_state_t state)
 {
     led_cmd_t cmd = { .is_remote = false, .state = state };
+    s_state_changes++;
 
     if (s_state_queue) {
         xQueueOverwrite(s_state_queue, &cmd);
@@ -168,6 +195,7 @@ void rgb_led_set_remote(uint32_t rgb, uint8_t mode, uint16_t period_ms)
             .period_ms = period_ms,
         },
     };
+    s_remote_updates++;
 
     if (s_state_queue) {
         xQueueOverwrite(s_state_queue, &cmd);

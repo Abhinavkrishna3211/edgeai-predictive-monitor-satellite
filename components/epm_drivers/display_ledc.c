@@ -153,17 +153,46 @@ static DRAM_ATTR anim_state_t g_anim;
 static TaskHandle_t           g_rgb_task_handle = NULL;
 static QueueHandle_t          g_state_queue     = NULL;
 
+/* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */
+
+static uint32_t s_state_changes  = 0;
+static uint32_t s_hw_errors      = 0;
+static bool     s_hw_fail_logged = false; /* log once per failure streak, not every call */
+
+void rgb_led_get_stats(struct rgb_led_stats *out)
+{
+    if (out == NULL) return;
+    out->state_changes  = s_state_changes;
+    out->remote_updates = 0; /* this driver does not implement rgb_led_set_remote() */
+    out->hw_errors      = s_hw_errors;
+}
+
+static void anim_note_result(bool ok)
+{
+    if (!ok) {
+        s_hw_errors++;
+        if (!s_hw_fail_logged) {
+            ESP_LOGW(TAG, "LEDC hardware fade/stop call failed");
+            s_hw_fail_logged = true;
+        }
+    } else {
+        s_hw_fail_logged = false;
+    }
+}
+
 /* ── LEDC helpers ────────────────────────────────────────────────────────── */
 
 static void anim_program_step(anim_state_t *a)
 {
     const led_step_t *s = &a->pattern[a->step];
-    ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_R, s->r, s->fade_ms);
-    ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_G, s->g, s->fade_ms);
-    ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_B, s->b, s->fade_ms);
-    ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_R, LEDC_FADE_NO_WAIT);
-    ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_G, LEDC_FADE_NO_WAIT);
-    ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_B, LEDC_FADE_NO_WAIT);
+    bool ok = true;
+    ok &= (ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_R, s->r, s->fade_ms) == ESP_OK);
+    ok &= (ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_G, s->g, s->fade_ms) == ESP_OK);
+    ok &= (ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_B, s->b, s->fade_ms) == ESP_OK);
+    ok &= (ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_R, LEDC_FADE_NO_WAIT) == ESP_OK);
+    ok &= (ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_G, LEDC_FADE_NO_WAIT) == ESP_OK);
+    ok &= (ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_B, LEDC_FADE_NO_WAIT) == ESP_OK);
+    anim_note_result(ok);
 }
 
 static void anim_start(anim_state_t *a, const led_step_t *pat, uint8_t n)
@@ -177,9 +206,11 @@ static void anim_start(anim_state_t *a, const led_step_t *pat, uint8_t n)
 
 static void anim_stop(void)
 {
-    ledc_stop(RGB_LEDC_MODE, RGB_LEDC_CH_R, 0);
-    ledc_stop(RGB_LEDC_MODE, RGB_LEDC_CH_G, 0);
-    ledc_stop(RGB_LEDC_MODE, RGB_LEDC_CH_B, 0);
+    bool ok = true;
+    ok &= (ledc_stop(RGB_LEDC_MODE, RGB_LEDC_CH_R, 0) == ESP_OK);
+    ok &= (ledc_stop(RGB_LEDC_MODE, RGB_LEDC_CH_G, 0) == ESP_OK);
+    ok &= (ledc_stop(RGB_LEDC_MODE, RGB_LEDC_CH_B, 0) == ESP_OK);
+    anim_note_result(ok);
 }
 
 static void anim_continue(anim_state_t *a)
@@ -191,12 +222,14 @@ static void anim_continue(anim_state_t *a)
          * Must be done here in task context — ledc_set_fade_with_time
          * acquires a mutex and cannot be called from the fade-done ISR. */
         const led_step_t *s = &a->pattern[a->step];
-        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_R, s->r, s->hold_ms);
-        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_G, s->g, s->hold_ms);
-        ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_B, s->b, s->hold_ms);
-        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_R, LEDC_FADE_NO_WAIT);
-        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_G, LEDC_FADE_NO_WAIT);
-        ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_B, LEDC_FADE_NO_WAIT);
+        bool ok = true;
+        ok &= (ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_R, s->r, s->hold_ms) == ESP_OK);
+        ok &= (ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_G, s->g, s->hold_ms) == ESP_OK);
+        ok &= (ledc_set_fade_with_time(RGB_LEDC_MODE, RGB_LEDC_CH_B, s->b, s->hold_ms) == ESP_OK);
+        ok &= (ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_R, LEDC_FADE_NO_WAIT) == ESP_OK);
+        ok &= (ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_G, LEDC_FADE_NO_WAIT) == ESP_OK);
+        ok &= (ledc_fade_start(RGB_LEDC_MODE, RGB_LEDC_CH_B, LEDC_FADE_NO_WAIT) == ESP_OK);
+        anim_note_result(ok);
     }
 }
 
@@ -288,6 +321,7 @@ void rgb_led_task_init(void)
 
 void rgb_led_set_state(rgb_led_state_t state)
 {
+    s_state_changes++;
     if (g_state_queue) {
         xQueueOverwrite(g_state_queue, &state);
     }
