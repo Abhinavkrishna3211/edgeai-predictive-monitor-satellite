@@ -34,7 +34,9 @@ static const char *TAG = "link_mqtt";
  * are private to this driver - nothing else in the tree needs them, and
  * epm_drivers must not depend on the main component's config (src already
  * depends on epm_drivers to call link_mqtt_start(); the reverse would be
- * a component dependency cycle). TODO: confirm against the real Uno Q. */
+ * a component dependency cycle). Default host unverified against the real
+ * Uno Q - tracked in docs/MASTER_PLAN.md's Open Items, not a code fix
+ * (blocked on physical hardware access). */
 #ifndef EPM_MQTT_BROKER_HOST
 #define EPM_MQTT_BROKER_HOST "10.42.0.1"
 #endif
