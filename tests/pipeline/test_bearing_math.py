@@ -30,6 +30,8 @@ from gateway.pipeline.bearing_math import BearingGeometry, BearingFreqs, COMMON_
 
 MIC_FS_HZ = 16000
 IMU_FS_HZ = 25600
+ENV_FS_HZ = 3200   # IMU_FS_HZ / IMU_ENVELOPE_DECIM(8) -- Phase 11b envelope
+                   # channels' decimated rate (ADR-032)
 
 BEARING_6205 = COMMON_BEARINGS['6205']
 RPM_1500 = 1500.0
@@ -97,6 +99,28 @@ class TestMarkers(unittest.TestCase):
         # not just the "everything fits" happy path above.
         markers = self.bf.markers(60.0)
         self.assertEqual(set(markers.keys()), {'shaft', 'FTF'})
+
+    def test_markers_envelope_fs_differs_from_raw_imu_fs(self):
+        # Phase 11b: envelope panels must call markers(env_fs) rather than
+        # markers(imu_fs) -- at 6205@1500rpm every fault freq sits well
+        # under both Nyquists (1600 Hz and 12800 Hz), so that fixture alone
+        # can't tell a correct call from an accidentally-hardcoded imu_fs
+        # one. A faster shaft (1000 Hz shaft -> BPFO/BPFI/BSF in the
+        # kHz range) pushes several fault frequencies past envelope fs's
+        # 1600 Hz Nyquist while they still clear raw imu fs's 12800 Hz one,
+        # so the two calls must return genuinely different marker sets.
+        bf_fast = BearingFreqs.from_shaft_hz(1000.0, BEARING_6205)
+        env_markers = bf_fast.markers(ENV_FS_HZ)
+        imu_markers = bf_fast.markers(IMU_FS_HZ)
+
+        self.assertLess(len(env_markers), len(imu_markers))
+        self.assertEqual(set(env_markers.keys()), {'shaft', 'FTF'})
+        self.assertEqual(set(imu_markers.keys()),
+                         {'shaft', '2×sh', 'BPFO', '2×BPFO', 'BPFI', '2×BPFI', 'BSF', 'FTF'})
+        # Values that survive both filters must be identical -- fs only
+        # changes which markers are *included*, never a marker's frequency.
+        self.assertEqual(env_markers['shaft'], imu_markers['shaft'])
+        self.assertEqual(env_markers['FTF'], imu_markers['FTF'])
 
 
 class TestParseBearingArg(unittest.TestCase):

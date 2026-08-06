@@ -217,6 +217,9 @@ def main():
     bearing_freqs_mic = None
     bearing_freqs_imu = None
     geom = None
+    bf   = None   # kept (not just its .markers() dicts) so run_plot() can call
+                  # bf.markers(envelope_fs) once the envelope panels' own
+                  # decoded fs is known, rather than only at a hardcoded fs
     if args.bearing:
         if not rv._BEARING_AVAILABLE:
             print('WARNING: bearing_math.py not found in the same directory — ignoring --bearing')
@@ -366,7 +369,8 @@ def main():
         try:
             run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
                      bearing_freqs_mic=bearing_freqs_mic,
-                     bearing_freqs_imu=bearing_freqs_imu)
+                     bearing_freqs_imu=bearing_freqs_imu,
+                     bf=bf)
         except KeyboardInterrupt:
             print("\nExiting.")
 

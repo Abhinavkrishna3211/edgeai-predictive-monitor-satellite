@@ -97,6 +97,17 @@ def decoded_to_frame_dict(decoded: "telemetry_frame.DecodedFrame",
     imu_y   = np.asarray(decoded.bins.get('accel_y', ()), dtype=np.float32)
     imu_z   = np.asarray(decoded.bins.get('accel_z', ()), dtype=np.float32)
 
+    env_x_spec = decoded.spectra.get('accel_x_envelope')
+    env_y_spec = decoded.spectra.get('accel_y_envelope')
+    env_z_spec = decoded.spectra.get('accel_z_envelope')
+    imu_env_x = np.asarray(env_x_spec.bins if env_x_spec else (), dtype=np.float32)
+    imu_env_y = np.asarray(env_y_spec.bins if env_y_spec else (), dtype=np.float32)
+    imu_env_z = np.asarray(env_z_spec.bins if env_z_spec else (), dtype=np.float32)
+    # All three envelope channels share one decimated fs (one IMU_ENVELOPE_DECIM
+    # for every axis, per net_task.c) -- read it off whichever section arrived
+    # rather than assuming the 3200 Hz design value.
+    imu_env_fs = next((s.fs for s in (env_x_spec, env_y_spec, env_z_spec) if s is not None), 0.0)
+
     frame = {flat: decoded.scalars[sid]
              for sid, flat in _SCALAR_TO_FLAT.items() if sid in decoded.scalars}
     frame.setdefault('mic_rms', 0.0)
@@ -113,6 +124,8 @@ def decoded_to_frame_dict(decoded: "telemetry_frame.DecodedFrame",
         mic_bins=len(mic_fft), imu_bins=len(imu_x), imu_axes=3,
         imu_rms=imu_rms, imu_crest=imu_crest,
         mic_fft=mic_fft, imu_x=imu_x, imu_y=imu_y, imu_z=imu_z,
+        imu_env_x=imu_env_x, imu_env_y=imu_env_y, imu_env_z=imu_env_z,
+        imu_env_fs=imu_env_fs,
         overflow_count=0,
         errors=[],
     ))
