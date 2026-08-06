@@ -62,8 +62,8 @@ def _log_alert_event(sat_name, mac_hex, new_alert, prev_alert,
     if _rv._storage is not None:
         try:
             _rv._storage.log_alert(sat_name, from_lbl, to_lbl, 0.0, reason)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f'[alert] [{sat_name}] DB log_alert failed: {e}')
 
 
 def _log_drift_event(sat_name, mac_hex, n_samples):
@@ -88,8 +88,8 @@ def _log_drift_event(sat_name, mac_hex, n_samples):
         try:
             _rv._storage.log_alert(sat_name, 'OK', 'INFO', 0.0,
                                f'BASELINE_REFRESH: {detail}')
-        except Exception:
-            pass
+        except Exception as e:
+            print(f'[alert] [{sat_name}] DB log_alert failed: {e}')
 
 
 # _recompute_z_baseline is imported (by recv_verify.py) from gateway.registry.baselines.

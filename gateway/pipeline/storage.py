@@ -192,6 +192,9 @@ class Storage:
         try:
             self.conn.close()
         except Exception:
+            # Best-effort: only called at shutdown/__exit__, nothing left to
+            # recover into. storage.py stays print-free by design (Phase 8b1)
+            # -- callers own logging for the operations they invoke.
             pass
 
     def __enter__(self):

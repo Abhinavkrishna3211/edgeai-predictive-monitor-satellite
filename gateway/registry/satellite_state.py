@@ -158,8 +158,8 @@ def _sat_register(mac_hex, name, fw_major, fw_minor, addr):
             if maint:
                 with _rv._MAINT_LOG_LOCK:
                     _rv._MAINT_LOG[mac_hex] = maint
-        except Exception:
-            pass
+        except Exception as e:
+            print(f'[registry] [{sat.name}] DB register/maint-load failed: {e}')
     return sat
 
 

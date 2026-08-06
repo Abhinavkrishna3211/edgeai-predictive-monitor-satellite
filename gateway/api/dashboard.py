@@ -1213,9 +1213,13 @@ class _DashHandler(BaseHTTPRequestHandler):
         if not auth.startswith('Basic '):
             return False
         try:
+            # b64decode/.decode()/unpacking-split all raise subclasses of
+            # ValueError for malformed input; narrowed from Exception so a
+            # real bug here surfaces as a traceback instead of just another
+            # silently-denied login.
             user, pw = base64.b64decode(auth[6:]).decode().split(':', 1)
             return user == (_rv._AUTH_USER or 'admin') and pw == _rv._AUTH_PASS
-        except Exception:
+        except ValueError:
             return False
 
     def _require_auth(self):

@@ -65,8 +65,8 @@ def _load_baselines(base_dir, storage, sat) -> None:
             try:
                 with open(path) as f:
                     state = json.load(f)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f'[baseline] [{sat.name}] Legacy JSON load failed: {e}')
     if state is None:
         return
     try:

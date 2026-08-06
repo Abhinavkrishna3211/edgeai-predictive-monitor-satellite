@@ -138,7 +138,8 @@ def _ml_score_with(frame: dict, model: dict) -> int | None:
         if score <= model['t_warn']:
             return _rv.EPM_ALERT_WARN
         return _rv.EPM_ALERT_OK
-    except Exception:
+    except Exception as e:
+        print(f'[ml] IsolationForest scoring failed: {e}')
         return None
 
 
@@ -167,7 +168,8 @@ def _ml_score_tflite(frame: dict, model: dict) -> int | None:
         if mse >= model['t_warn']:
             return _rv.EPM_ALERT_WARN
         return _rv.EPM_ALERT_OK
-    except Exception:
+    except Exception as e:
+        print(f'[ml] TFLite scoring failed: {e}')
         return None
 
 
