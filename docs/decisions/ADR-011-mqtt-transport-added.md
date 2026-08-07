@@ -371,8 +371,8 @@ transport (WiFi join → MQTT CONNECT/CONNACK → subscribe → periodic publish
 observed live against a real broker) is **formally deferred until the real
 Uno Q base station hardware is available**. No further temporary stand-ins
 will be attempted. `tests/host/decode_check.py`'s existing pass — a
-byte-correct encoding verified against the reference-repo maintainer's real, unmodified decode
-pipeline — remains sufficient evidence that the MQTT transport code itself
+byte-correct encoding verified against the reference implementation's real,
+unmodified decode pipeline — remains sufficient evidence that the MQTT transport code itself
 (framing, codec, topic scheme) is correct and independent of this
 environment issue; only the live radio join against a real device is
 unverified, and that requires the real base station rather than another

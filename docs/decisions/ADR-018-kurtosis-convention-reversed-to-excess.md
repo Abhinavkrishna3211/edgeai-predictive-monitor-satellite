@@ -16,7 +16,7 @@ excess/Fisher convention documented in `docs/MASTER_PLAN.md` Part D was
 "an unverified draft... this decision should be re-confirmed against
 `base-station/python/common/raw_features.py`... once that repo is available again."
 
-Phase 4 fetched that file live (`raw_features.py`, `rahuljeyaraj/edgeai-predictive-monitor@main`):
+Phase 4 fetched that file live (`raw_features.py`, from the reference base station's repository, main branch):
 
 ```python
 def kurtosis(x: np.ndarray) -> float:

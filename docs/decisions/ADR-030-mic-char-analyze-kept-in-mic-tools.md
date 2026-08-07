@@ -35,7 +35,7 @@ rather than assumed:
   `sdkconfig.mic_char_16k`, `_22050`, `_32k`, `_48k` — clearly staged for a
   multi-rate characterization sweep that has not happened yet.
 - `docs/MASTER_PLAN.md`'s interop tracker (the "Sensor parameters" row) lists
-  reconciling our multi-rate mic sampling against the reference-repo maintainer's fixed 96 kHz/2048-pt
+  reconciling our multi-rate mic sampling against the reference implementation's fixed 96 kHz/2048-pt
   choice as a real, not-yet-scoped decision, to be made "with an ADR recording
   the choice and why" — and that decision explicitly needs per-rate empirical
   data, which is exactly what this tool produces and nothing else in the repo
@@ -58,7 +58,7 @@ relocation, for reasons specific to what each tool actually is:
 
 - `satellite_sim.py` is a generic test double for the whole gateway pipeline
   (IMU + mic, multi-satellite) — it has no inherent tie to microphone
-  hardware and mirrors the reference-repo maintainer's reference repo's `tools/satellite_node_sim.py`
+  hardware and mirrors the reference repository's `tools/satellite_node_sim.py`
   layout, which is what motivated its move.
 - `mic_char_analyze.py` is INMP441-specific hardware bring-up/characterization
   tooling — it belongs with the other artifacts of that same work (the
@@ -71,7 +71,7 @@ relocation, for reasons specific to what each tool actually is:
   `sim_sweep.py`, `test_simulator.py`, `ml_trainer.py`, `train_autoencoder.py`.
   Moving only `mic_char_analyze.py` out to `tools/` while leaving those in
   place would be an arbitrary, inconsistent line to draw; `satellite_sim.py`
-  had a specific, named justification (ADR-028 + the the reference-repo maintainer-repo mirror) that
+  had a specific, named justification (ADR-028 + the reference-repo mirror) that
   this tool doesn't share.
 
 No file move means no docstring/usage-text update is needed — its existing

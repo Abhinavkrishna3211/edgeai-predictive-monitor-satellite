@@ -88,18 +88,20 @@ update, not a logic change.
 
 Found during a live comparison audit against the reference repo's actual
 `base-station/python/registry/status_color.py` (fetched directly, not
-assumed — see `docs/RAHUL_COMPARISON_AUDIT.md`): the Decision table above
-was wrong about `RGB_TRIPPED` having "no NodeStatus analog." His file does
-define a `TRIPPED` entry:
+assumed — see the reference-repo comparison audit, removed from this repo
+prior to external sharing): the Decision table above
+was wrong about `RGB_TRIPPED` having "no NodeStatus analog." The reference
+file does define a `TRIPPED` entry:
 
 ```python
 _RED_TRIPPED_SLOW = ("#ff0000", strobe, 1000)  # TRIPPED
 ```
 
-(his own comment on this line: "1000ms as a deliberate, latched 'I already
+(the reference implementation's own comment on this line: "1000ms as a
+deliberate, latched 'I already
 acted'"). Our `RGB_TRIPPED` was `{0xFF00FF, MODE_STROBE, 150}` — a
 different color (magenta) *and* a different, much faster period. Worse,
-that magenta was byte-identical to his `_MAGENTA_IDLE` (`"#ff00ff", const,
+that magenta was byte-identical to the reference's `_MAGENTA_IDLE` (`"#ff00ff", const,
 0`, for `IDLE`), so it was a genuine cross-status color collision, not
 merely "no equivalent chosen locally." Corrected to
 `{0xFF0000, MODE_STROBE, 1000}` — exact match to `_RED_TRIPPED_SLOW`.

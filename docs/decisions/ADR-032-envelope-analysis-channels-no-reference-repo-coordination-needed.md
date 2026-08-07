@@ -1,6 +1,6 @@
 ---
 id: ADR-032
-title: Three accel envelope-spectrum channels added as permanent schema entries, no coordination with the reference-repo maintainer needed
+title: Three accel envelope-spectrum channels added as permanent schema entries, no coordination with the reference repository needed
 status: accepted
 date: 2026-08-06
 deciders: Abhinav Krishna N
@@ -13,8 +13,8 @@ envelope analysis (`components/epm_dsp/envelope.c`): band-pass around a
 structural resonance -> full-wave rectify -> low-pass -> decimate, the
 standard high-frequency resonance technique for bearing-defect detection.
 Its output needs a wire channel to reach the base station. Two questions:
-which axes, and whether adding channels needs sign-off from the reference-repo maintainer (the
-reference/base-station side).
+which axes, and whether adding channels needs sign-off from the maintainer of
+the reference/base-station side.
 
 **Channel selection.** Part G's own stated purpose for this feature is
 BPFO/BPFI/BSF/FTF bearing-defect-frequency markers (`bearing_math.py`) — these
@@ -33,42 +33,44 @@ mic envelope analysis is a separate, real signal but out of scope here.
 mic.** Same three radial/axial axes as the existing raw `accel_x/y/z`
 channels (`src/threads/imu_task.c`'s axis convention).
 
-## Schema coordination — resolved, no need to contact the reference-repo maintainer
+## Schema coordination — resolved, no need to contact the reference repository's maintainer
 
 Two independent pieces of evidence, both readable directly in this repo
-(not assumed, not requiring a fresh live fetch of his repo):
+(not assumed, not requiring a fresh live fetch of the reference repo):
 
 1. **`schema/telemetry_schema.json`'s own doc comment (lines 14-16 of this
-   file, ported verbatim from his `base-station/telemetry_schema.json` when
-   Phase 5 built this generator)**: *"This is Phase A (experimentation) --
+   file, ported verbatim from the reference repo's `base-station/telemetry_schema.json`
+   when Phase 5 built this generator)**: *"This is Phase A (experimentation) --
    add/remove channels or change bins freely; the MPU parser needs zero code
    changes (it loops over sections and dispatches on data_kind)."* This is
-   his own repo's stated contract for this exact file, ported into ours
-   unchanged.
+   the reference repo's own stated contract for this exact file, ported into
+   ours unchanged.
 
-2. **`docs/BASE_STATION_CONTRACT.md` finding 4** (verified live against his
-   repo on 2026-08-04, sources listed at that document's end): his
+2. **`docs/BASE_STATION_CONTRACT.md` finding 4** (verified live against the
+   reference repo on 2026-08-04, sources listed at that document's end): its
    `registry.py`'s `SensorChannel` enum is `{MIC, ACCEL_X, ACCEL_Y, ACCEL_Z}`
    only — nothing else. The existing combined `accel` channel (`id=1`, still
    on our own schema for legacy reasons) is confirmed to fall through to
    `SensorFrame.display_bins`, not `.bins`, precisely *because* it isn't in
    that enum (`mqtt_subscriber_test.py::test_combined_accel_channel_lands_in_display_bins_not_bins`,
-   cited in that finding). A channel outside his enum decodes generically and
-   displays if his UI shows it, but never touches `.bins`/`input_dim`/his
-   model — the same fallthrough the existing `accel` channel already
-   exercises today, with zero reported issues.
+   cited in that finding). A channel outside that enum decodes generically and
+   displays if the reference UI shows it, but never touches
+   `.bins`/`input_dim`/its model — the same fallthrough the existing `accel`
+   channel already exercises today, with zero reported issues.
 
-A new envelope channel doesn't need to be in his `SensorChannel` enum to
-decode cleanly — it only needs a valid `[source_id][channel_id][data_kind]`
-section header, which any addition to `schema/telemetry_schema.json`
-guarantees by construction (`schema/gen_schema.py`'s `_validate()` rejects
-duplicate/out-of-range ids before either side is generated).
+A new envelope channel doesn't need to be in the reference `SensorChannel`
+enum to decode cleanly — it only needs a valid
+`[source_id][channel_id][data_kind]` section header, which any addition to
+`schema/telemetry_schema.json` guarantees by construction
+(`schema/gen_schema.py`'s `_validate()` rejects duplicate/out-of-range ids
+before either side is generated).
 
 **Conclusion:** these three channels ship as normal, permanent schema
-entries — not "provisional pending review." No message to the reference-repo maintainer is needed for
-this addition specifically (unlike a wire-format or scalar-convention change,
-which would require coordination since those *are* shared contract, per
-`docs/BASE_STATION_CONTRACT.md`'s open items).
+entries — not "provisional pending review." No message to the reference
+repo's maintainer is needed for this addition specifically (unlike a
+wire-format or scalar-convention change, which would require coordination
+since those *are* shared contract, per `docs/BASE_STATION_CONTRACT.md`'s
+open items).
 
 ## Decision
 
@@ -103,8 +105,8 @@ location before regenerating.
   `net_task.c` encodes them at (Phase 11a Task 3 — same
   `EPM_MODEL_SPECTRUM_BINS`-wide convention as the raw spectra,
   `docs/decisions/ADR-020`, unless that phase's RAM check says otherwise).
-- No action needed on the reference-repo maintainer's side; his generic section-loop decode already
-  handles an unrecognized channel id safely (finding 4 above).
+- No action needed on the reference repo's side; its generic section-loop
+  decode already handles an unrecognized channel id safely (finding 4 above).
 - `docs/decisions/ADR-032` (this file) is the record for "why no coordination
   needed" so a future session doesn't have to re-derive it from scratch.
 - `schema/gen_schema.py`'s path fix is a one-line correctness fix bundled
