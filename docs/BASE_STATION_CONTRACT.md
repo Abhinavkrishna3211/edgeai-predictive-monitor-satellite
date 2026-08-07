@@ -1,4 +1,4 @@
-# Base Station Contract — verified live against `github.com/rahuljeyaraj/edgeai-predictive-monitor` (main branch, 2026-08-04)
+# Base Station Contract — verified live against the reference base-station repository (private — ask the maintainer for access), main branch, 2026-08-04
 
 Supersedes `MASTER_PLAN.md` Part D as the wire-contract reference. Fetched directly via GitHub raw content (no local sibling clone in this session) — see the file list at the bottom for exact sources and verify against a local clone before Phase 5+ if anything here seems to have moved on.
 
@@ -84,7 +84,7 @@ This is explicit, commented, unambiguous: **the reference computes excess kurtos
 
 ---
 
-## Sources fetched (raw.githubusercontent.com, `rahuljeyaraj/edgeai-predictive-monitor@main`)
+## Sources fetched (raw.githubusercontent.com, reference base-station repository, main branch)
 - `base-station/python/ingestion/mqtt_subscriber.py`
 - `base-station/python/ingestion/mqtt_publisher.py`
 - `base-station/python/common/telemetry_frame.py`
