@@ -368,7 +368,7 @@ as a dead, confusing file.
    Hotspot itself as the constant — consider a keepalive during the imu wait, or
    testing against a real WiFi AP to isolate hotspot vs. firmware.
 
-Recommended workflow: new AI-assistant session, the standard build model with plan
+Recommended workflow: new AI coding assistant session, the standard build model with plan
 mode for the mechanical steps above; escalate to the higher-capability model only if
 a captured log doesn't match the route-loss hypothesis, and scope that escalation to
 the specific log plus `wifi_task.c` / `epm_config.h` / `main.c` — not a full-repo
@@ -437,7 +437,7 @@ made yet.
 ### Next action - Phase 0 soak test (blocking, needs physical hardware)
 
 The planning-tool session has no hardware access, so this must run in a local
-AI-assistant session pointed at this same repo folder:
+AI coding assistant session pointed at this same repo folder:
 1. Uncomment `-DEPM_HEAP_TRACE=1` in `platformio.ini`.
 2. Flash, run 30+ min (longer is better) with the board just sitting there -
    no test rig needed; this only exercises the WiFi/TCP/encryption/reconnect
@@ -456,7 +456,7 @@ needed, (c) real KX134 IMU integration (stub TODOs 3a-3d already in
 ## Session 9 — Phase 0 CONFIRMED: heap fragmentation, not a leak (2026-07-04)
 
 2-hour instrumented soak test (`-DEPM_HEAP_TRACE=1`) run via a local
-AI-assistant session with hardware access. Monitor attached at frame 276 (board had
+AI coding assistant session with hardware access. Monitor attached at frame 276 (board had
 already been running ~4 min), captured to `heap_soak_log.txt` through frame
 6609 (~125.5 min firmware uptime, 12,500 HEAPTRACE lines, 3 drop/connect
 event pairs).
@@ -510,7 +510,7 @@ a separate, deeper investigation for later.
 ### Next action
 
 Implement the bounded-reset mitigation in `wifi_task.c`'s reconnect loop
-(prompt handed to the user for a fresh AI-assistant session). After that's in
+(prompt handed to the user for a fresh AI coding assistant session). After that's in
 and flashed, re-run a multi-hour soak with `EPM_HEAP_TRACE=1` again to
 confirm stuck windows are now bounded to ~90s instead of open-ended.
 
