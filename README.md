@@ -2,7 +2,7 @@
 
 A wireless multi-satellite bearing-fault detection system for industrial motors.
 XIAO ESP32-S3 sensor nodes stream real-time FFT + scalar telemetry over MQTT to
-an Arduino Uno Q base station (the reference-repo maintainer's `edgeai-predictive-monitor` gateway) that
+an Arduino Uno Q base station (the reference `edgeai-predictive-monitor` gateway) that
 applies statistical + ML anomaly detection, classifies fault types, logs sensor
 data, and serves a live web dashboard accessible from any device on the LAN.
 
@@ -64,7 +64,7 @@ Once deployed, the laptop is removed entirely.
 > `docs/decisions/ADR-023-transport-adrs-superseded.md`). It survives only as
 > a local no-broker-needed dev tool: `tools/satellite_sim.py` still speaks it
 > against `gateway/ingestion/tcp_legacy.py` (`docs/decisions/ADR-028`). Don't
-> use it as a reference for what real hardware speaks to the reference-repo maintainer's base station.
+> use it as a reference for what real hardware speaks to the reference base station.
 
 ---
 
@@ -449,8 +449,8 @@ The browser caches credentials for the session — one login per browser.
 `tools/satellite_sim.py` speaks the **legacy TCP+AES protocol**
 (`docs/decisions/ADR-028`), not MQTT — it exercises the gateway's full
 alerting/HST/fusion/CSV pipeline without needing real firmware or a running
-Mosquitto broker. It is not representative of what real hardware sends the reference-repo maintainer's
-base station; use it purely for local gateway development.
+Mosquitto broker. It is not representative of what real hardware sends the
+reference base station; use it purely for local gateway development.
 
 ```bash
 # Terminal 1: start gateway (from the repo root) — TCP legacy listener is always on
@@ -686,9 +686,10 @@ Only one command type is currently handled:
 |------|------|---------|
 | `0x08` | `STATUS_LED` | `struct { uint32_t rgb; uint8_t mode; uint16_t period_ms; } __attribute__((packed))` |
 
-Unrecognized TYPE bytes are ignored, so future command types (e.g. the reference-repo maintainer's base
-station also defines `0x09 MOTOR_STOP` for a machinery-protection feature this
-firmware doesn't implement) are safe to receive.
+Unrecognized TYPE bytes are ignored, so future command types (e.g. the
+reference base station also defines `0x09 MOTOR_STOP` for a
+machinery-protection feature this firmware doesn't implement) are safe to
+receive.
 
 ---
 

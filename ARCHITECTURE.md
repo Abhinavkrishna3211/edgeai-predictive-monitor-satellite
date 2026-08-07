@@ -112,7 +112,7 @@ longer exists — MQTT command traffic is limited to the `STATUS_LED` type today
 ## 3. Wire protocol
 
 Authoritative reference: [`docs/BASE_STATION_CONTRACT.md`](docs/BASE_STATION_CONTRACT.md)
-(verified live against the reference-repo maintainer's base-station repo). Summary below. All multi-byte
+(verified live against the reference base-station repository). Summary below. All multi-byte
 fields little-endian.
 
 **Transport:** MQTT to Mosquitto (`components/epm_drivers/link_mqtt.c`, esp-mqtt).
@@ -144,7 +144,7 @@ indistinguishable from that (`docs/BASE_STATION_CONTRACT.md` zero-fill rule).
 ```
 Only `TYPE=0x08 STATUS_LED` is handled today (`struct display_rgb_payload { uint32_t
 rgb; uint8_t mode; uint16_t period_ms; } __attribute__((packed))`); unrecognized TYPE
-bytes are ignored, matching the reference-repo maintainer's base station also defining `0x09 MOTOR_STOP` (not
+bytes are ignored, matching the reference base station also defining `0x09 MOTOR_STOP` (not
 applicable to a sensing satellite).
 
 **What's gone from the old TCP protocol:** the plaintext Hello packet, AES-128-GCM
