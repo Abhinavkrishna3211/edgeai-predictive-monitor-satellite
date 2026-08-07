@@ -67,3 +67,10 @@ docs/RAHUL_COMPARISON_AUDIT.md
 docs/AUDIT_VERIFICATION_REPORT.md
 docs/PRE_RAHUL_HANDOFF_PROMPT.md
 docs/RAHUL_OUTREACH_DRAFT.md
+
+# ── Ad-hoc scratch prompts (working notes, not part of source) ───────────────
+docs/*_PROMPT.md
+
+# ── Runtime/test-run output, not source ───────────────────────────────────────
+mic_tools/char_logs/
+tests/host/Testing/
