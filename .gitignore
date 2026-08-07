@@ -42,9 +42,25 @@ mic_tools/model/
 *.swp
 *.tmp
 
-# ── the AI coding assistant / session artifacts (not part of source) ────
+# ── AI-tool session artifacts (not part of source) ────
 .claude/
 build_log_stackfix.txt
+
+# ── Misc local dev artifacts (not part of source) ────────────────────────────
+sdkconfig.mic_char_*
+partitions_8mb.csv
+find_xiao_port.ps1
+*.code-workspace
+heap_soak_log*.txt
+imu_soak_log.txt
+serial_log2.txt
+__scratch_test__*
+
+# ── Phase-prompt scratch docs (Phase 0 / 0.5 are tracked and handled
+#    separately — see docs/PHASE_0_PROMPT.md, docs/PHASE_0.5_CONNECTIVITY_PROMPT.md)
+docs/PHASE_*_PROMPT.md
+!docs/PHASE_0_PROMPT.md
+!docs/PHASE_0.5_CONNECTIVITY_PROMPT.md
 
 # ── Internal comparison/outreach notes — never commit ────────────────────────
 docs/RAHUL_COMPARISON_AUDIT.md
