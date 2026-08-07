@@ -160,9 +160,9 @@ static const httpd_uri_t s_uri_status   = {.uri = "/status", .method = HTTP_GET,
 static const httpd_uri_t s_uri_catchall = {.uri = "/*", .method = HTTP_GET, .handler = handle_redirect_to_root};
 
 /* OS captive-portal connectivity-check paths — matches the equivalent list
- * in the reference-repo maintainer's transport_task.cpp/WIFI_ONBOARDING_PLAN.md so known-working
- * OS behavior (auto-opening the portal) is preserved rather than
- * re-derived from scratch. */
+ * in the reference implementation's transport_task.cpp/WIFI_ONBOARDING_PLAN.md
+ * so known-working OS behavior (auto-opening the portal) is preserved rather
+ * than re-derived from scratch. */
 static const char *const s_probe_paths[] = {
     "/generate_204",              /* Android */
     "/gen_204",                   /* Android (older) */

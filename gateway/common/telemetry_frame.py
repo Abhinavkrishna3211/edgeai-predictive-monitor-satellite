@@ -1,7 +1,7 @@
 """
 Generic sensor telemetry frame codec -- the self-describing section-list
 payload from docs/SENSOR_TELEMETRY_FRAME_PLAN.md S3 (Phase A). Ported from
-the reference-repo maintainer's edgeai-predictive-monitor @
+the reference base-station implementation @
 base-station/python/common/telemetry_frame.py -- decode logic unchanged,
 only the import of ChannelSpectrum is re-pointed at this project's
 wire_protocol.py/telemetry_schema.py (Phase 8a).

@@ -11,7 +11,7 @@ it into `recv_verify._process_satellite_frame()` -- the same per-frame
 pipeline (alerting, HST/RUL/fusion, CSV logging, dashboard state) the TCP+AES
 path uses. See PHASE_8A_PROMPT.md Tasks 2/4.
 
-Modeled on the reference-repo maintainer's edgeai-predictive-monitor @
+Modeled on the reference base-station implementation @
 base-station/python/ingestion/mqtt_subscriber.py (paho v2 callback API,
 connect_async()+loop_start(), node_id-from-topic) -- fetched live rather than
 guessed, since paho-mqtt 2.x's Client() signature is a breaking change from 1.x.
