@@ -2,8 +2,11 @@
 
 **As-built reference for the EdgeAI Predictive Monitor.** Describes what the code does
 today (2026-08-07), not aspirational design. Satellite firmware = XIAO ESP32-S3;
-gateway = the `gateway/` Python package, running on a Windows laptop / Arduino Uno Q
-base station with a local Mosquitto broker. Wire-contract source of truth:
+gateway = the `gateway/` Python package. The laptop + `tools/devrig/` path is the one
+actually validated against real hardware end-to-end
+(`docs/performance/HARDWARE_INTEROP_TEST.md`); an Arduino Uno Q base station is the
+other supported target but hasn't had the same hardware verification. Local Mosquitto
+broker either way. Wire-contract source of truth:
 [`docs/BASE_STATION_CONTRACT.md`](docs/BASE_STATION_CONTRACT.md).
 
 ---
@@ -16,13 +19,13 @@ base station with a local Mosquitto broker. Wire-contract source of truth:
 │  I2S mic (INMP441/ICS-43434)          KX134 SPI IMU (real driver by default;       │
 │        │ 16 kHz, 32-bit slots               accel_stub.c only under Kconfig        │
 │        ▼                                     EPM_ACCEL_USE_STUB — ADR-017/ADR-024) │
-│  mic_capture.c  (I2S DMA, core 0)      imu_task.c (core 0, prio 3)                  │
-│    • DC-remove, normalise               • hal_accel_read_block() X/Y/Z             │
-│    • RMS/crest/kurtosis (SIMD)          • Hann → 2048-pt FFT ×3 (sequential)        │
-│        │ raw_mic_block_t                • power-avg over SPEC_AVG_N                 │
-│        ▼  (esp_ringbuf, zero-copy)          │ imu_frame_t                          │
-│  mic_task.c (core 0, prio 5) ──▶ raw_q ──▶  │                                       │
-│                                             │                                       │
+│  mic_task.c (I2S DMA capture, core 0,   imu_task.c (core 0, prio 3)                 │
+│    prio 5, drivers/mic_inmp441_i2s.h)     • hal_accel_read_block() X/Y/Z            │
+│    • DC-remove, normalise                 • Hann → 2048-pt FFT ×3 (sequential)      │
+│    • RMS/crest/kurtosis/std/skew (SIMD)   • envelope demod ×3 (band + amplitude     │
+│        │ raw_mic_block_t                    detect, epm_dsp/envelope.c, ADR-032)    │
+│        ▼  (esp_ringbuf, zero-copy) ──▶ raw_q ──▶ │ imu_frame_t                      │
+│                                                  │                                  │
 │  dsp_task.c (core 1, prio 6)                │                                       │
 │    • Welch overlap (adaptive)               │                                       │
 │    • Hann → 1024-pt FFT (SIMD)              │                                       │
@@ -131,8 +134,15 @@ SPECTRUM body:    [fs f32][fft_size u16][bin_count u16][bins f32...]
 SCALAR_SET body:  [count u8][ids u16...][values f32...]
 ```
 A satellite emits one `mic` SPECTRUM section (`channel_id=0`) and three
-`accel_x/y/z` SPECTRUM sections (`channel_id=6/7/8`), each paired with a
-SCALAR_SET section on `channel_id=255` carrying `rms`/`kurtosis`/`crest_factor`.
+`accel_x/y/z` SPECTRUM sections (`channel_id=6/7/8`), and three
+`accel_x/y/z_envelope` SPECTRUM sections (`channel_id=9/10/11`, amplitude-demodulated
+bearing-impact spectra, `components/epm_dsp/envelope.c`, ADR-032) — each of these four
+per-channel groups paired with its own SCALAR_SET section on `channel_id=255` carrying
+all six defined scalars (`rms`/`kurtosis`/`crest_factor`/`peak`/`std`/`skewness`;
+`mic_task.c` and `imu_task.c` both compute the full set via
+`components/epm_dsp/scalar_stats.c`). `schema/telemetry_schema.json` also defines raw
+time-series debug channels (`channel_id=2-5`) and a legacy combined `accel` channel
+(`channel_id=1`) — neither is emitted by this firmware today.
 No frame is published until both `dsp_task` and `imu_task` have delivered at least
 one real frame — a present, real-`bin_count`, all-zero channel is defined on the
 wire as genuine silence, so publishing before real data exists would be
@@ -174,7 +184,11 @@ pipeline logic itself still lives in `mic_tools/recv_verify.py`'s
      independent of whether a broker is running.
 2. **Registry** — `gateway/registry/` tracks per-satellite state
    (`AdaptiveBaseline` channels for kurtosis/crest/rms/high-band at `alpha=5e-05`)
-   and an `OnlineDetector` (river HalfSpaceTrees, `n_trees=10`).
+   and an `OnlineDetector` (river HalfSpaceTrees, `n_trees=10`, plus an ADWIN
+   concept-drift detector over the OK-frame score stream —
+   `gateway/pipeline/online_detector.py`'s `check_drift()` — that triggers
+   `refresh_baseline()` to re-learn the detector and baseline together on a
+   detected regime change).
 3. **Feature extraction** — band-ratio power fractions, spectral centroid, header
    stats; optional ONNX autoencoder reconstruction error (`z_ae`) when
    `--autoencoder` is supplied.
@@ -195,12 +209,20 @@ pipeline logic itself still lives in `mic_tools/recv_verify.py`'s
    `gateway/api/reports.py` printable inspection reports, and
    `gateway/api/notifications.py` webhook/email alerts.
 
-**Supporting modules:** `gateway/pipeline/online_detector.py` (HST),
+**Supporting modules:** `gateway/pipeline/online_detector.py` (HST + ADWIN),
 `gateway/pipeline/adaptive_baseline.py`, `gateway/pipeline/adaptive_control.py`,
 `gateway/pipeline/ml_scoring.py`, `gateway/pipeline/bearing_math.py` (ISO fault
-frequencies), `gateway/pipeline/inference.py` / `inference_gpu.py` /
-`autoencoder.py` (ONNX autoencoder train/infer), `gateway/common/telemetry_frame.py`
-/ `wire_protocol.py` (the section-list codec, mirrored from firmware).
+frequencies). Two separate autoencoder pipelines exist, not one:
+`gateway/pipeline/inference.py` / `inference_gpu.py` (ONNX Runtime, 7-dim statistical
+feature input — `mic_rms/mic_crest/mic_kurtosis/imu_rms/imu_crest/high_band_ratio/
+z_score`, 7→32→16→8→16→32→7 MLP with GELU, trained by
+`mic_tools/train_autoencoder.py`, CPU/CUDA/CoreML providers; `inference_gpu.py`'s
+TVM+OpenCL path targets the same model, with its docstring noting a larger Conv1D
+model on raw FFT input as a reserved-not-implemented future option) and
+`gateway/pipeline/autoencoder.py` (TFLite, 41-dim stat+spectral-band
+feature vector, targets the Uno Q's Adreno GPU via a TFLite/QNN delegate, wired in
+through `ml_scoring.py`). Also `gateway/common/telemetry_frame.py` /
+`wire_protocol.py` (the section-list codec, mirrored from firmware).
 
 ---
 
