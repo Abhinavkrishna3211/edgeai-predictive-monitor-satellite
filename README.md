@@ -54,9 +54,11 @@ data, and serves a live web dashboard accessible from any device on the LAN.
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**The Arduino Uno Q is the only always-on compute node.**
-The laptop is used only to build and flash ESP32 firmware.
-Once deployed, the laptop is removed entirely.
+**This diagram shows the Arduino Uno Q variant of the gateway; a laptop-hosted
+gateway runs the identical `gateway/` software minus the STM32 MCU/real-time-I/O
+row.** Both are supported deployment targets — see
+[Quick Start — Gateway](#quick-start--gateway) for which path has actually been
+validated against real satellite hardware so far.
 
 > **Legacy dev-testing path:** the earlier raw-TCP + AES-128-GCM protocol
 > (port 5100) is no longer spoken by the firmware in production — MQTT
@@ -126,6 +128,23 @@ The gateway runs on the **MPU side** (Linux / Debian). The STM32 MCU side handle
 
 Pin assignments are in `components/epm_drivers/include/drivers/mic_inmp441_i2s.h`
 and the full pin map (including the KX134 SPI IMU) is in
+[`docs/hardware/PIN_ALLOCATION.md`](docs/hardware/PIN_ALLOCATION.md).
+
+### Wiring — XIAO ESP32-S3 ↔ KX134 (SPI)
+
+| GPIO | KX134 pin | Function |
+|------|-----------|----------|
+| 7    | SCLK      | SPI clock (10 MHz) |
+| 8    | MISO/SDO  | SPI data in (acceleration reads) |
+| 9    | MOSI/SDI  | SPI data out (command/config writes) |
+| 43   | CS        | Chip select, active LOW (`KX134_PIN_CS`) |
+| 44   | INT1      | Interrupt 1 — wired but not currently read by firmware (`KX134_PIN_INT1`) |
+| 3V3  | VDD       | Power |
+| GND  | GND       | Ground |
+
+GPIO43/44 double as UART0 TX/RX on this board, but that's safe here since the
+debug console runs over USB-JTAG (`esp-builtin`) rather than physical UART0
+pins. Full rationale and the rest of the pin map:
 [`docs/hardware/PIN_ALLOCATION.md`](docs/hardware/PIN_ALLOCATION.md).
 
 ---
@@ -242,20 +261,34 @@ idf.py -p COM9 flash monitor    # adjust port for your system
 
 ---
 
-## Quick Start — Gateway on Arduino Uno Q 4GB
+## Quick Start — Gateway
 
-The Uno Q runs Python on its Linux (MPU) side — headless, no display, no laptop needed after first setup.
+The gateway is a standard Python 3.9+ package. The setup below runs identically
+on a laptop, a Raspberry Pi, or an Arduino Uno Q base station — nothing in it
+is Uno-Q-specific except where noted.
 
-### 1. First-time setup on Uno Q
+> **What's actually been hardware-tested:** a laptop + `tools/devrig/`, driving
+> the **reference repository's own dashboard** against real XIAO satellite
+> firmware (`docs/performance/HARDWARE_INTEROP_TEST.md`, 2026-08-07 — node
+> `5ab004`, 17m45s soak, 4599 data messages, zero errors/warnings). That
+> validates the firmware and wire protocol end-to-end. This repo's own
+> `gateway/` package below is covered by its pytest suites and by
+> `tools/satellite_sim.py`'s legacy TCP simulator, but hasn't had that same
+> real-firmware MQTT soak yet. See `tools/devrig/README.md` to reproduce the
+> hardware-validated path (WSL + a sibling read-only clone of the reference
+> repo; `tools\devrig\devrig.ps1 --nodes 1 --port 8180 --captures-dir ""
+> --auto-online` from PowerShell).
+
+### 1. First-time setup
 
 ```bash
 # Update packages
 sudo apt update && sudo apt upgrade -y
 
-# Install Python (already on Debian, but ensure pip is available)
+# Install Python (already on Debian/Ubuntu, but ensure pip is available)
 sudo apt install python3 python3-pip python3-venv git -y
 
-# Clone the repo onto the Uno Q
+# Clone the repo
 git clone https://github.com/Abhinavkrishna3211/edgeai-predictive-monitor-satellite.git
 cd edgeai-predictive-monitor-satellite/mic_tools
 
@@ -280,8 +313,9 @@ Firmware, step 2) needs this broker's LAN IP/hostname and port (default `1883`).
 ### 3. Start the gateway
 
 `--mqtt-host` turns on live MQTT ingestion (`gateway/ingestion/mqtt_subscriber.py`,
-subscribing `epm/+/data`); omit it and only the legacy TCP+AES dev path
-(`tools/satellite_sim.py`) will feed the pipeline.
+subscribing `epm/+/data`), routing into the same per-frame pipeline
+(`recv_verify._process_satellite_frame()`) as the legacy TCP path; omit it and
+only `tools/satellite_sim.py` will feed the pipeline.
 
 ```bash
 # Activate venv first (if not already active)
@@ -306,6 +340,9 @@ python3 recv_verify.py --no-plot --model model/epm_model
 # With bearing fault frequency markers (if shaft speed is known)
 python3 recv_verify.py --no-plot --shaft-rpm 1500 --bearing 6205
 ```
+
+`User`/`WorkingDirectory` below assume an Uno Q's default `arduino` user —
+adjust for whatever account runs the gateway on your machine.
 
 ### 4a. Run as systemd service (auto-start on boot)
 
@@ -343,8 +380,6 @@ journalctl -u epm-gateway -f         # live log output
 
 ### 4b. Run via Docker (alternative — cleanest deployment)
 
-The Uno Q ships with Docker pre-installed. Use this for isolated, reproducible deployment:
-
 ```bash
 cd mic_tools
 
@@ -372,10 +407,9 @@ docker stop epm
 Logs and ML models are stored on the host machine (mounted volumes) so they survive container restarts.
 `--network host` is what lets the container reach the host's Mosquitto broker at `localhost:1883`.
 
-### 5. Find the Uno Q's IP address
+### 5. Find the gateway machine's IP address
 
 ```bash
-# On the Uno Q terminal
 ip a show wlan0       # if connected via WiFi
 ip a show eth0        # if connected via Ethernet (USB-C adapter)
 hostname -I           # shows all IPs
@@ -384,14 +418,19 @@ hostname -I           # shows all IPs
 ### 6. Open the dashboard
 
 ```
-http://<uno-q-ip>:8080/
+http://<gateway-ip>:8080/
 ```
 
-Open from any phone, tablet, or laptop on the same WiFi network.
-On Android: tap browser menu → **Add to Home Screen** to install as a PWA app icon.
+Open from any phone, tablet, or laptop on the same WiFi network. No software
+to install on the viewing device — it's just a browser. On Android: tap
+browser menu → **Add to Home Screen** to install as a PWA app icon.
 
-Open from any phone, tablet, or laptop on the same WiFi network.
-No software to install on the viewing device — it's just a browser.
+### If you have the Arduino Uno Q 4GB reference hardware
+
+Everything above runs unmodified on the Uno Q's Linux (MPU) side — headless,
+no display, no laptop needed after first setup. See [Hardware](#hardware)
+below for its full spec and why the 4 GB RAM variant matters for on-device
+training.
 
 ---
 
@@ -629,20 +668,31 @@ For LiPo field use, switch to `WIFI_PS_MIN_MODEM`.
 
 ## LED Indicator
 
-GPIO21 on XIAO ESP32-S3 (active-low: LOW = ON).  Driven by a 100 ms `esp_timer`.
-Patterns are rhythm-based — distinguishable by counting taps, not estimating speed.
+8-pixel WS2812 (NeoPixel) ring on GPIO6, driven via `led_strip` (RMT-backed) —
+`components/epm_drivers/display_neopixel.c`. All pixels always show the same
+color/pattern. `display_ledc.c` (a plain 3-channel monochrome LEDC driver on
+GPIO1/5/6) exists as a Kconfig fallback (`EPM_DISPLAY_USE_LEDC`) but is not
+the default build.
 
-| State | Pattern | Meaning |
-|-------|---------|---------|
-| `LED_BOOT` | Solid ON | Power-on, initialising |
-| `LED_WIFI_CONN` | 3 quick taps · 0.7 s dark · repeat | Scanning for WiFi AP |
-| `LED_TCP_CONN` | 1 s ON / 1 s OFF | WiFi connected, connecting to gateway |
-| `LED_CALIBRATING` | 2 quick taps · 1.8 s dark · repeat | Learning baseline (first 30 frames) |
-| `LED_OK` | Single 100 ms blip every 3 s | Healthy, normal vibration |
-| `LED_WARN` | Steady 1 Hz 50/50 blink | Elevated kurtosis or crest factor |
-| `LED_FAULT` | 5 Hz rapid strobe | Bearing fault detected — inspect now |
+Color/mode/period match the reference base station's own `status_color.py`
+exactly for every state that has an equivalent there, so LED meaning is
+identical on both sides of the wire (`docs/decisions/ADR-016-*.md`).
 
-**Quick ID:** solid=boot · count 3=WiFi · slow blink=TCP · count 2=calibrating · rare blip=OK · 1 Hz=warn · strobe=FAULT
+| State | Color | Mode | Period | Meaning |
+|-------|-------|------|--------|---------|
+| `RGB_BOOT` | White `#FFFFFF` | Solid | — | Power-on, initialising |
+| `RGB_WIFI_CONN` | Blue `#0000FF` | Breathe | 1200 ms | Connecting to WiFi |
+| `RGB_TCP_CONN` | Blue `#0000FF` | Strobe | 300 ms | WiFi up, connecting to broker |
+| `RGB_CALIBRATING` | Cyan `#22D3EE` | Solid | — | Collecting baseline frames |
+| `RGB_LEARNING` | Cyan `#22D3EE` | Solid | — | Training baseline (same color as CALIBRATING — reference has one "commissioning" state, not two) |
+| `RGB_OK` | Green `#00FF00` | Solid | — | Healthy, normal vibration |
+| `RGB_WARN` | Amber `#F59E0B` | Breathe | 1500 ms | Elevated evidence (kurtosis/RMS/fusion) |
+| `RGB_FAULT` | Red `#FF0000` | Strobe | 200 ms | Fault detected — inspect now |
+| `RGB_TRIPPED` | Red `#FF0000` | Strobe | 1000 ms | Machinery-protection trip (remote-driven, slower strobe than FAULT) |
+
+Breathe = cosine brightness ramp; Strobe = 50/50 on/off square wave. A remote
+`STATUS_LED` MQTT command can override any local state with an arbitrary
+`(rgb, mode, period_ms)` triple — see [Wire Protocol](#wire-protocol).
 
 ---
 
@@ -674,11 +724,16 @@ SPECTRUM body:    [fs f32][fft_size u16][bin_count u16][bins f32...]
 SCALAR_SET body:  [count u8][ids u16...][values f32...]
 ```
 
-A satellite publishes one `mic` spectrum section (`channel_id=0`) and three
-`accel_x`/`accel_y`/`accel_z` spectrum sections (`channel_id=6/7/8`), each followed by
-its own `SCALAR_SET` section on `channel_id=255` carrying `rms`/`kurtosis`/`crest_factor`
-(the scalars this firmware currently computes — the wire schema has room for
-`peak`/`std`/`skewness` too, unused today).
+A satellite publishes one `mic` spectrum section (`channel_id=0`), three
+`accel_x`/`accel_y`/`accel_z` spectrum sections (`channel_id=6/7/8`), and three
+`accel_x/y/z_envelope` spectrum sections (`channel_id=9/10/11`,
+amplitude-demodulated bearing-impact spectra — `components/epm_dsp/envelope.c`,
+ADR-032) — each of these four channel groups followed by its own `SCALAR_SET`
+section on `channel_id=255` carrying all six defined scalars: `rms`/
+`kurtosis`/`crest_factor`/`peak`/`std`/`skewness`. The schema
+(`schema/telemetry_schema.json`) also defines raw time-series debug channels
+(`channel_id=2-5`) and a legacy combined `accel` channel (`channel_id=1`) —
+neither is emitted by this firmware today.
 
 ### Command envelope — base station → satellite (`epm/<node_id>/cmd`)
 
@@ -762,18 +817,23 @@ PlatformIO platform is on ESP-IDF 4.x. Add to `platformio.ini`:
 ## Roadmap
 
 - [x] MEMS microphone capture (I2S, 16 kHz, 1024-pt FFT)
-- [x] Kurtosis, crest factor, high-band energy scoring
-- [x] Adaptive z-score baseline (30-frame calibration per satellite)
+- [x] Kurtosis, crest factor, high-band energy scoring — all six scalars now computed (`rms`/`kurtosis`/`crest_factor`/`peak`/`std`/`skewness`)
+- [x] Adaptive per-machine baselines — Welford warm-up (30 frames) then continuous EMA tracking (`alpha=5e-05`, ~11.5 min half-life at 2 fps), updated only on healthy frames (`adaptive_baseline.py`)
 - [x] MQTT streaming protocol (section-list telemetry frames; legacy binary TCP protocol kept for dev-only simulator use, `docs/decisions/ADR-028`)
 - [x] Multi-satellite gateway with per-satellite CSV logging
-- [x] 7-state rhythm LED indicator (active-low, timer-driven)
+- [x] 9-state WS2812/NeoPixel RGB LED indicator (`display_neopixel.c`), remote-overridable via `STATUS_LED` MQTT command
 - [x] Multi-satellite simulator (`satellite_sim.py`)
 - [x] ISO bearing fault frequency calculator — BPFO/BPFI/BSF/FTF (`bearing_math.py`)
 - [x] IsolationForest ML anomaly model training (`ml_trainer.py`)
 - [x] Offline ML inference and fleet anomaly report (`ml_infer.py`)
-- [x] Remaining Useful Life (RUL) estimate via kurtosis trend regression
-- [x] ONNX Runtime inference with automatic CUDA / CoreML / NEON provider selection (`inference.py`)
+- [x] Remaining Useful Life (RUL) estimate — exponential-degradation 2-state Kalman filter (`rul_estimator.py`)
+- [x] Bayesian multi-channel fusion — combines z-kurtosis/z-rms/z-HST (+ z-ae when `--autoencoder` is supplied) into a posterior P(fault | evidence) (`bayesian_fusion.py`)
+- [x] ADWIN concept-drift detection — re-learns the online detector + baseline together on a detected regime change (`online_detector.py`)
+- [x] ONNX Runtime inference with automatic CUDA / CoreML / NEON provider selection — 7-dim statistical-feature autoencoder trained by `mic_tools/train_autoencoder.py` (`inference.py`)
+- [x] TFLite autoencoder pipeline — 41-dim stat+spectral-band feature vector targeting the Uno Q's Adreno GPU via a TFLite/QNN delegate (`gateway/pipeline/autoencoder.py`, wired through `ml_scoring.py`)
 - [x] Optional Adreno 702 OpenCL GPU path via Apache TVM — no proprietary SDK (`inference_gpu.py`)
+- [x] KX134 IMU real SPI DMA driver — default hardware path since ADR-017; the synthetic stub (`accel_stub.c`) is opt-in only under Kconfig `EPM_ACCEL_USE_STUB`
+- [x] Envelope analysis on IMU data — amplitude demodulation of bearing impacts, published as `accel_x/y/z_envelope` spectrum channels (`components/epm_dsp/envelope.c`, ADR-032)
 - [x] SQLite WAL persistence — alert events, maintenance log, adaptive baselines, RUL state (`storage.py`)
 - [x] CSV log rotation — dated subdirectory tree, gzip files older than 90 days
 - [x] Headless gateway mode for Uno Q / SSH (`--no-plot`)
@@ -784,8 +844,6 @@ PlatformIO platform is on ESP-IDF 4.x. Add to `platformio.ini`:
 - [x] Emergency notifications — Discord/Slack/Teams webhook + SMTP email (`--notify-webhook`, `--notify-email`)
 - [x] Printable HTML inspection reports — per-machine and factory-wide, PDF-ready
 - [x] Factory-wide status overview — global risk level, 6 KPI summary tiles
-- [ ] KX134 IMU real SPI DMA driver (replace stub in `imu_task.c`)
-- [ ] Envelope analysis on IMU data (amplitude demodulation of bearing impacts)
 - [ ] NTC thermistor ADC channel for motor temperature trending
 - [ ] Deep-sleep burst mode for LiPo battery field deployment
 - [ ] Offline Chart.js bundle (removes CDN dependency for air-gapped installs)
