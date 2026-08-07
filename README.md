@@ -1,9 +1,14 @@
 # EdgeAI Predictive Monitor — Satellite Node
 
 A wireless multi-satellite bearing-fault detection system for industrial motors.
-XIAO ESP32-S3 sensor nodes stream real-time FFT data over WiFi to an Arduino Uno Q
-gateway that applies statistical + ML anomaly detection, classifies fault types,
-logs sensor data, and serves a live web dashboard accessible from any device on the LAN.
+XIAO ESP32-S3 sensor nodes stream real-time FFT + scalar telemetry over MQTT to
+an Arduino Uno Q base station (the reference-repo maintainer's `edgeai-predictive-monitor` gateway) that
+applies statistical + ML anomaly detection, classifies fault types, logs sensor
+data, and serves a live web dashboard accessible from any device on the LAN.
+
+> **Wire protocol:** [`docs/BASE_STATION_CONTRACT.md`](docs/BASE_STATION_CONTRACT.md)
+> is the accurate, currently-maintained source for the MQTT topics and frame
+> format below — verify against it (or the code) if anything here drifts.
 
 ---
 
@@ -13,12 +18,13 @@ logs sensor data, and serves a live web dashboard accessible from any device on 
 ┌────────────────────────────────────────────────────────────────┐
 │  XIAO ESP32-S3  (satellite sensor node)  ×N                    │
 │                                                                │
-│  INMP441 mic ─► I2S ─► 1024-pt FFT ×4 avg  (16 kHz)          │
-│  KX134 IMU   ─► SPI ─► 2048-pt FFT ×3 axes (25.6 kHz)        │
-│                              ↓ TCP binary frame  ~14.3 KB      │
-│  led_task ◄── alert byte (0x00/0x01/0x02) ◄──────────────     │
+│  INMP441 mic ─► I2S ─► spectrum FFT                            │
+│  KX134 IMU   ─► SPI ─► spectrum FFT ×3 axes (X/Y/Z)            │
+│                              ↓ section-list telemetry frame     │
+│  rgb_led_task ◄── STATUS_LED cmd ◄────────────────────────     │
 └────────────────────────────────────────────────────────────────┘
-                           WiFi 2.4 GHz / TCP port 5100
+                    WiFi 2.4 GHz / MQTT (Mosquitto, port 1883)
+       publish: epm/<node_id>/data     subscribe: epm/<node_id>/cmd
 ┌────────────────────────────────────────────────────────────────┐
 │  Arduino Uno Q 4GB  — ABX00173  (permanent AI gateway)         │
 │                                                                │
@@ -30,15 +36,15 @@ logs sensor data, and serves a live web dashboard accessible from any device on 
 │                                                                │
 │  MCU: STM32U585  ARM Cortex-M33 @ 160 MHz  (real-time I/O)    │
 │                                                                │
-│  recv_verify.py  (runs on MPU / Linux side)                    │
+│  gateway/  (Python, runs on MPU / Linux side)                  │
+│   ├─ mqtt_subscriber.py — subscribes epm/+/data, decodes frame │
 │   ├─ 30-frame adaptive Z-score baseline per satellite          │
 │   ├─ Kurtosis + crest factor + high-band energy scoring        │
-│   ├─ Spectral fault classification (6 fault types)             │
-│   ├─ IsolationForest ML anomaly detection (optional)           │
+│   ├─ HalfSpaceTrees online anomaly detection + Bayesian fusion │
 │   ├─ CSV log  →  logs/  (per satellite per day)                │
 │   ├─ Maintenance log  →  logs/maintenance_log.json             │
 │   ├─ Web dashboard  http://<uno-q-ip>:8080/  (PWA)            │
-│   └─ 1-byte alert reply to satellite                           │
+│   └─ STATUS_LED command reply via epm/<node_id>/cmd            │
 └────────────────────────────────────────────────────────────────┘
                            LAN — HTTP port 8080
 ┌────────────────────────────────────────────────────────────────┐
@@ -51,6 +57,14 @@ logs sensor data, and serves a live web dashboard accessible from any device on 
 **The Arduino Uno Q is the only always-on compute node.**
 The laptop is used only to build and flash ESP32 firmware.
 Once deployed, the laptop is removed entirely.
+
+> **Legacy dev-testing path:** the earlier raw-TCP + AES-128-GCM protocol
+> (port 5100) is no longer spoken by the firmware in production — MQTT
+> replaced it (see `docs/decisions/ADR-011-mqtt-transport-added.md` and
+> `docs/decisions/ADR-023-transport-adrs-superseded.md`). It survives only as
+> a local no-broker-needed dev tool: `tools/satellite_sim.py` still speaks it
+> against `gateway/ingestion/tcp_legacy.py` (`docs/decisions/ADR-028`). Don't
+> use it as a reference for what real hardware speaks to the reference-repo maintainer's base station.
 
 ---
 
@@ -97,7 +111,7 @@ The gateway runs on the **MPU side** (Linux / Debian). The STM32 MCU side handle
 > The XIAO ESP32-S3 Sense board's onboard PDM microphone needs a different driver
 > (`i2s_pdm_rx_config_t`).  To use the onboard mic, swap
 > `i2s_channel_init_std_mode` for `i2s_channel_init_pdm_rx_mode` in
-> `components/mic_capture/mic_capture.c` — the comment at the top of that file
+> `components/epm_drivers/mic_inmp441_i2s.c` — the comment at the top of that file
 > explains exactly what to change.
 
 ### Wiring — XIAO ESP32-S3 ↔ INMP441
@@ -110,7 +124,9 @@ The gateway runs on the **MPU side** (Linux / Debian). The STM32 MCU side handle
 | 3V3      | —    | VDD + L/R pin → GND (selects left channel) |
 | GND      | —    | GND         |
 
-Pin assignments are in `components/mic_capture/include/mic_capture.h`.
+Pin assignments are in `components/epm_drivers/include/drivers/mic_inmp441_i2s.h`
+and the full pin map (including the KX134 SPI IMU) is in
+[`docs/hardware/PIN_ALLOCATION.md`](docs/hardware/PIN_ALLOCATION.md).
 
 ---
 
@@ -119,48 +135,64 @@ Pin assignments are in `components/mic_capture/include/mic_capture.h`.
 ```
 edgeai-predictive-monitor-satellite/
 ├── src/
-│   ├── main.c              # app_main — WiFi-before-DMA boot order, task start
-│   ├── led_task.c/h        # 7-state LED state machine (esp_timer, active-low)
-│   ├── mic_task.c/h        # I2S capture, windowed FFT, kurtosis, crest factor
-│   ├── imu_task.c/h        # KX134 SPI stub — replace generate_stub_axis() with real FIFO reads
-│   ├── wifi_task.c/h       # WiFi STA + TCP client + 1-byte alert receive
-│   ├── epm_config.h        # Compile-time tunables: FFT sizes, task stacks, GPIO pins
-│   ├── epm_protocol.h      # Binary wire format (48-byte header, static_assert verified)
-│   └── wifi_creds.h        # ← NOT IN REPO — create manually (Step 2 below)
+│   ├── main.c                   # app_main — FFT table init, task start (boot order in file header)
+│   └── threads/
+│       ├── mic_task.c/h         # I2S capture, windowed FFT, time-domain stats
+│       ├── dsp_task.c/h         # mic spectrum compute (Welch overlap, centroid)
+│       ├── imu_task.c/h         # KX134 3-axis spectrum compute
+│       ├── net_task.c/h         # builds + publishes the MQTT telemetry frame
+│       ├── led_task.c/h         # thin wrapper around the epm_hal display driver
+│       ├── wifi_task.c/h        # WiFi STA event-driven bring-up (no task of its own)
+│       └── wifi_provision_task.c/h  # captive-portal provisioning state machine
+│   ├── epm_config.h             # Compile-time tunables: FFT sizes, task stacks, GPIO pins
+│   └── CMakeLists.txt
 │
 ├── components/
-│   └── mic_capture/        # Reusable I2S MEMS capture component
-│       ├── mic_capture.c
-│       └── include/mic_capture.h
+│   ├── epm_codec/           # Wire-format codec (section-list telemetry frame, MQTT cmd envelope)
+│   ├── epm_drivers/         # link_mqtt.c, mic_inmp441_i2s.c, accel_kx134_spi.c,
+│   │                        # display_ledc.c / display_neopixel.c, provisioning (AP + captive portal)
+│   ├── epm_dsp/              # FFT window, spectrum, scalar stats, envelope analysis
+│   └── epm_hal/              # HAL interfaces (hal_transport, hal_display, hal_accel, hal_provisioning)
 │
 ├── tools/
-│   └── satellite_sim.py        # Test gateway without hardware (N simulated satellites)
+│   └── satellite_sim.py     # Legacy TCP+AES dev simulator — see ADR-028, not the MQTT wire path
+│
+├── gateway/                  # The Python base-station-side gateway
+│   ├── main.py               # entry point / argument wiring
+│   ├── ingestion/            # mqtt_subscriber.py (production), tcp_legacy.py (dev/test only)
+│   ├── pipeline/             # baselines, HST online detector, Bayesian fusion, RUL, ML scoring
+│   ├── registry/             # per-satellite state + baseline persistence
+│   ├── api/                  # dashboard.py, live_plot.py, reports.py, notifications.py
+│   └── common/                # telemetry_frame.py / wire_protocol.py (Python mirror of the C codec)
 │
 ├── mic_tools/
-│   ├── recv_verify.py          # Gateway: receive, score, alert, CSV log, dashboard, reports
+│   ├── recv_verify.py          # Legacy monolith — being absorbed into gateway/, still the CLI entry
 │   ├── bearing_math.py         # ISO bearing fault frequencies — BPFO/BPFI/BSF/FTF
 │   ├── ml_trainer.py           # Train IsolationForest anomaly model from CSV logs
-│   ├── ml_infer.py             # Offline anomaly analysis with trained model
-│   ├── inference.py            # ONNX Runtime inference — auto CUDA/CoreML/NEON selection
-│   ├── inference_gpu.py        # Optional TVM/OpenCL inference for Adreno 702
-│   ├── storage.py              # SQLite WAL persistence (alerts, maintenance, model state)
-│   ├── rul_estimator.py        # Kalman filter RUL estimator
-│   ├── online_detector.py      # HalfSpaceTrees streaming anomaly detection
-│   ├── migrate_json_to_sqlite.py  # One-time migration helper
-│   ├── plot_mic.py             # LEGACY serial debug tool — do not use with current firmware
+│   ├── mic_char_analyze.py     # Microphone characterization tooling
 │   ├── Dockerfile              # Docker deployment for Arduino Uno Q (pre-installed on Uno Q)
 │   └── requirements.txt
 │
+├── schema/
+│   └── telemetry_schema.json   # Source of truth for section/channel/scalar ids — generates
+│                                # components/epm_codec/include/frame_codec/telemetry_schema.h
+│
 ├── docs/
-│   └── GPU_SETUP.md            # TVM + OpenCL build guide for Adreno 702
+│   ├── BASE_STATION_CONTRACT.md  # Current, verified MQTT wire-contract reference
+│   ├── CONVENTIONS.md            # Naming/error-handling/commit conventions
+│   ├── MASTER_PLAN.md            # Cross-phase project status (owned by the planning tool, see CLAUDE.md)
+│   ├── decisions/                # Numbered ADRs, append-only
+│   └── hardware/PIN_ALLOCATION.md
+│
+├── tests/
+│   ├── host/                # C unit tests (DSP, codec, scalar stats) — CMake + CTest
+│   ├── pipeline/, ingestion/, registry/, common/   # Python pytest suites
 │
 ├── CMakeLists.txt          # Root ESP-IDF project
 ├── platformio.ini          # PlatformIO build + upload config
 ├── sdkconfig.defaults      # ESP-IDF KConfig overrides (watchdog, TCP buffers, -O2)
 └── .gitignore
 ```
-
-> `src/wifi_creds.h` is gitignored and must **never** be committed.
 
 ---
 
@@ -172,31 +204,28 @@ edgeai-predictive-monitor-satellite/
   ESP-IDF v5.x (`idf.py` in PATH)
 - Python 3.9+ (on the dev laptop, for flashing only)
 
-### 2. Create `src/wifi_creds.h`
+### 2. Provision WiFi + MQTT broker (captive portal — no source edits needed)
 
-Create this file manually — it is gitignored and will never be committed:
+There is no compile-time credentials file anymore. On first boot (or whenever
+no WiFi credentials are saved in NVS), the satellite brings up its own AP,
+`EPM-SAT-<node_id>`, alongside a captive portal:
 
-```c
-// src/wifi_creds.h — gitignored, never in the repo
-#pragma once
-#define WIFI_SSID    "YourNetworkName"
-#define WIFI_PASS    "YourPassword"
-#define SERVER_IP    "192.168.137.1"   // Uno Q's IP on the LAN — see table below
-#define SERVER_PORT  5100
-```
+1. Connect a phone/laptop to `EPM-SAT-<node_id>`. The AP's WPA2 password is
+   generated once on-device (`components/epm_drivers/ap_credentials.c`) and
+   printed to the serial console at first boot — write it down.
+2. The OS should auto-open the captive-portal form (DNS wildcard responder,
+   `components/epm_drivers/dns_captive.c`); if not, browse to `192.168.4.1`.
+3. Submit: WiFi SSID, WiFi password, **MQTT Broker Host** (the Uno Q's LAN
+   IP or hostname running Mosquitto), and **MQTT Broker Port** (default
+   `1883`). Credentials persist in NVS (`components/epm_drivers/net_credentials.c`)
+   and survive reboots/reflashes.
 
-Common gateway IPs by hotspot type:
-
-| Hotspot type | Default gateway IP |
-|--------------|--------------------|
-| Windows Mobile Hotspot | `192.168.137.1` |
-| Android hotspot        | `192.168.43.1`  |
-| iPhone hotspot         | `172.20.10.1`   |
-| macOS Internet Sharing | `192.168.2.1`   |
-| Home router / fixed IP | Run `ip a` on the Uno Q |
-
-> When you move from laptop development to Uno Q deployment, only `SERVER_IP`
-> changes — update it to the Uno Q's LAN IP and reflash all satellite nodes.
+For a dev-bench default without touching the portal each time, `platformio.ini`
+can still seed a first-boot default via `-DEPM_MQTT_BROKER_HOST=\"...\"` build
+flags read by `components/epm_drivers/link_mqtt.c`'s `#ifndef`-guarded default
+(`"10.42.0.1"`) — but any value submitted through the portal always wins once
+saved. See `docs/decisions/ADR-031-provisioning-ap-random-per-device-password.md`
+and `docs/PHASE_12A_PROMPT.md`/`docs/PHASE_12B_PROMPT.md` for the full design.
 
 ### 3. Build and Flash
 
@@ -238,17 +267,31 @@ source venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
-### 2. Start the gateway
+### 2. Start Mosquitto (the MQTT broker satellites publish to)
+
+```bash
+sudo apt install mosquitto -y
+sudo systemctl enable --now mosquitto
+```
+
+The satellite firmware's captive-portal provisioning (Quick Start — Satellite
+Firmware, step 2) needs this broker's LAN IP/hostname and port (default `1883`).
+
+### 3. Start the gateway
+
+`--mqtt-host` turns on live MQTT ingestion (`gateway/ingestion/mqtt_subscriber.py`,
+subscribing `epm/+/data`); omit it and only the legacy TCP+AES dev path
+(`tools/satellite_sim.py`) will feed the pipeline.
 
 ```bash
 # Activate venv first (if not already active)
 source venv/bin/activate
 
-# Minimal headless startup
-python3 recv_verify.py --no-plot
+# Minimal headless startup, ingesting from the local Mosquitto broker
+python3 recv_verify.py --no-plot --mqtt-host localhost
 
 # Production startup with auth, factory label, and notifications
-python3 recv_verify.py --no-plot \
+python3 recv_verify.py --no-plot --mqtt-host localhost \
     --factory-name "Plant A — Line 3" \
     --auth admin:yourpassword \
     --notify-webhook "https://hooks.slack.com/services/..."
@@ -264,13 +307,13 @@ python3 recv_verify.py --no-plot --model model/epm_model
 python3 recv_verify.py --no-plot --shaft-rpm 1500 --bearing 6205
 ```
 
-### 3a. Run as systemd service (auto-start on boot)
+### 4a. Run as systemd service (auto-start on boot)
 
 ```ini
 # /etc/systemd/system/epm-gateway.service
 [Unit]
 Description=EPM Predictive Maintenance Gateway
-After=network-online.target
+After=network-online.target mosquitto.service
 Wants=network-online.target
 
 [Service]
@@ -280,6 +323,7 @@ WorkingDirectory=/home/arduino/edgeai-predictive-monitor-satellite/mic_tools
 ExecStart=/home/arduino/edgeai-predictive-monitor-satellite/mic_tools/venv/bin/python3 \
     recv_verify.py \
     --no-plot \
+    --mqtt-host localhost \
     --factory-name "Plant A" \
     --auth admin:yourpassword
 Restart=always
@@ -297,7 +341,7 @@ sudo systemctl status epm-gateway    # verify it started
 journalctl -u epm-gateway -f         # live log output
 ```
 
-### 3b. Run via Docker (alternative — cleanest deployment)
+### 4b. Run via Docker (alternative — cleanest deployment)
 
 The Uno Q ships with Docker pre-installed. Use this for isolated, reproducible deployment:
 
@@ -326,8 +370,9 @@ docker stop epm
 ```
 
 Logs and ML models are stored on the host machine (mounted volumes) so they survive container restarts.
+`--network host` is what lets the container reach the host's Mosquitto broker at `localhost:1883`.
 
-### 4. Find the Uno Q's IP address
+### 5. Find the Uno Q's IP address
 
 ```bash
 # On the Uno Q terminal
@@ -336,7 +381,7 @@ ip a show eth0        # if connected via Ethernet (USB-C adapter)
 hostname -I           # shows all IPs
 ```
 
-### 5. Open the dashboard
+### 6. Open the dashboard
 
 ```
 http://<uno-q-ip>:8080/
@@ -401,8 +446,14 @@ The browser caches credentials for the session — one login per browser.
 
 ## Testing Without Hardware — Satellite Simulator
 
+`tools/satellite_sim.py` speaks the **legacy TCP+AES protocol**
+(`docs/decisions/ADR-028`), not MQTT — it exercises the gateway's full
+alerting/HST/fusion/CSV pipeline without needing real firmware or a running
+Mosquitto broker. It is not representative of what real hardware sends the reference-repo maintainer's
+base station; use it purely for local gateway development.
+
 ```bash
-# Terminal 1: start gateway (from the repo root)
+# Terminal 1: start gateway (from the repo root) — TCP legacy listener is always on
 python3 mic_tools/recv_verify.py --no-plot
 
 # Terminal 2: simulate 3 healthy satellites (also from the repo root)
@@ -591,38 +642,53 @@ Patterns are rhythm-based — distinguishable by counting taps, not estimating s
 
 ## Wire Protocol
 
-All multi-byte fields are **little-endian**.
+Full detail lives in [`docs/BASE_STATION_CONTRACT.md`](docs/BASE_STATION_CONTRACT.md) — this
+section is a summary. All multi-byte fields are **little-endian**.
 
-### Hello packet (sent once after connect)
+Transport is MQTT to Mosquitto on the base station (port 1883, no TLS on the local
+network). Each satellite publishes to `epm/<node_id>/data` (QoS 0) and subscribes to
+`epm/<node_id>/cmd` (QoS 1), where `node_id` is the last 6 hex characters of the
+satellite's WiFi STA MAC.
 
-```
-[uint32_t  magic]    4 B   0xEA1D0000
-[uint8_t   mac[6]]   6 B   WiFi STA MAC
-[uint8_t   fw_major] 1 B
-[uint8_t   fw_minor] 1 B
-[char      name[12]] 12 B  null-padded ASCII, e.g. "SAT-A3B4"
-```
+### Data frame — section-list format
 
-Total: 24 bytes.
-
-### Frame (per ~450 ms, ~14.3 KB total)
+A frame is a header byte followed by a variable number of self-describing sections
+(`components/epm_codec/spectrum_codec.c`):
 
 ```
-[uint32_t  payload_bytes]     4 B
-[epm_header_t header]        48 B   magic + frame_id + timestamp + metrics
-[float mic_fft[512]]       2048 B   MIC dBFS spectrum, 15.6 Hz/bin
-[float imu_x_fft[1024]]    4096 B   X radial dBFS, 12.5 Hz/bin
-[float imu_y_fft[1024]]    4096 B   Y radial dBFS
-[float imu_z_fft[1024]]    4096 B   Z axial  dBFS
+[num_sections u8]
+  repeated num_sections times:
+  [source_id u8][channel_id u8][data_kind u8][section_len u16][body...]
 ```
 
-### Gateway → Satellite (1 byte after each frame)
+`source_id` is `1` (satellite). `data_kind` is either `SPECTRUM` or `SCALAR_SET`:
 
-| Byte | Meaning |
-|------|---------|
-| `0x00` | OK |
-| `0x01` | WARN |
-| `0x02` | FAULT |
+```
+SPECTRUM body:    [fs f32][fft_size u16][bin_count u16][bins f32...]
+SCALAR_SET body:  [count u8][ids u16...][values f32...]
+```
+
+A satellite publishes one `mic` spectrum section (`channel_id=0`) and three
+`accel_x`/`accel_y`/`accel_z` spectrum sections (`channel_id=6/7/8`), each followed by
+its own `SCALAR_SET` section on `channel_id=255` carrying `rms`/`kurtosis`/`crest_factor`
+(the scalars this firmware currently computes — the wire schema has room for
+`peak`/`std`/`skewness` too, unused today).
+
+### Command envelope — base station → satellite (`epm/<node_id>/cmd`)
+
+```
+[TYPE u8][PAYLOAD...]
+```
+
+Only one command type is currently handled:
+
+| TYPE | Name | Payload |
+|------|------|---------|
+| `0x08` | `STATUS_LED` | `struct { uint32_t rgb; uint8_t mode; uint16_t period_ms; } __attribute__((packed))` |
+
+Unrecognized TYPE bytes are ignored, so future command types (e.g. the reference-repo maintainer's base
+station also defines `0x09 MOTOR_STOP` for a machinery-protection feature this
+firmware doesn't implement) are safe to receive.
 
 ---
 
@@ -649,20 +715,24 @@ positives — bearing defects always excite the 2–8 kHz resonance band.
 ## Troubleshooting
 
 **LED stays solid ON:**
-WiFi not connecting. Check SSID/password in `wifi_creds.h`. Serial monitor shows
-the reason code: 15/203 = wrong password, 200 = SSID not found.
+WiFi not connecting. If this is a first boot (no saved credentials), the device
+should instead be running its own `EPM-SAT-<node_id>` AP — check the serial monitor
+for the WPA2 password it printed. If credentials are saved but wrong, reset them by
+re-entering provisioning (see `docs/decisions/ADR-031-*.md`) rather than editing a file.
 
-**LED stuck on 3-tap WiFi blink:**
-`SERVER_IP` doesn't match the Uno Q's IP. Run `ip a` on the Uno Q to get its address.
-Confirm `recv_verify.py` is running before the satellite boots.
+**LED stuck on WiFi/broker connecting blink, satellite never reaches OK:**
+`mqtt_host`/`mqtt_port` submitted during provisioning don't match where Mosquitto is
+actually listening on the base station. Run `ip a` on the Uno Q to get its address,
+confirm Mosquitto is running (`systemctl status mosquitto`), and re-provision if needed.
 
 **No satellites in dashboard / gateway shows no connects:**
-Firewall blocking port 5100 or 8080.
-- Linux/Uno Q: `sudo ufw allow 5100 && sudo ufw allow 8080`
+Firewall blocking the MQTT broker port (1883) or the dashboard's HTTP port (8080).
+- Linux/Uno Q: `sudo ufw allow 1883 && sudo ufw allow 8080`
 - Windows (dev only): run the `New-NetFirewallRule` command the gateway prints at startup (elevated PowerShell, once)
 
 **`satellite_sim.py` prints "Connection refused":**
-Start `recv_verify.py` first, then the simulator.
+This only applies to the legacy TCP dev-simulator path. Start `recv_verify.py`
+first, then the simulator — see [Testing Without Hardware](#testing-without-hardware--satellite-simulator).
 
 **Dashboard shows login prompt:**
 Enter the credentials from your `--auth USER:PASS` flag. The browser caches them.
@@ -687,7 +757,7 @@ PlatformIO platform is on ESP-IDF 4.x. Add to `platformio.ini`:
 - [x] MEMS microphone capture (I2S, 16 kHz, 1024-pt FFT)
 - [x] Kurtosis, crest factor, high-band energy scoring
 - [x] Adaptive z-score baseline (30-frame calibration per satellite)
-- [x] Binary TCP streaming protocol (48-byte header + FFT arrays)
+- [x] MQTT streaming protocol (section-list telemetry frames; legacy binary TCP protocol kept for dev-only simulator use, `docs/decisions/ADR-028`)
 - [x] Multi-satellite gateway with per-satellite CSV logging
 - [x] 7-state rhythm LED indicator (active-low, timer-driven)
 - [x] Multi-satellite simulator (`satellite_sim.py`)
@@ -717,11 +787,16 @@ PlatformIO platform is on ESP-IDF 4.x. Add to `platformio.ini`:
 
 ## Security Notes
 
-- `src/wifi_creds.h` is gitignored and must **never** be committed. The firmware
-  falls back to clearly non-functional placeholder credentials if the file is absent.
+- WiFi/MQTT credentials are provisioned over the air via the captive portal
+  (`docs/decisions/ADR-031-*.md`) and persisted in NVS — there is no source file
+  to gitignore. The provisioning AP's WPA2 password is random per device
+  (`esp_fill_random()`), printed once to serial at boot.
 - The firmware enforces `WIFI_AUTH_WPA2_PSK` only — WPA/TKIP is rejected because
   TKIP is cryptographically broken and trivially crackable.
+- MQTT traffic between satellite and base station is unauthenticated, unencrypted
+  plaintext on the local network (no TLS, no broker credentials) — acceptable for
+  a trusted LAN, not for exposure beyond it.
 - The gateway's web dashboard binds to `0.0.0.0:8080`. Use `--auth USER:PASS` in
   any deployment where the LAN is not fully trusted.
-- Do not expose port 8080 or 5100 to the public internet. Run behind a firewall or
-  VPN for remote access.
+- Do not expose the dashboard (8080), Mosquitto (1883), or the legacy dev-simulator
+  port (5100) to the public internet. Run behind a firewall or VPN for remote access.

@@ -1,7 +1,7 @@
 # Pin Allocation — XIAO ESP32-S3
 
 **Hardware:** Seeed Studio XIAO ESP32-S3 (ESP32-S3FH4R2)  
-**Last updated:** 2026-06-30
+**Last updated:** 2026-08-07
 
 ---
 
@@ -16,12 +16,11 @@
 | 4 | I2S_DIN | Input | I2S0 | Data in (mic → ESP32) | INMP441 DOUT |
 | 5 | RGB_G | Output | LEDC_CH_1 | LED green channel | LEDC timer 0 |
 | 6 | RGB_B | Output | LEDC_CH_2 | LED blue channel | LEDC timer 0 |
-| 7 | SPI_SCLK | Output | SPI2 | SPI clock | KX134 (future); reserved at 8 MHz |
-| 8 | SPI_MOSI | Output | SPI2 | SPI data out | KX134 command/config writes |
-| 9 | SPI_MISO | Input | SPI2 | SPI data in | KX134 acceleration data reads |
-| 10 | SPI_CS | Output | SPI2 | Chip select | KX134; active LOW |
-| 43 | UART_TX | Output | UART0 | Debug serial TX | 115200 baud; USB-CDC via CH340 on XIAO |
-| 44 | UART_RX | Input | UART0 | Debug serial RX | |
+| 7 | SPI_SCLK | Output | SPI2 | SPI clock | KX134; 10 MHz (`accel_kx134_spi.c`'s `KX134_SPI_CLOCK_HZ`) |
+| 8 | SPI_MISO | Input | SPI2 | SPI data in | KX134 acceleration data reads |
+| 9 | SPI_MOSI | Output | SPI2 | SPI data out | KX134 command/config writes |
+| 43 | SPI_CS | Output | SPI2 | Chip select | KX134; active LOW. Was UART0 TX, but the debug console runs over USB-JTAG (`esp-builtin`), leaving this pin free (`components/epm_drivers/accel_kx134_spi.c:61`, `KX134_PIN_CS`) |
+| 44 | KX134_INT1 | Input | GPIO | Accelerometer interrupt 1 | Currently unused by firmware; wired but not read. Was UART0 RX, freed for the same reason as GPIO43 (`accel_kx134_spi.c:62`, `KX134_PIN_INT1`) |
 
 ---
 
@@ -39,9 +38,10 @@ GPIO21 is now floating/unused. There is no pull configuration on this pin; it sh
 
 | GPIO | Status | Notes |
 |---|---|---|
+| 10 | Free | Not used by the current SPI pinout |
 | 11–20 | Free | Available for future expansion |
 | 21 | Free (retired) | Was old LED — now unallocated |
-| 36–48 | Free | High-numbered GPIOs; some have input-only restrictions on ESP32-S3 |
+| 36–42, 45–48 | Free | High-numbered GPIOs; some have input-only restrictions on ESP32-S3 |
 
 ---
 
@@ -61,8 +61,10 @@ GPIO21 is now floating/unused. There is no pull configuration on this pin; it sh
 GPIO1/5/6 selected for RGB LED because:
 1. GPIO0 is a boot strap pin — any output on GPIO0 risks download-mode entry on reset
 2. GPIO2/3/4 are I2S (cannot be reassigned without breaking mic capture)
-3. GPIO7/8/9/10 are reserved for SPI (KX134 IMU — future physical activation)
-4. GPIO43/44 are UART0 (debug console — must not be remapped)
+3. GPIO7/8/9 are used for SPI (KX134 IMU, real hardware by default), and GPIO43/44
+   for its CS/INT1 — free because the debug console runs over USB-JTAG rather than
+   physical UART0 pins
+4. GPIO10 is free — not used by the current SPI pinout
 5. GPIO1/5/6 are the lowest-numbered free GPIOs that are full-featured (not input-only)
 6. All three are confirmed LEDC-capable on ESP32-S3 (all GPIOs support LEDC output via GPIO matrix)
 
