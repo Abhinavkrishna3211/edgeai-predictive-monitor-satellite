@@ -60,6 +60,10 @@ row.** Both are supported deployment targets — see
 [Quick Start — Gateway](#quick-start--gateway) for which path has actually been
 validated against real satellite hardware so far.
 
+A generated block diagram of the same architecture:
+
+![System block diagram](docs/diagrams/01_system_block_diagram.svg)
+
 > **Legacy dev-testing path:** the earlier raw-TCP + AES-128-GCM protocol
 > (port 5100) is no longer spoken by the firmware in production — MQTT
 > replaced it (see `docs/decisions/ADR-011-mqtt-transport-added.md` and
@@ -141,6 +145,8 @@ and the full pin map (including the KX134 SPI IMU) is in
 | 44   | INT1      | Interrupt 1 — wired but not currently read by firmware (`KX134_PIN_INT1`) |
 | 3V3  | VDD       | Power |
 | GND  | GND       | Ground |
+
+![Wiring diagram](docs/diagrams/02_circuit_wiring_diagram.svg)
 
 GPIO43/44 double as UART0 TX/RX on this board, but that's safe here since the
 debug console runs over USB-JTAG (`esp-builtin`) rather than physical UART0

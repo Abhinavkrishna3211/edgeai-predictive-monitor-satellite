@@ -57,6 +57,9 @@ broker either way. Wire-contract source of truth:
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+![Data & detection workflow](docs/diagrams/03_workflow_diagram.svg)
+Generated workflow diagram: sensor sample to dashboard alert.
+
 ---
 
 ## 2. Firmware task & queue map
