@@ -8,7 +8,7 @@
  * stages once this is confirmed working on real hardware.
  *
  * Moved from components/mic_capture/ (file rename + relocation only —
- * the mic_capture_* API is unchanged, see docs/MASTER_PLAN.md Part C.1).
+ * the mic_capture_* API is unchanged).
  */
 
 #include <stdint.h>

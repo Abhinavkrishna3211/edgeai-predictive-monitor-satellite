@@ -12,7 +12,7 @@ extern "C" {
  * docs/decisions/ADR-011-mqtt-transport-added.md) + the esp-mqtt
  * component. Analog of the reference repo's satellite/src/threads/
  * transport_task.cpp, split into a HAL-conforming driver + a thin
- * task per docs/MASTER_PLAN.md Part C.1's layering.
+ * task, per this repo's HAL layering convention.
  */
 
 struct link_mqtt_stats {

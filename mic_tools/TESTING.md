@@ -1,8 +1,8 @@
 # mic_tools/ — pytest harness
 
 Regression tests for `mic_tools/`'s pure-logic analytics modules, run
-against the code **as it exists today**, before `docs/MASTER_PLAN.md` Part
-C.2's Phase 8 gateway restructure touches anything. These tests must (and
+against the code **as it exists today**, before the planned Phase 8
+gateway restructure touches anything. These tests must (and
 do) pass clean against unmodified `mic_tools/` — unlike the firmware side's
 `tests/host/` harness, nothing here is an expected failure.
 

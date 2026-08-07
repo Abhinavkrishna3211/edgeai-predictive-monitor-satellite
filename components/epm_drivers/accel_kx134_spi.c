@@ -8,7 +8,7 @@
  * transaction mechanics and the ISR/semaphore glue are re-expressed in
  * ESP-IDF terms. ODR=12800Hz is hardware-validated on the reference boards
  * (docs/KX134_Interface_Appendix.md, docs/SATELLITE_BRINGUP_GUIDE.md) and
- * adopted as-is per docs/MASTER_PLAN.md Part D.1 — do not re-derive.
+ * adopted as-is — do not re-derive.
  *
  * SPI mode: Mode 0 (CPOL=0, CPHA=0), MSB-first, <=10MHz, per the datasheet's
  * 4-wire timing diagram.

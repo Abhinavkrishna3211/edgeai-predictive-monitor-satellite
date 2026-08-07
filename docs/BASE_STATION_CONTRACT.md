@@ -1,6 +1,6 @@
 # Base Station Contract — verified live against the reference base-station repository (private — ask the maintainer for access), main branch, 2026-08-04
 
-Supersedes `MASTER_PLAN.md` Part D as the wire-contract reference. Fetched directly via GitHub raw content (no local sibling clone in this session) — see the file list at the bottom for exact sources and verify against a local clone before Phase 5+ if anything here seems to have moved on.
+Supersedes the project's earlier internal wire-contract notes. Fetched directly via GitHub raw content (no local sibling clone in this session) — see the file list at the bottom for exact sources and verify against a local clone before Phase 5+ if anything here seems to have moved on.
 
 **Methodological note, important for future phases:** `docs/Appendix_B_Wire_Protocol_Specification.md` in his repo is **stale** relative to the actual code — it still documents the old fixed `spectrum_fused_payload` struct and a `[TYPE:1B]` envelope on the data direction. The code itself (`wire_protocol.py`'s own module docstring) says that codec "was removed." `docs/SENSOR_TELEMETRY_FRAME_PLAN.md` is the current, self-aware design doc (status: "Phase A implemented + verified on hardware... T7 (Phase B collapse)... likely never happens — treat Phase A as the durable format"). **Trust the code and SENSOR_TELEMETRY_FRAME_PLAN.md over Appendix B if they ever disagree.**
 

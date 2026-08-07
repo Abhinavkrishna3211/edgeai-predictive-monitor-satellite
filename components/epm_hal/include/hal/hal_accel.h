@@ -17,7 +17,7 @@
  * satisfy this contract (its FIFO burst-read naturally de-interleaves
  * into per-axis buffers before handing samples up).
  *
- * Pure C, zero ESP-IDF includes, per docs/MASTER_PLAN.md Part C.1/Part I.
+ * Pure C, zero ESP-IDF includes, per this repo's HAL layering/naming conventions.
  */
 
 enum hal_accel_axis {

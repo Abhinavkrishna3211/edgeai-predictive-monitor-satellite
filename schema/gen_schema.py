@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Code generator for the generic sensor telemetry frame schema
-(docs/SENSOR_TELEMETRY_FRAME_PLAN.md S2, T1 in the reference repo;
-docs/MASTER_PLAN.md Part C.1/Part G Phase 5 here).
+(docs/SENSOR_TELEMETRY_FRAME_PLAN.md S2, T1 in the reference repo).
 
 Reads the single source of truth (schema/telemetry_schema.json) and emits
 every side so they cannot drift:

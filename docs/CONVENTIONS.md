@@ -2,8 +2,8 @@
 
 The naming, structure, and process rules this repo follows — firmware and
 gateway alike. This is the one file to read before touching code here;
-`docs/MASTER_PLAN.md` is the phased build log and planning doc, not a style
-reference. Everything below has been enforced in practice across the whole
+the project's internal planning/build-log doc is a separate,
+non-style reference. Everything below has been enforced in practice across the whole
 interop effort (Phases 0–10c), not just proposed — each rule cites a real
 file where you can see it applied.
 
@@ -177,7 +177,7 @@ Phase 10c (`ADR-001` through `ADR-030`), sequential, no gaps.
   `git log --format='%B' | grep -iE 'claude|generated with|co-authored'`
   must return nothing. (Pre-existing AI-co-author trailer lines from
   before 2026-07-30 predate this rule and are left alone — rewriting them
-  needs a force-push and explicit sign-off, tracked in
-  `docs/MASTER_PLAN.md`'s Open Items, not a Part H violation.)
+  needs a force-push and explicit sign-off, tracked as a known open item,
+  not a Part H violation.)
 - A human reads every phase's diff before merge, in addition to whatever
   automated checks ran.

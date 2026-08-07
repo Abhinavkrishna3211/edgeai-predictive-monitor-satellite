@@ -14,7 +14,7 @@
  * one AP, and wifi_task.c already brings it up before this component's
  * task starts).
  *
- * Pure C, zero ESP-IDF includes, per docs/MASTER_PLAN.md Part C.1/Part I.
+ * Pure C, zero ESP-IDF includes, per this repo's HAL layering/naming conventions.
  */
 
 /* One-time setup (allocates the mutex guarding the MQTT client, resets

@@ -56,11 +56,8 @@ imu_soak_log.txt
 serial_log2.txt
 __scratch_test__*
 
-# ── Phase-prompt scratch docs (Phase 0 / 0.5 are tracked and handled
-#    separately — see docs/PHASE_0_PROMPT.md, docs/PHASE_0.5_CONNECTIVITY_PROMPT.md)
+# ── Phase-prompt scratch docs (local-only working references) ────────────────
 docs/PHASE_*_PROMPT.md
-!docs/PHASE_0_PROMPT.md
-!docs/PHASE_0.5_CONNECTIVITY_PROMPT.md
 
 # ── Internal comparison/outreach notes — never commit ────────────────────────
 docs/RAHUL_COMPARISON_AUDIT.md
@@ -74,3 +71,7 @@ docs/*_PROMPT.md
 # ── Runtime/test-run output, not source ───────────────────────────────────────
 mic_tools/char_logs/
 tests/host/Testing/
+
+# ── Internal AI-planning docs — local-only working references, not pushed ────
+AGENTS.md
+docs/MASTER_PLAN.md

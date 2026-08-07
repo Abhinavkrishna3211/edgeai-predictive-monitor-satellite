@@ -5,7 +5,7 @@ Host-buildable regression tests for the firmware's DSP scalar-stats
 native gcc/CMake — **no ESP-IDF toolchain, no target hardware, no
 PlatformIO** involved in this build.
 
-This is Phase 1 of `docs/MASTER_PLAN.md` Part G: it establishes a regression
+This is Phase 1 of this project's build plan: it establishes a regression
 baseline *before* Phase 2 fixes anything. One test here is **expected to
 fail** against current source — that failure documents a real bug for
 Phase 2's task list. Do not "fix" `src/dsp_task.c`/`src/mic_task.c` to make
@@ -71,7 +71,7 @@ the actual vs. expected numbers and the known-bug explanation live.
 |---|---|---|---|
 | `test_scalar_stats` | `sine_crest_factor` | PASS | crest ≈ √2 |
 | `test_scalar_stats` | `square_crest_factor` | PASS | crest ≈ 1.0 |
-| `test_scalar_stats` | `gaussian_kurtosis_raw_convention` | PASS | kurtosis ≈ 3.0, **raw/Pearson** convention (current firmware behavior) — flags an open discrepancy against `docs/MASTER_PLAN.md` Part D's wire-protocol doc, which documents excess/Fisher convention (≈0.0) instead. Not resolved here; Phase 2/4's job. |
+| `test_scalar_stats` | `gaussian_kurtosis_raw_convention` | PASS | kurtosis ≈ 3.0, **raw/Pearson** convention (current firmware behavior) — flags an open discrepancy against the project's internal wire-protocol doc, which documents excess/Fisher convention (≈0.0) instead. Not resolved here; Phase 2/4's job. |
 | `test_scalar_stats` | `silence_fallback_defaults` | PASS | exercises the crest/kurtosis guard-branch fallbacks on an all-zero block |
 | `test_hann_window` | `hann_coherent_gain_matches_theory` | PASS | real vendored `dsps_wind_hann_f32()`, coherent gain ≈ 0.5 |
 | `test_hann_window` | `nf_normalization_ignores_coherent_gain` | **EXPECTED-FAIL** | documents that `src/dsp_task.c:202`'s power-normalisation constant (`nf = 2/N`) has no `/coherent_gain` term, so Hann-windowed spectra read ~6 dB low. This is the anchor bug Phase 2's "window normalisation should derive coherent gain from the actual window array" task exists to fix. |
