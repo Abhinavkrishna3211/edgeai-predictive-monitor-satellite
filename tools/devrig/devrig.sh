@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# tools/devrig/devrig.sh -- orchestrates the reference-repo maintainer's UNMODIFIED
+# tools/devrig/devrig.sh -- orchestrates the reference repository's UNMODIFIED
 # base-station/start_desktop_dashboard.sh from a read-only reference clone.
 # Never edits anything under the reference repo: only starts a broker,
-# snapshots his tree's tracked-file status, and invokes his script verbatim.
+# snapshots its tree's tracked-file status, and invokes its script verbatim.
 #
-# Usage: bash tools/devrig/devrig.sh [args passed straight to his script]
+# Usage: bash tools/devrig/devrig.sh [args passed straight to the reference script]
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

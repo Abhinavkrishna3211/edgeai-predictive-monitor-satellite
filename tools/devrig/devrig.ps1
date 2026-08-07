@@ -1,7 +1,7 @@
 # tools/devrig/devrig.ps1 -- Windows entry point. Runs devrig.sh inside the
-# WSL Ubuntu-24.04 distro that hosts the reference-repo maintainer's unmodified dashboard rig
-# (native Windows can't run his script as-is: Windows venvs use Scripts/
-# not bin/, and ai-edge-litert has no Windows wheel).
+# WSL Ubuntu-24.04 distro that hosts the reference repository's unmodified
+# dashboard rig (native Windows can't run its script as-is: Windows venvs
+# use Scripts/ not bin/, and ai-edge-litert has no Windows wheel).
 #
 # Usage: tools\devrig\devrig.ps1 --nodes 1 --port 8180 --captures-dir "" --auto-online
 param(

@@ -1,11 +1,11 @@
 # tools/devrig
 
-Thin wrappers around the reference-repo maintainer's own `base-station/start_desktop_dashboard.sh`
-(from `rahuljeyaraj/edgeai-predictive-monitor`) so we can drive his
-**unmodified** local dashboard rig from this repo without ever touching his
-tree. Nothing here reimplements his script's logic -- `devrig.sh` only
-finds a broker, snapshots his repo's tracked-file status, and invokes his
-script verbatim.
+Thin wrappers around the reference repository's own
+`base-station/start_desktop_dashboard.sh` so we can drive its
+**unmodified** local dashboard rig from this repo without ever touching its
+tree. Nothing here reimplements the reference script's logic -- `devrig.sh`
+only finds a broker, snapshots the reference repo's tracked-file status, and
+invokes its script verbatim.
 
 ## Prerequisites
 
@@ -31,9 +31,9 @@ From inside WSL directly:
 bash tools/devrig/devrig.sh --nodes 1 --port 8180 --captures-dir "" --auto-online
 ```
 
-All arguments are passed straight through to his
+All arguments are passed straight through to the reference repository's
 `base-station/start_desktop_dashboard.sh` -- see that script's own header
-comments for the full flag list. `--captures-dir ""` triggers his synthetic
+comments for the full flag list. `--captures-dir ""` triggers its synthetic
 capture generator (`python/tools/gen_synthetic_captures.py`) when no real
 `.npz` captures are present.
 
@@ -42,10 +42,10 @@ Override the reference repo location with the `EPM_REF_REPO` env var
 
 ## What this does NOT do
 
-- Never edits, patches, or copies logic out of his script -- `devrig.sh`
-  calls it verbatim as `bash <ref>/base-station/start_desktop_dashboard.sh`.
-- Never writes into the reference repo except what his own script creates
-  there itself (`base-station/python/.venv/`, `base-station/.cache/`) --
+- Never edits, patches, or copies logic out of the reference script --
+  `devrig.sh` calls it verbatim as `bash <ref>/base-station/start_desktop_dashboard.sh`.
+- Never writes into the reference repo except what the reference script
+  creates there itself (`base-station/python/.venv/`, `base-station/.cache/`) --
   untracked build artifacts, not source changes. `devrig.sh` diffs
   `git status --porcelain --untracked-files=no` before/after each run and
   warns (does not fail) if a tracked file changed, as a tripwire.
