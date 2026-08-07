@@ -47,4 +47,4 @@ carry a summary but have drifted stale relative to the actual wire format before
 ## Background reading for base-station interop work
 
 [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) (cross-phase status, the planning tool-owned —
-read only), `docs/AUDIT_VERIFICATION_REPORT.md`, `docs/RAHUL_COMPARISON_AUDIT.md`.
+read only).

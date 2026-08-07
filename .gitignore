@@ -45,3 +45,9 @@ mic_tools/model/
 # ── the AI coding assistant / session artifacts (not part of source) ────
 .claude/
 build_log_stackfix.txt
+
+# ── Internal comparison/outreach notes — never commit ────────────────────────
+docs/RAHUL_COMPARISON_AUDIT.md
+docs/AUDIT_VERIFICATION_REPORT.md
+docs/PRE_RAHUL_HANDOFF_PROMPT.md
+docs/RAHUL_OUTREACH_DRAFT.md
