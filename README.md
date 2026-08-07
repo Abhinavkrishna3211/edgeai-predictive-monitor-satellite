@@ -180,7 +180,7 @@ edgeai-predictive-monitor-satellite/
 ├── docs/
 │   ├── BASE_STATION_CONTRACT.md  # Current, verified MQTT wire-contract reference
 │   ├── CONVENTIONS.md            # Naming/error-handling/commit conventions
-│   ├── MASTER_PLAN.md            # Cross-phase project status (owned by the planning tool, see CLAUDE.md)
+│   ├── MASTER_PLAN.md            # Cross-phase project status (owned by the planning tool, see AGENTS.md)
 │   ├── decisions/                # Numbered ADRs, append-only
 │   └── hardware/PIN_ALLOCATION.md
 │

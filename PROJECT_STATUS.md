@@ -353,7 +353,7 @@ integration (replace imu_task.c's stub), (c) model/accuracy tuning on the gatewa
 side. `sdkconfig.seeed_xiao_esp32s3` should still be flagged for deletion/cleanup
 as a dead, confusing file.
 
-## Next actions (from the planning tool session, 2026-07-03)
+## Next actions (from planning-tool session, 2026-07-03)
 
 1. Restore UART visibility: add `monitor_dtr = 0` / `monitor_rts = 0` to
    `platformio.ini`, verify `pio device monitor` attaches without forcing
@@ -368,15 +368,17 @@ as a dead, confusing file.
    Hotspot itself as the constant — consider a keepalive during the imu wait, or
    testing against a real WiFi AP to isolate hotspot vs. firmware.
 
-Recommended workflow: new the AI coding assistant session, Sonnet model with plan mode for the
-mechanical steps above; escalate to Opus only if a captured log doesn't match the
-route-loss hypothesis, and scope that escalation to the specific log plus
-`wifi_task.c` / `epm_config.h` / `main.c` — not a full-repo review.
+Recommended workflow: new AI-assistant session, the standard build model with plan
+mode for the mechanical steps above; escalate to the higher-capability model only if
+a captured log doesn't match the route-loss hypothesis, and scope that escalation to
+the specific log plus `wifi_task.c` / `epm_config.h` / `main.c` — not a full-repo
+review.
 
-## Session 8 — the planning tool audit verification + Phase 1 fixes committed (2026-07-04)
+## Session 8 — planning-tool audit verification + Phase 1 fixes committed (2026-07-04)
 
-A read-only overnight Opus audit produced `MASTERPLAN.md` and `ARCHITECTURE.md`.
-A separate the planning tool session verified every specific, checkable claim in both files
+A read-only overnight audit (using the higher-capability model) produced
+`MASTERPLAN.md` and `ARCHITECTURE.md`. A separate planning-tool session verified
+every specific, checkable claim in both files
 directly against source (mDNS removal, imu priority traced to the actual
 `xTaskCreatePinnedToCore` call, `overflow_count` traced to the exact
 `struct.unpack_from` tuple, Flask/http.server, git history on `wifi_creds.h`) —
@@ -416,7 +418,7 @@ report" from "still actively confirming FAULT."
   into full-file diffs from CRLF line-ending conversion with **zero** actual
   content change (`git diff --stat -w` was empty) - reverted them and added
   `.gitattributes` (`* text=auto eol=lf`) so this stops recurring.
-- Found + fixed: `.gitignore`'s `.claude/` / `build_log_stackfix.txt` entries
+- Found + fixed: `.gitignore`'s AI-tool-session-directory / `build_log_stackfix.txt` entries
   didn't land in the first commit (a file-tool/shell sync timing issue) -
   caught by cross-checking `git show HEAD:<file>` against every edit before
   calling the work done, not just trusting the edit calls succeeded. The
@@ -425,7 +427,7 @@ report" from "still actively confirming FAULT."
   - worth remembering for future sessions: always verify file-tool edits
     against the shell view before git-committing, don't assume they matched.
 - pytest 91/91 passing throughout (`test_drift.py`/`test_online_detector.py`
-  can't be collected in the the planning tool sandbox - `river` fails to build there;
+  can't be collected in the planning-tool sandbox - `river` fails to build there;
   environment limitation, not a code issue).
 
 **Still open, untouched:** `find_xiao_port.ps1` and `partitions_8mb.csv` (the
@@ -434,8 +436,8 @@ made yet.
 
 ### Next action - Phase 0 soak test (blocking, needs physical hardware)
 
-The the planning tool session has no hardware access, so this must run in a local
-the AI coding assistant session pointed at this same repo folder:
+The planning-tool session has no hardware access, so this must run in a local
+AI-assistant session pointed at this same repo folder:
 1. Uncomment `-DEPM_HEAP_TRACE=1` in `platformio.ini`.
 2. Flash, run 30+ min (longer is better) with the board just sitting there -
    no test rig needed; this only exercises the WiFi/TCP/encryption/reconnect
@@ -443,7 +445,7 @@ the AI coding assistant session pointed at this same repo folder:
 3. Capture the full serial log (`HEAPTRACE` lines interleaved with normal
    output).
 4. Revert the flag afterward.
-5. Bring the log back for diagnosis - Opus, Plan mode recommended for
+5. Bring the log back for diagnosis - the higher-capability model, Plan mode recommended for
    reading the free-size vs. largest-free-block trend against `frame_id`
    (distinguishes true leak vs. fragmentation, per-frame vs. per-reconnect).
 
@@ -453,8 +455,8 @@ needed, (c) real KX134 IMU integration (stub TODOs 3a-3d already in
 
 ## Session 9 — Phase 0 CONFIRMED: heap fragmentation, not a leak (2026-07-04)
 
-2-hour instrumented soak test (`-DEPM_HEAP_TRACE=1`) run via a local the AI coding assistant
-Code session with hardware access. Monitor attached at frame 276 (board had
+2-hour instrumented soak test (`-DEPM_HEAP_TRACE=1`) run via a local
+AI-assistant session with hardware access. Monitor attached at frame 276 (board had
 already been running ~4 min), captured to `heap_soak_log.txt` through frame
 6609 (~125.5 min firmware uptime, 12,500 HEAPTRACE lines, 3 drop/connect
 event pairs).
@@ -508,7 +510,7 @@ a separate, deeper investigation for later.
 ### Next action
 
 Implement the bounded-reset mitigation in `wifi_task.c`'s reconnect loop
-(prompt handed to the user for a fresh the AI coding assistant session). After that's in
+(prompt handed to the user for a fresh AI-assistant session). After that's in
 and flashed, re-run a multi-hour soak with `EPM_HEAP_TRACE=1` again to
 confirm stuck windows are now bounded to ~90s instead of open-ended.
 
