@@ -169,11 +169,13 @@ Phase 10c (`ADR-001` through `ADR-030`), sequential, no gaps.
 - Conventional commit format: `type(scope): imperative summary`. Types:
   `feat fix refactor perf docs test chore build`.
 - Squash `wip`/`fix typo` commits before merging.
-- **Zero AI/tool attribution, anywhere** — no co-author trailers, no
-  "generated with," no mention in code, comments, commit messages, or
-  docs. Verify before every push:
+- **Zero AI/tool attribution, anywhere** — no co-author trailers naming an
+  AI tool, no "generated with," no mention in code, comments, commit
+  messages, or docs. Verify before every push (this pattern intentionally
+  matches the literal strings this policy forbids, so it can detect any of
+  them appearing anywhere):
   `git log --format='%B' | grep -iE 'claude|generated with|co-authored'`
-  must return nothing. (Pre-existing `Co-Authored-By: the AI coding assistant` lines from
+  must return nothing. (Pre-existing AI-co-author trailer lines from
   before 2026-07-30 predate this rule and are left alone — rewriting them
   needs a force-push and explicit sign-off, tracked in
   `docs/MASTER_PLAN.md`'s Open Items, not a Part H violation.)

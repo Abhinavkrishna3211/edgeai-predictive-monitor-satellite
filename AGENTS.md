@@ -1,13 +1,15 @@
-# CLAUDE.md
+# AGENTS.md
 
 Index for AI tools/assistants working in this repo. Full detail lives in the linked
 docs — this file is deliberately short and does not duplicate them.
 
 ## Commit hygiene
 
-- **Zero AI/tool attribution, anywhere** — no `Co-Authored-By: the AI coding assistant`, no
-  "Generated with," no mention in code, comments, commit messages, or docs. Verify
-  before every push: `git log --format='%B' | grep -iE 'claude|generated with|co-authored'`
+- **Zero AI/tool attribution, anywhere** — no `Co-Authored-By:` trailers naming an
+  AI tool, no "Generated with," no mention in code, comments, commit messages, or
+  docs. Verify before every push (this pattern intentionally matches the literal
+  strings this policy forbids, so it can detect any of them appearing anywhere):
+  `git log --format='%B' | grep -iE 'claude|generated with|co-authored'`
   must return nothing.
 - One logical change per commit (`docs/MASTER_PLAN.md` Part H / `docs/CONVENTIONS.md`
   "Git / commit standards") — never mix a file move with a behavior change, or a bug
@@ -16,11 +18,12 @@ docs — this file is deliberately short and does not duplicate them.
   per-tool or per-session.
 - Full naming/error-handling/testing conventions: [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
 
-## `docs/MASTER_PLAN.md` — the planning tool-owned
+## `docs/MASTER_PLAN.md` — owned by the planning tool
 
-This file's *content* belongs entirely to the planning tool. Never read it for context, edit it,
-or reformat it. If `git status` shows it modified before a branch switch, reset,
-rebase, or `filter-repo` operation, commit it mechanically, unread, exactly as-is:
+This file's *content* belongs entirely to the planning tool. Never read it for
+context, edit it, or reformat it. If `git status` shows it modified before a branch
+switch, reset, rebase, or `filter-repo` operation, commit it mechanically, unread,
+exactly as-is:
 
 ```
 git add docs/MASTER_PLAN.md && git commit -m "docs: checkpoint MASTER_PLAN.md (content owned by the planning tool, mechanical commit only)"
@@ -46,5 +49,5 @@ carry a summary but have drifted stale relative to the actual wire format before
 
 ## Background reading for base-station interop work
 
-[`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) (cross-phase status, the planning tool-owned —
-read only).
+[`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) (cross-phase status, owned by the
+planning tool — read only).
