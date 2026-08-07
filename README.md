@@ -504,18 +504,19 @@ python3 recv_verify.py --shaft-rpm 1500 --bearing 6205
 
 ## ML Training Pipeline
 
-The Arduino Uno Q 4GB (quad-core A53 @ 2.0 GHz, 4 GB LPDDR4) has more than enough
-compute to run all training steps directly on-device. No laptop needed after initial setup.
+The gateway machine — a laptop or an Arduino Uno Q 4GB — has more than enough
+compute to run all training steps directly, no separate training machine needed.
 
 ### 1. Collect training data
 
 Run the gateway for at least 30 minutes of normal healthy motor operation.
 Each satellite logs to `logs/epm_<name>_<YYYYMMDD>.csv` automatically.
 
-### 2. Train directly on the Uno Q
+### 2. Train on the gateway machine
 
 ```bash
-# SSH into the Uno Q, activate venv
+# Activate venv on whatever machine ran the gateway (SSH in first if it's a
+# remote Uno Q; run locally if it's your laptop)
 source ~/edgeai-predictive-monitor-satellite/mic_tools/venv/bin/activate
 cd ~/edgeai-predictive-monitor-satellite/mic_tools
 
@@ -525,7 +526,8 @@ python3 ml_trainer.py --contamination 0.03 --n-estimators 300
 ```
 
 Writes `model/epm_model_iso.joblib` and `model/epm_model_meta.json`.
-Training on typical log sizes (100K+ rows) completes in under 30 seconds on the Uno Q.
+Training on typical log sizes (100K+ rows) completes in under 30 seconds on the
+Uno Q's quad-core A53 — faster still on most laptops.
 
 ### 3. Activate the model
 
@@ -550,57 +552,61 @@ python3 ml_infer.py --export report.csv    # export per-frame predictions
 
 ---
 
-## Neural Inference on Arduino Uno Q
+## Neural Inference
 
-EdgeAI Predictive Monitor uses ONNX Runtime with ARMv8 NEON SIMD acceleration
-on the Uno Q's Cortex-A53 cores. For the larger Conv1D autoencoder, optional
-OpenCL acceleration on the Adreno 702 GPU is available via Apache TVM
-(see [docs/GPU_SETUP.md](docs/GPU_SETUP.md) for build instructions).
-Both paths are fully open-source — no Qualcomm proprietary SDK required.
+EdgeAI Predictive Monitor uses ONNX Runtime, which auto-selects ARMv8 NEON SIMD
+on aarch64 hosts (including the Uno Q's Cortex-A53 cores) or AVX2 on x86
+laptops — the same 7-dim statistical-feature autoencoder runs portably either
+way. On the Uno Q specifically, optional OpenCL acceleration on the Adreno 702
+GPU is available via Apache TVM (see [docs/GPU_SETUP.md](docs/GPU_SETUP.md) for
+build instructions) — it currently accelerates this same model, not a separate
+one. Both paths are fully open-source — no Qualcomm proprietary SDK required.
 
 > EPM uses only MIT- and Apache 2.0-licensed tooling that can be audited,
 > redistributed, and deployed without any vendor agreement or proprietary SDK.
 
 ### Provider selection
 
-`mic_tools/inference.py` automatically picks the best available backend:
+`gateway/pipeline/inference.py` automatically picks the best available backend:
 
 | Priority | Provider | Hardware |
 |----------|----------|----------|
 | 1 | `CUDAExecutionProvider` | NVIDIA dev laptops |
 | 2 | `CoreMLExecutionProvider` | macOS dev laptops |
-| 3 | `CPUExecutionProvider` | Uno Q (NEON aarch64), everything else |
+| 3 | `CPUExecutionProvider` | aarch64 hosts incl. Uno Q (NEON), x86 laptops (AVX2) |
 
-The `CPUExecutionProvider` on the Uno Q is NEON-accelerated automatically by
-ONNX Runtime's aarch64 build — no configuration needed. A 28-feature autoencoder
-hits ~1–3 ms on the A53 cores, which is already faster than the satellite frame
-rate (~450 ms/frame).
+The `CPUExecutionProvider` on aarch64 hosts like the Uno Q is NEON-accelerated
+automatically by ONNX Runtime's aarch64 build — no configuration needed. The
+7-feature autoencoder hits ~1–3 ms on the Uno Q's A53 cores, which is already
+faster than the satellite frame rate (~450 ms/frame).
 
 ### Benchmark
 
 ```bash
-# Run on the Uno Q after installing onnxruntime:
-python3 mic_tools/inference.py --model model/autoencoder.onnx
+# Run after installing onnxruntime:
+python3 gateway/pipeline/inference.py --model model/autoencoder.onnx
 
 # Expected output:
 # [EPM] Inference backend: ONNX Runtime / CPUExecutionProvider (NEON aarch64)
-# [EPM] Model: autoencoder_v1 (3584-dim input, 8-dim bottleneck)
+# [EPM] Model: autoencoder_v1 (7-dim input, 8-dim bottleneck)
 # [EPM] Latency: p50=1.8ms p95=2.4ms p99=2.9ms (n=200)
 # [EPM] Throughput: 555 inferences/sec, headroom for 200 satellites @ 2 fps each
 ```
 
 ### Optional Adreno 702 GPU path
 
-For the Conv1D autoencoder on raw FFT input, GPU inference via Apache TVM + OpenCL
-can reduce latency by 2–4×. See [docs/GPU_SETUP.md](docs/GPU_SETUP.md).
+GPU inference via Apache TVM + OpenCL on the Uno Q's Adreno 702 can reduce
+latency on this same model by 2–4×. See [docs/GPU_SETUP.md](docs/GPU_SETUP.md).
+A larger Conv1D autoencoder on raw FFT input is a reserved/aspirational target
+for this path, not something implemented today.
 
 ```bash
 # Verify OpenCL first, then:
-python3 mic_tools/inference_gpu.py --model model/autoencoder.onnx
+python3 gateway/pipeline/inference_gpu.py --model model/autoencoder.onnx
 ```
 
 `inference_gpu.py` exposes the same interface as `inference.py` and falls back to
-CPU automatically if TVM is not installed.
+the CPU path automatically if TVM is not installed.
 
 ---
 
