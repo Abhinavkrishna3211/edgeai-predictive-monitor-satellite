@@ -245,3 +245,16 @@ testing.
   `MIC_FS_HZ=16000` / `IMU_FS_HZ=25600` configuration) — this is a firmware
   sampling-rate choice per node type, not evidence of inferior sensor
   hardware on either side.
+- The accel's locatable-band failure above ~100 Hz is very likely a
+  **test-methodology limitation** (laptop speaker/chassis coupling is not a
+  calibrated vibration source and appears resonance-dominated at these
+  frequencies, consistent across all three axes) rather than a real ceiling
+  on what the KX134 + firmware combination can detect. Re-validating the
+  100-150 Hz+ band with an actual shaker table or a more direct-coupled
+  vibration source is recommended before drawing any conclusions about the
+  accelerometer's usable frequency range for fault-detection tuning.
+- 125 Hz (the spec-mandated floor-sweep frequency) turned out to be a poor
+  test frequency for the same reason 1000 Hz was on the mic side — future
+  accel floor testing should default to a frequency already confirmed
+  reliable in a frequency sweep (as 90 Hz was here) rather than an
+  arbitrarily chosen one.
