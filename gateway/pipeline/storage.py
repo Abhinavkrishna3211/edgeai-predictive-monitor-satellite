@@ -6,16 +6,21 @@ and serialisable model state (adaptive baselines, RUL estimator).
 Uses WAL journaling so the HTTP reader thread never blocks the satellite
 writer thread, and a crash mid-write leaves the DB in a consistent state.
 
-Thread-safety: sqlite3 connections opened with check_same_thread=False and
-isolation_level=None (autocommit).  The GIL plus SQLite's own WAL locking
-makes single-row inserts and SELECT queries safe without a Python-level lock.
-Only DDL (CREATE TABLE) is run inside a BEGIN/COMMIT via executescript().
+Thread-safety: a single sqlite3 connection is shared across threads
+(check_same_thread=False, isolation_level=None/autocommit) so the HTTP
+reader thread and satellite writer thread(s) both use it. The GIL does
+NOT make concurrent calls into that connection safe -- two threads
+calling conn.execute() at the same time can hit SQLITE_MISUSE ("bad
+parameter or other API misuse"), because sqlite3 releases the GIL while
+blocked in the underlying C API. Every method that touches self.conn
+therefore acquires self._lock first.
 """
 
 import gzip
 import json
 import os
 import sqlite3
+import threading
 import time
 
 SCHEMA = """
@@ -63,18 +68,21 @@ class Storage:
 
     def __init__(self, db_path: str = "logs/epm.db"):
         self.path = db_path
+        self._lock = threading.Lock()
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
         self._connect()
-        # DDL must run outside autocommit (executescript wraps in BEGIN/COMMIT)
-        self.conn.executescript(SCHEMA)
-        # WAL mode: readers never block writer; writer never blocks readers.
-        # Must be set AFTER the schema so the journal mode applies to all tables.
-        self.conn.execute("PRAGMA journal_mode = WAL")
-        self.conn.execute("PRAGMA synchronous = NORMAL")   # durable but fast
-        self.conn.execute("PRAGMA cache_size = -8000")     # 8 MB page cache
+        with self._lock:
+            # DDL must run outside autocommit (executescript wraps in BEGIN/COMMIT)
+            self.conn.executescript(SCHEMA)
+            # WAL mode: readers never block writer; writer never blocks readers.
+            # Must be set AFTER the schema so the journal mode applies to all tables.
+            self.conn.execute("PRAGMA journal_mode = WAL")
+            self.conn.execute("PRAGMA synchronous = NORMAL")   # durable but fast
+            self.conn.execute("PRAGMA cache_size = -8000")     # 8 MB page cache
 
     def _connect(self):
-        # check_same_thread=False: we rely on the GIL + WAL for safety.
+        # check_same_thread=False: connection is shared across threads, but
+        # every call site serialises access via self._lock (see module docstring).
         # isolation_level=None: autocommit — every INSERT commits immediately.
         self.conn = sqlite3.connect(
             self.path, check_same_thread=False, isolation_level=None)
@@ -84,47 +92,51 @@ class Storage:
     def log_alert(self, sat: str, from_state: str, to_state: str,
                   p_fault: float, reason: str = "") -> None:
         """Persist one state-change or INFO event to the alert_events table."""
-        self.conn.execute(
-            "INSERT INTO alert_events"
-            "(satellite, ts, from_state, to_state, p_fault, reason)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (sat, int(time.time()), from_state, to_state,
-             float(p_fault), reason or ""),
-        )
+        with self._lock:
+            self.conn.execute(
+                "INSERT INTO alert_events"
+                "(satellite, ts, from_state, to_state, p_fault, reason)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (sat, int(time.time()), from_state, to_state,
+                 float(p_fault), reason or ""),
+            )
 
     def recent_alerts(self, sat: str = None, limit: int = 100):
         """Return up to `limit` most-recent alert rows, optionally filtered by satellite."""
-        if sat:
+        with self._lock:
+            if sat:
+                return self.conn.execute(
+                    "SELECT * FROM alert_events"
+                    " WHERE satellite=? ORDER BY ts DESC LIMIT ?",
+                    (sat, limit),
+                ).fetchall()
             return self.conn.execute(
-                "SELECT * FROM alert_events"
-                " WHERE satellite=? ORDER BY ts DESC LIMIT ?",
-                (sat, limit),
+                "SELECT * FROM alert_events ORDER BY ts DESC LIMIT ?",
+                (limit,),
             ).fetchall()
-        return self.conn.execute(
-            "SELECT * FROM alert_events ORDER BY ts DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
 
     # ── Maintenance log ───────────────────────────────────────────────────────
 
     def log_maintenance(self, sat: str, technician: str,
                         work_type: str, notes: str) -> None:
         """Append a maintenance event.  `notes` may be a raw string or JSON dict."""
-        self.conn.execute(
-            "INSERT INTO maintenance"
-            "(satellite, ts, technician, work_type, notes)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (sat, int(time.time()), technician or "", work_type or "", notes or ""),
-        )
+        with self._lock:
+            self.conn.execute(
+                "INSERT INTO maintenance"
+                "(satellite, ts, technician, work_type, notes)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (sat, int(time.time()), technician or "", work_type or "", notes or ""),
+            )
 
     def get_latest_maintenance(self, sat: str) -> "dict | None":
         """Return the most recent maintenance record for `sat` as a dict, or None."""
-        row = self.conn.execute(
-            "SELECT technician, work_type, notes, ts"
-            " FROM maintenance WHERE satellite=?"
-            " ORDER BY ts DESC LIMIT 1",
-            (sat,),
-        ).fetchone()
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT technician, work_type, notes, ts"
+                " FROM maintenance WHERE satellite=?"
+                " ORDER BY ts DESC LIMIT 1",
+                (sat,),
+            ).fetchone()
         if row is None:
             return None
         technician, work_type, notes_field, ts = row
@@ -143,13 +155,14 @@ class Storage:
     def get_all_maintenance(self) -> dict:
         """Return {satellite: latest_record_dict} for every satellite with maintenance history."""
         # Subquery isolates max(ts) per satellite before joining for notes
-        rows = self.conn.execute(
-            "SELECT m.satellite, m.technician, m.work_type, m.notes, m.ts"
-            " FROM maintenance m"
-            " INNER JOIN ("
-            "   SELECT satellite, MAX(ts) AS max_ts FROM maintenance GROUP BY satellite"
-            " ) latest ON m.satellite = latest.satellite AND m.ts = latest.max_ts"
-        ).fetchall()
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT m.satellite, m.technician, m.work_type, m.notes, m.ts"
+                " FROM maintenance m"
+                " INNER JOIN ("
+                "   SELECT satellite, MAX(ts) AS max_ts FROM maintenance GROUP BY satellite"
+                " ) latest ON m.satellite = latest.satellite AND m.ts = latest.max_ts"
+            ).fetchall()
         result: dict = {}
         for sat, tech, wtype, notes_field, ts in rows:
             try:
@@ -164,20 +177,22 @@ class Storage:
 
     def save_model_state(self, sat: str, component: str, state: dict) -> None:
         """Upsert a JSON-serialisable model state (replaces any existing row)."""
-        self.conn.execute(
-            "INSERT OR REPLACE INTO model_state"
-            "(satellite, component, state_json, updated_at)"
-            " VALUES (?, ?, ?, ?)",
-            (sat, component, json.dumps(state), int(time.time())),
-        )
+        with self._lock:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO model_state"
+                "(satellite, component, state_json, updated_at)"
+                " VALUES (?, ?, ?, ?)",
+                (sat, component, json.dumps(state), int(time.time())),
+            )
 
     def load_model_state(self, sat: str, component: str) -> "dict | None":
         """Return the stored state dict, or None if no entry exists."""
-        row = self.conn.execute(
-            "SELECT state_json FROM model_state"
-            " WHERE satellite=? AND component=?",
-            (sat, component),
-        ).fetchone()
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT state_json FROM model_state"
+                " WHERE satellite=? AND component=?",
+                (sat, component),
+            ).fetchone()
         if row is None:
             return None
         try:
@@ -190,7 +205,8 @@ class Storage:
     def close(self) -> None:
         """Close the SQLite connection (releases WAL file lock on Windows)."""
         try:
-            self.conn.close()
+            with self._lock:
+                self.conn.close()
         except Exception:
             # Best-effort: only called at shutdown/__exit__, nothing left to
             # recover into. storage.py stays print-free by design (Phase 8b1)
@@ -208,12 +224,13 @@ class Storage:
     def upsert_satellite(self, name: str, mac: str) -> None:
         """Register (or update last_seen for) a satellite."""
         now = int(time.time())
-        self.conn.execute(
-            "INSERT INTO satellites(name, mac, first_seen, last_seen)"
-            " VALUES (?, ?, ?, ?)"
-            " ON CONFLICT(name) DO UPDATE SET mac=excluded.mac, last_seen=excluded.last_seen",
-            (name, mac, now, now),
-        )
+        with self._lock:
+            self.conn.execute(
+                "INSERT INTO satellites(name, mac, first_seen, last_seen)"
+                " VALUES (?, ?, ?, ?)"
+                " ON CONFLICT(name) DO UPDATE SET mac=excluded.mac, last_seen=excluded.last_seen",
+                (name, mac, now, now),
+            )
 
 
 # ── CSV log rotation (called from recv_verify background thread) ───────────────
