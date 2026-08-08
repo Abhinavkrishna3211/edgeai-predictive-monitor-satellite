@@ -268,3 +268,204 @@ as the mic-channel conclusion above.
 - Investigate whether accel FFT removes DC before transform (candidate
   explanation for `accel_x`'s gravity-dominated spectrum swamping any real
   AC content) — code-level check, not a bench-test action.
+
+---
+
+## Addendum (2026-08-08): re-test after the wire fft_size fix
+
+`docs/decisions/ADR-020-bin-count-downsampled-not-buffer-enlarged.md`'s
+same-day addendum documents a wire-protocol bug found via this document's
+"4 kHz — architecturally out of range" section above: `net_task.c` reported
+the *native* fft_size (1024 mic / 2048 accel) instead of the pooled,
+effective fft_size, so any consumer computing bin width via `fs / fft_size`
+— including this tool's `capture_and_compare.py` — recovered the wrong bin
+width: 15.625 Hz/bin instead of the true 62.5 Hz/bin for mic, 12.5 Hz/bin
+instead of the true 100 Hz/bin for accel. Every search window in the
+results above was scaled wrong by exactly that factor. This addendum
+re-runs the same tone sweep against the fixed firmware to see how much of
+the original negative results that explains. **Not assumed either
+way going in** — re-tested and reported below.
+
+### Pre-test blocker: stale MQTT broker host in NVS
+
+Before any tone could be captured, the satellite failed to connect to its
+MQTT broker (`select() timeout` against `10.42.0.1`) — a value seeded into
+NVS from an earlier hotspot-based session and never updated for this
+session's `MUTHIYATTIRI 2.4GHz` / `192.168.1.5` (Mosquitto on the laptop)
+setup. The *compiled* default (`EPM_MQTT_BROKER_HOST` in `link_mqtt.c` /
+`wifi_task.c`) is also still `10.42.0.1`, so a bare NVS erase alone would
+not have fixed it — confirmed by reading the source before touching
+hardware. Worked around by a full `pio run -t erase` (the device's
+`node_id` is derived from chip MAC, not NVS-stored, so identity survived)
+and reflash with `EPM_MQTT_BROKER_HOST=192.168.1.5` passed via
+`PLATFORMIO_BUILD_FLAGS` for this session only — not committed to
+`platformio.ini`. A gitignored `.env.local`-style override for the broker
+host, matching `tools/devrig/.env.local`'s existing pattern for the
+reference-repo URL, is a planned follow-up so a bench-network change
+doesn't require a source edit and reflash every time.
+
+### Verification the fix landed on the wire
+
+Decoded a live frame directly, before running any tone test:
+
+| channel | fs (Hz) | fft_size | bin_count | bin width |
+|---|---|---|---|---|
+| mic | 16000 | 256 | 128 | 62.5 Hz |
+| accel_x / accel_y / accel_z | 25600 | 256 | 128 | 100.0 Hz |
+| accel_x/y/z_envelope | 3200 | 256 | 128 | 12.5 Hz (unchanged — never pooled) |
+
+Matches the fix's target values exactly.
+
+### Mic channel — re-test
+
+Setup differed from the original run in one respect: the tone was played
+continuously by the operator (phone tone generator held near the mic,
+same placement family as the original run's phone attempts) rather than
+a timed one-shot, so `generate_and_play.py tone --no-play` was used to
+produce the ground-truth manifest only, without double-sourcing the tone
+through the tool's own laptop-speaker playback.
+
+**200 Hz:**
+
+| metric | expected | actual | % delta |
+|---|---|---|---|
+| peak_bin_freq_hz | 200.000 | 218.750 | +9.375% |
+| peak_bin_db | -- | -69.662 | -- |
+| rms | 0.565685 | 0.000414 | -99.927% |
+| crest_factor | 1.414214 | 2.239069 | +58.326% |
+| kurtosis_excess | -1.500000 | -0.886397 | -40.907% |
+| skewness | 0.000000 | -0.049843 | (abs delta -0.049843) |
+
+**1000 Hz:**
+
+| metric | expected | actual | % delta |
+|---|---|---|---|
+| peak_bin_freq_hz | 1000.000 | 1031.250 | +3.125% |
+| peak_bin_db | -- | -57.549 | -- |
+| rms | 0.565685 | 0.001700 | -99.700% |
+| crest_factor | 1.414214 | 1.816666 | +28.458% |
+| kurtosis_excess | -1.500000 | -1.125915 | -24.939% |
+| skewness | 0.000000 | -0.010187 | (abs delta -0.010187) |
+
+Both `peak_bin_freq_hz` values land in the bin that structurally contains
+the played frequency — 200 Hz falls in bin 3's (187.5, 250] Hz range
+(reported as its 218.75 Hz center); 1000 Hz sits on the bin 15/16 boundary,
+effectively a single-bin match. Both are clean, confident detections,
+against a genuinely quiet signal (-70 to -58 dBFS) that the old,
+wrongly-scaled search window would have had to find by accident. This is a
+reversal from the original run's 0/6 detections at these same two
+frequencies. `rms`/`crest_factor`/`kurtosis_excess` deltas remain large —
+expected, since `ideal_sine_stats()`'s closed-form manifold models a clean
+sine at the played amplitude, not a real captured signal at unmeasured
+distance/volume through a real mic's noise floor; only `peak_bin_freq_hz`
+is a frequency-domain claim this fix bears on.
+
+**Conclusion: the wire fft_size mislabeling, not equipment/coupling, was
+the dominant cause of the original mic-channel non-detections.**
+`capture_and_compare.py` was reading `fs`/`fft_size` straight off the wire
+the whole time (`gateway/common/telemetry_frame.py` already decoded them
+correctly, per its own pooled-aware convention) — it was the *satellite*
+misreporting `fft_size`, so every comparison in the original run was
+checking the wrong bin's frequency label against the right raw data. The
+original run's "equipment/coupling limitation" conclusion for the mic
+channel is superseded by this finding. Original numbers above are left
+unedited, per this doc's own convention.
+
+### Accelerometer channel — re-test
+
+Setup changed from the original run in a way this addendum does **not**
+control for: rather than resting the board loosely against the underside
+of the laptop chassis, the laptop was placed directly on top of the
+satellite board this session — a firmer but uncontrolled contact path,
+different from the original run's placement. This is a confound flagged
+explicitly, not folded silently into the conclusion below.
+
+60 Hz tone, amplitude 1.0:
+
+**accel_x:**
+
+| metric | expected | actual | % delta |
+|---|---|---|---|
+| peak_bin_freq_hz | 60.000 | 450.000 | +650.000% |
+| peak_bin_db | -- | -52.214 | -- |
+| rms | 0.707107 | 1.015044 | +43.549% |
+| crest_factor | 1.414214 | 1.285832 | -9.078% |
+| kurtosis_excess | -1.500000 | -1.994434 | +32.962% |
+| skewness | 0.000000 | -3.749820 | (abs delta -3.749820) |
+
+**accel_y:**
+
+| metric | expected | actual | % delta |
+|---|---|---|---|
+| peak_bin_freq_hz | 60.000 | 50.000 | -16.667% |
+| peak_bin_db | -- | -52.638 | -- |
+| rms | 0.707107 | 0.097083 | -86.270% |
+| crest_factor | 1.414214 | 5.912220 | +318.057% |
+| kurtosis_excess | -1.500000 | 0.305227 | -120.348% |
+| skewness | 0.000000 | -0.437151 | (abs delta -0.437151) |
+
+**accel_z:**
+
+| metric | expected | actual | % delta |
+|---|---|---|---|
+| peak_bin_freq_hz | 60.000 | 250.000 | +316.667% |
+| peak_bin_db | -- | -51.391 | -- |
+| rms | 0.707107 | 0.044455 | -93.713% |
+| crest_factor | 1.414214 | 8.935349 | +531.825% |
+| kurtosis_excess | -1.500000 | 21.882227 | -1558.815% |
+| skewness | 0.000000 | -0.007263 | (abs delta -0.007263) |
+
+`accel_y` now lands in the *structurally correct* bin: at 100 Hz/bin
+resolution, 60 Hz falls inside bin 0's (0, 100] Hz range, reported as that
+bin's 50 Hz center — a real, if coarse, detection. This matches the
+original run's full-timeline scan finding that `accel_y` touched the
+correct bin in 2 of 8 blocks even under the old mislabeling; here it is
+reproduced in a formal single-frame capture. `accel_x` and `accel_z` still
+miss. `accel_x` keeps the same gravity-DC-dominated baseline
+(rms ~1.0-1.02g both sessions) already flagged as a candidate explanation
+in the original run's conclusion, unrelated to this fix. `accel_z`'s miss
+(250 Hz instead of 60 Hz) is new and not explained by the wire bug alone —
+plausibly broadband mechanical noise from a full laptop (fan, chassis
+resonance) now resting directly on the board, a difference introduced by
+this session's firmer, uncontrolled coupling method, not isolated further
+here.
+
+**Conclusion: partial support for the same finding as the mic channel, but
+weaker and confounded.** One axis (`accel_y`) flipped from
+wandering-noise-floor to a genuine correct-bin detection under the fix;
+`accel_x` and `accel_z` still show no lock, for reasons plausibly unrelated
+to the wire bug (gravity DC on X; likely new broadband noise on Z from
+this session's different, firmer coupling). Because the physical coupling
+method changed between the original run and this one, this result cannot
+cleanly separate "the wire fix helped" from "the new coupling method is
+different." A follow-up holding the *exact* original resting-contact
+placement constant, changing only the firmware, would isolate the two.
+
+### Updated overall conclusion
+
+The wire fft_size bug explains the *entirety* of the original mic-channel
+non-detections, and at least *part* of the original accelerometer
+non-detections (`accel_y`). The original run's "equipment/coupling
+limitation" explanation, while still plausible for `accel_x`/`accel_z`'s
+remaining misses, was not the right explanation for the mic channel or for
+`accel_y` — those were the wire protocol reporting bin frequencies scaled
+wrong by a factor the DSP pipeline itself never got wrong.
+
+### Follow-up (not done this session)
+
+- Parameterize `EPM_MQTT_BROKER_HOST` via a gitignored `.env.local`-style
+  override (matching `tools/devrig/.env.local`'s pattern), so a bench
+  network change doesn't require a source edit and reflash.
+- Re-test the accelerometer channel holding the *exact* original
+  resting-against-chassis placement constant, to separate the wire fix's
+  effect from this session's laptop-on-board coupling change.
+- Investigate `accel_z`'s new 250 Hz miss under the firmer coupling method
+  used this session (candidate: broadband fan/chassis noise from direct
+  laptop contact) — not investigated further here.
+- Try acoustic (near-field speaker, no physical contact) excitation for the
+  accelerometer channel rather than resting/direct-contact coupling —
+  reported informally this session as having worked for a teammate on a
+  separate setup. Untested here; airborne excitation driving a board's
+  resonance is a plausible, cleaner alternative to both of this doc's
+  contact-coupling methods, worth a dedicated re-test rather than folding
+  into this addendum's numbers.
