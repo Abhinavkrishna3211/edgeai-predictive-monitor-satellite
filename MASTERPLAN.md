@@ -197,7 +197,7 @@ falls out on its own before adding a keepalive probe during the IMU wait.
   `sdkconfig.xiao_esp32s3` (matches `[env:xiao_esp32s3]`; contains `CONFIG_SPIRAM=y`
   @ L1084, `FLASHSIZE_8MB`, `partitions_simple_8mb.csv`). Both are gitignored, so this
   is **local** cleanup only.
-- No AI-tool session worktrees present.
+- No stray build worktrees present.
 - Any doc still asserting PSRAM-disabled, IMU priority 5, or `SPEC_AVG_N=16` is stale
   (build now sets `SPEC_AVG_N=4` in [platformio.ini:33](platformio.ini#L33)) —
   reconcile `docs/` during the doc-fix pass.
@@ -223,7 +223,7 @@ falls out on its own before adding a keepalive probe during the IMU wait.
   in history.
 - **LOW — dead managed dependency:** `src/idf_component.yml` still declares
   `espressif/mdns: ">=1.3.0"` though mDNS is gone from the source → remove it.
-- **Add to `.gitignore`:** the AI-tool session directory, `build_log_stackfix.txt` (build artifact).
+- **Add to `.gitignore`:** the local tool session directory, `build_log_stackfix.txt` (build artifact).
 - **Everything from tonight is uncommitted** (13 modified `src/`+config files, plus
   untracked `PROJECT_STATUS.md`, partition CSVs, helper scripts).
 
@@ -249,7 +249,7 @@ Commit in this order so each change is bisectable:
 6. **`feat(gateway): recv_verify updates`** — `mic_tools/recv_verify.py`.
 7. **`chore(repo): drop dead files/deps, ignore session artifacts`**
    delete `src/test_blink.c`; drop `espressif/mdns` from `src/idf_component.yml`;
-   add the AI-tool session directory + `build_log_stackfix.txt` to `.gitignore`;
+   add the local tool session directory + `build_log_stackfix.txt` to `.gitignore`;
    commit `PROJECT_STATUS.md`.
 
 `wifi_creds.h` stays uncommitted (gitignored — correct). `partitions_8mb.csv` (the
