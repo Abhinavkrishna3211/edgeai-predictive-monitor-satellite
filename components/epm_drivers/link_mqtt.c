@@ -231,7 +231,18 @@ int link_mqtt_start(void)
 	 * the previous handle - esp_mqtt_client_init() allocates the client
 	 * struct, its internal event loop, and I/O buffers (buffer.size +
 	 * buffer.out_size = 8KB alone), none of which esp_mqtt_client_start()
-	 * failing tears back down on its own. */
+	 * failing tears back down on its own.
+	 *
+	 * The destroy-through-start sequence below is wrapped in s_mutex -
+	 * the same lock transport_publish_spectrum() takes around s_client -
+	 * because in normal operation this only ever runs once, before
+	 * net_task_fn()'s publish loop starts, so there was never a concurrent
+	 * publisher to race against. That invariant doesn't hold for a
+	 * would-be second caller (e.g. an accelerated retry-path stress test),
+	 * which could otherwise observe a torn-down or half-initialised
+	 * s_client mid-publish. */
+	xSemaphoreTake(s_mutex, portMAX_DELAY);
+
 	if (s_client != NULL) {
 		esp_mqtt_client_destroy(s_client);
 		s_client = NULL;
@@ -250,12 +261,15 @@ int link_mqtt_start(void)
 
 	s_client = esp_mqtt_client_init(&cfg);
 	if (s_client == NULL) {
+		xSemaphoreGive(s_mutex);
 		return -ENOMEM;
 	}
 
 	esp_mqtt_client_register_event(s_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
 
 	esp_err_t err = esp_mqtt_client_start(s_client);
+
+	xSemaphoreGive(s_mutex);
 
 	if (err != ESP_OK) {
 		ESP_LOGE(TAG, "esp_mqtt_client_start failed: 0x%x", err);
