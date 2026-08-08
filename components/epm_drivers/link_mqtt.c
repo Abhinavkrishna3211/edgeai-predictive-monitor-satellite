@@ -225,6 +225,18 @@ int link_mqtt_start(void)
 	snprintf(s_data_topic, sizeof(s_data_topic), "epm/%s/data", s_node_id);
 	snprintf(s_cmd_topic, sizeof(s_cmd_topic), "epm/%s/cmd", s_node_id);
 
+	/* net_task.c retries link_mqtt_start() on any non-zero return, including
+	 * esp_mqtt_client_start() failing *after* esp_mqtt_client_init() already
+	 * succeeded below. Without this, a retry overwrites s_client and leaks
+	 * the previous handle - esp_mqtt_client_init() allocates the client
+	 * struct, its internal event loop, and I/O buffers (buffer.size +
+	 * buffer.out_size = 8KB alone), none of which esp_mqtt_client_start()
+	 * failing tears back down on its own. */
+	if (s_client != NULL) {
+		esp_mqtt_client_destroy(s_client);
+		s_client = NULL;
+	}
+
 	esp_mqtt_client_config_t cfg = {
 		.broker.address.hostname = EPM_MQTT_BROKER_HOST,
 		.broker.address.port = EPM_MQTT_BROKER_PORT,
