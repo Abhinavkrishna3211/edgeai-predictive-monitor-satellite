@@ -48,7 +48,10 @@ add_executable(test_spectrum
     ${CMAKE_CURRENT_SOURCE_DIR}/test_spectrum.c
     ${REPO_ROOT}/components/epm_dsp/spectrum.c
 )
-target_include_directories(test_spectrum PRIVATE ${REPO_ROOT}/components/epm_dsp/include)
+target_include_directories(test_spectrum PRIVATE
+    ${REPO_ROOT}/components/epm_dsp/include
+    ${REPO_ROOT}/src
+)
 target_link_libraries(test_spectrum PRIVATE m)
 target_compile_options(test_spectrum PRIVATE -Wall -Wextra)
 

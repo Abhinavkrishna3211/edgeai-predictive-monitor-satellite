@@ -11,6 +11,7 @@
 #include <stdlib.h>
 
 #include "dsp/spectrum.h"
+#include "epm_config.h"
 #include "test_util.h"
 
 #define FLOOR_DB   -80.0f
@@ -108,12 +109,35 @@ static void test_flat_spectrum(void)
                 "uniform -42 dBFS input must reduce to uniform -42 dBFS output");
 }
 
+/* net_task.c's wire-reported fft_size for the 4 pooled channels must be the
+ * *effective*, post-pooling fft_size (src/epm_config.h's
+ * EPM_MIC_WIRE_FFT_SIZE/EPM_IMU_WIRE_FFT_SIZE), not the native
+ * FFT_MIC_N/FFT_IMU_N -- otherwise a consumer computing bin width the
+ * standard way (fs / fft_size) recovers the native bin width instead of the
+ * true pooled one (ADR-020 addendum: the mislabeling this guards against
+ * capped the mic wire spectrum's apparent range at ~1984 Hz of a real
+ * 0-8000 Hz Nyquist range). */
+static void test_wire_fft_size_true_bin_width(void)
+{
+    float mic_bin_hz = (float)MIC_FS_HZ / (float)EPM_MIC_WIRE_FFT_SIZE;
+    float imu_bin_hz = (float)IMU_FS_HZ / (float)EPM_IMU_WIRE_FFT_SIZE;
+    int mic_ok = fabsf(mic_bin_hz - 62.5f) < 0.001f;
+    int imu_ok = fabsf(imu_bin_hz - 100.0f) < 0.001f;
+    char detail[160];
+
+    snprintf(detail, sizeof(detail),
+             "mic fs/fft_size=%.4f Hz (want 62.5), accel fs/fft_size=%.4f Hz (want 100.0)",
+             (double)mic_bin_hz, (double)imu_bin_hz);
+    test_report("wire_fft_size_true_bin_width", mic_ok && imu_ok, EXPECT_PASS, detail);
+}
+
 int main(void)
 {
     test_divisibility_guard();
     test_reduce_512_to_128();
     test_reduce_1024_to_128();
     test_flat_spectrum();
+    test_wire_fft_size_true_bin_width();
 
     return test_summary();
 }
