@@ -134,7 +134,13 @@ def render_label(node_id, ssid, password, output_dir, size_mm, dpi):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / "{}.png".format(node_id)
-    canvas.save(out_path, dpi=(dpi, dpi))
+    # format="PNG" explicitly: Pillow otherwise infers format from out_path's
+    # suffix, which pathlib parses as empty when node_id == "" (out_path
+    # becomes just ".png", a dotfile with no extension in pathlib's eyes),
+    # crashing the save. node_id is never empty for a real device, but this
+    # keeps the save format-correct regardless of what node_id turns out to
+    # be rather than depending on filename-extension sniffing.
+    canvas.save(out_path, format="PNG", dpi=(dpi, dpi))
     return out_path
 
 
@@ -155,20 +161,41 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def resolve_input_mode(args):
+    """Decide how to obtain (ssid, password) from parsed CLI args, with no
+    I/O of its own (no serial open, no render) so it's separately testable
+    from read_from_serial()/render_label().
+
+    Returns one of:
+      ("serial", None)          — caller should read_from_serial(...)
+      ("manual", (ssid, pass))  — caller has both values already
+      ("error", message)        — caller should print message and exit
+
+    Uses `is not None` rather than truthiness so an explicitly-passed empty
+    string (--ssid "" --password "") is honored as "provided" instead of
+    being silently treated the same as an omitted flag.
+    """
+    manual = args.ssid is not None or args.password is not None
+    if args.port and manual:
+        return ("error", "--port cannot be combined with --ssid/--password")
+    if args.port:
+        return ("serial", None)
+    if args.ssid is not None and args.password is not None:
+        return ("manual", (args.ssid, args.password))
+    return ("error", "pass either --port, or both --ssid and --password")
+
+
 def main(argv=None):
     args = parse_args(argv)
 
-    manual = args.ssid or args.password
-    if args.port and manual:
-        print("error: --port cannot be combined with --ssid/--password", file=sys.stderr)
+    mode, payload = resolve_input_mode(args)
+    if mode == "error":
+        print("error: {}".format(payload), file=sys.stderr)
         return 2
-    if args.port:
+    if mode == "serial":
         ssid, password = read_from_serial(args.port, args.baud, args.timeout)
-    elif args.ssid and args.password:
-        ssid, password = args.ssid, args.password
     else:
-        print("error: pass either --port, or both --ssid and --password", file=sys.stderr)
-        return 2
+        ssid, password = payload
 
     node_id = node_id_from_ssid(ssid)
     out_path = render_label(node_id, ssid, password, args.output_dir, args.size_mm, args.dpi)

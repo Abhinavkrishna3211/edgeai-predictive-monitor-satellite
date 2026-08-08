@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """
-test_generate_label.py — Unit tests for generate_label.py's pure logic:
-the provisioning-log-line parser and the WiFi QR payload builder. Neither
-needs a serial port, qrcode, or Pillow installed (both are lazy-imported
-inside generate_label.py's render/serial functions), so this file has no
-dependency on tools/provisioning_label/requirements.txt.
+test_generate_label.py — Unit tests for generate_label.py.
+
+TestParseLogLine, TestNodeIdFromSsid, TestBuildWifiQrPayload, and
+TestResolveInputMode cover pure logic only — no serial port, qrcode, or
+Pillow needed (those are lazy-imported inside generate_label.py's
+render/serial functions), so this file has no hard dependency on
+tools/provisioning_label/requirements.txt.
+
+TestRenderLabel additionally exercises the actual PNG rendering path
+end-to-end (canvas sizing, save) and is skipped automatically if qrcode/
+Pillow aren't installed — install tools/provisioning_label/requirements.txt
+to run it.
 
 Not wired into the repo's root `tests/` pytest suite / CI — this tool is
 bench tooling (see requirements.txt), not something CI needs to install.
@@ -13,12 +20,36 @@ Run manually:
     python tools/provisioning_label/test_generate_label.py
 """
 
+import argparse
 import os
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(__file__))
-from generate_label import build_wifi_qr_payload, node_id_from_ssid, parse_log_line
+from generate_label import (
+    build_wifi_qr_payload,
+    node_id_from_ssid,
+    parse_log_line,
+    resolve_input_mode,
+)
+
+try:
+    import qrcode  # noqa: F401
+    from PIL import Image, ImageChops  # noqa: F401
+
+    _RENDER_DEPS_AVAILABLE = True
+except ImportError:
+    _RENDER_DEPS_AVAILABLE = False
+
+try:
+    import cv2  # noqa: F401
+
+    _CV2_AVAILABLE = True
+except ImportError:
+    # Not a tool dependency (see requirements.txt) — only used here, if
+    # present, to independently verify a rendered QR actually decodes.
+    _CV2_AVAILABLE = False
 
 
 class TestParseLogLine(unittest.TestCase):
@@ -69,6 +100,88 @@ class TestBuildWifiQrPayload(unittest.TestCase):
 
     def test_empty_fields(self):
         self.assertEqual(build_wifi_qr_payload("", ""), "WIFI:T:WPA;S:;P:;;")
+
+
+def _args(port=None, ssid=None, password=None):
+    return argparse.Namespace(port=port, ssid=ssid, password=password)
+
+
+class TestResolveInputMode(unittest.TestCase):
+    def test_empty_string_ssid_and_password_accepted_as_manual(self):
+        # Regression: an explicitly-passed --ssid "" --password "" was
+        # previously rejected by an `args.ssid and args.password`
+        # truthiness check (empty string is falsy), which is
+        # indistinguishable from the flags never being passed at all.
+        mode, payload = resolve_input_mode(_args(ssid="", password=""))
+        self.assertEqual(mode, "manual")
+        self.assertEqual(payload, ("", ""))
+
+    def test_neither_port_nor_manual_is_error(self):
+        mode, _ = resolve_input_mode(_args())
+        self.assertEqual(mode, "error")
+
+    def test_only_ssid_without_password_is_error(self):
+        mode, _ = resolve_input_mode(_args(ssid="EPM-SAT-a1b2c3"))
+        self.assertEqual(mode, "error")
+
+    def test_port_alone_is_serial_mode(self):
+        mode, payload = resolve_input_mode(_args(port="COM5"))
+        self.assertEqual(mode, "serial")
+        self.assertIsNone(payload)
+
+    def test_port_combined_with_manual_is_error(self):
+        mode, _ = resolve_input_mode(_args(port="COM5", ssid="x", password="y"))
+        self.assertEqual(mode, "error")
+
+
+@unittest.skipUnless(_RENDER_DEPS_AVAILABLE, "qrcode/Pillow not installed — see requirements.txt")
+class TestRenderLabel(unittest.TestCase):
+    def _content_bbox(self, path):
+        """Bounding box of non-white content, via PIL only (no numpy)."""
+        im = Image.open(path).convert("RGB")
+        bg = Image.new("RGB", im.size, "white")
+        diff = ImageChops.difference(im, bg)
+        return im.size, diff.getbbox()
+
+    def test_empty_node_id_does_not_crash_and_saves_valid_png(self):
+        # Regression: node_id="" produced an out_path of just ".png", which
+        # pathlib parses as a suffix-less dotfile — Image.save() then
+        # couldn't infer PNG from the (empty) extension and raised.
+        from generate_label import render_label
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = render_label("", "", "", tmp, size_mm=40.0, dpi=300)
+            self.assertTrue(out_path.exists())
+            size, bbox = self._content_bbox(out_path)
+            self.assertGreater(size[0], 0)
+            self.assertGreater(size[1], 0)
+            self.assertIsNotNone(bbox)
+
+    def test_long_ssid_widens_canvas_instead_of_clipping(self):
+        from generate_label import render_label
+
+        long_ssid = "EPM-SAT-" + "f" * 76
+        password = "2049231551ac0446bc5357c7a1ab3b83"
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = render_label("f" * 76, long_ssid, password, tmp, size_mm=40.0, dpi=300)
+            size, bbox = self._content_bbox(out_path)
+            # Rightmost non-white pixel must sit inside the canvas with
+            # room to spare, not touch/exceed the edge (the clipping bug).
+            self.assertLess(bbox[2], size[0] - 1)
+
+    @unittest.skipUnless(_CV2_AVAILABLE, "opencv-python not installed (optional, decode-check only)")
+    def test_qr_round_trips_through_a_decoder(self):
+        import cv2
+
+        from generate_label import render_label
+
+        ssid, password = "EPM-SAT-a1b2c3", "2049231551ac0446bc5357c7a1ab3b83"
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = render_label("a1b2c3", ssid, password, tmp, size_mm=40.0, dpi=300)
+            decoded, _points, _ = cv2.QRCodeDetector().detectAndDecode(
+                cv2.imread(str(out_path))
+            )
+            self.assertEqual(decoded, build_wifi_qr_payload(ssid, password))
 
 
 if __name__ == "__main__":

@@ -135,3 +135,55 @@ label's edge. `tools/provisioning_label/test_generate_label.py` covers the
 log-line parser and QR-payload builder as pure-logic unit tests. Serial
 auto-capture against real device output is not yet validated on hardware —
 left for the first real bench run.
+
+## Addendum (2026-08-08) — independent render verification, two bugs found and fixed
+
+A from-scratch verification pass (clean venv, fresh
+`requirements.txt` install, not reusing the original session's state)
+exercised `render_label()` end-to-end for three cases and decoded each
+resulting QR with OpenCV's `QRCodeDetector` to confirm it round-trips back
+to `build_wifi_qr_payload()`'s exact output, not just that a QR-shaped
+image was produced:
+
+1. **Realistic** — `EPM-SAT-a1b2c3` / a real 32-hex-char password
+   (`AP_CRED_PASSWORD_LEN`, confirmed from
+   `components/epm_drivers/include/drivers/ap_credentials.h`). Passed:
+   666×674 PNG, no clipping, QR decoded exactly.
+2. **Adversarial long SSID** (84 chars, unrealistic for real firmware but
+   used to stress-test `render_label()`'s dynamic canvas-width
+   computation) — an initial attempt with a 46-char SSID coincidentally
+   didn't stress the width path at all, because the 32-char password line
+   was already the widest line in both the short- and long-SSID cases; a
+   second attempt with a long enough SSID to actually become the widest
+   line confirmed the canvas genuinely widens (472px → 904px) with a real
+   margin (37px) rather than clipping. QR decoded exactly.
+3. **Empty SSID/password** (`build_wifi_qr_payload("", "")`'s already-unit-tested
+   edge case, rendered for the first time here rather than only checked at
+   the string level) — found two real bugs:
+   - `generate_label.py`'s CLI used `elif args.ssid and args.password:` to
+     decide manual mode, which is a truthiness check — `--ssid ""
+     --password ""` made both falsy, so the CLI rejected an *explicitly
+     provided* empty pair identically to the flags never being passed at
+     all, printing `error: pass either --port, or both --ssid and
+     --password`.
+   - Even bypassing that, `render_label()` crashed on save: an empty
+     `node_id` produces `out_path = "<dir>/.png"`, which `pathlib` parses
+     as a suffix-less dotfile (not a `.png`-suffixed file), so
+     `Image.save()` couldn't infer the format from the extension and
+     raised `ValueError: unknown file extension`.
+
+**Both fixed in `tools/provisioning_label/generate_label.py`:** the CLI's
+mode-selection logic was extracted into a pure `resolve_input_mode(args)`
+function using `is not None` instead of truthiness (now independently
+unit-tested via `TestResolveInputMode`, no serial/render I/O needed), and
+`render_label()` now passes `format="PNG"` explicitly to `Image.save()`
+instead of relying on filename-extension sniffing, which is correct
+regardless of what `node_id` turns out to be. Neither bug is reachable
+from real firmware (a real SSID is never empty, and `node_id` is always 6
+hex characters), so neither is a functional gap for actual bench use — but
+both are real crashes/misbehavior for anyone driving the tool
+programmatically or testing it, now closed. Regression coverage added:
+`TestResolveInputMode` (pure logic) and `TestRenderLabel` (render-path,
+auto-skipped when `qrcode`/Pillow aren't installed), including a
+`test_qr_round_trips_through_a_decoder` case using OpenCV if available
+(optional — not a tool dependency, decode-verification only).
