@@ -108,3 +108,52 @@ natural place to call this function per-channel before encoding.
 reduction with a known single strong bin (asserts the reduced spectrum's max
 lands in the expected output band, band position preserved, value close to
 the analytically expected band-averaged power), flat-spectrum sanity case.
+
+## Addendum (2026-08-08): wire fft_size wasn't updated to match the pooling
+
+This decision reduces `bin_count` to 128 but never revisited what `fft_size`
+should say once pooling is in play — `net_task.c`'s channel builder kept
+sending the *native* `FFT_MIC_N`/`FFT_IMU_N` (1024/2048) alongside the
+pooled `bin_count`. `gateway/common/telemetry_frame.py`'s own docstring
+already documents the correct convention ("fft_size is NOT the sender's
+native FFT length whenever it pools bins down before sending" — this file
+was ported from the reference base station and got it right from the
+start), but the firmware violated its own wire contract: any consumer
+computing bin width the standard way (`fs / fft_size`) recovered the
+native, pre-pooling bin width instead of the true pooled one, off by
+exactly `epm_dsp_reduce_bins()`'s pooling factor (4× for mic, 8× for
+accel).
+
+Found during real-hardware bench validation
+(`docs/performance/BENCH_SIGNAL_GEN_HARDWARE_RUN.md`'s 2026-08-08 addendum):
+the mic channel's apparent wire spectrum capped at ~1992 Hz despite a
+16 kHz sample rate that should allow up to 8 kHz Nyquist, and accelerometer
+peak-frequency readings landed on suspiciously clean multiples of the
+*native* 12.5 Hz bin width rather than the true 100 Hz pooled width.
+
+Fix: `src/epm_config.h` adds `EPM_MIC_WIRE_FFT_SIZE`/`EPM_IMU_WIRE_FFT_SIZE`
+(native fft_size divided by `epm_dsp_reduce_bins()`'s own `band` — 256 for
+both channels, since `band` differs but `native_fft_size / band` doesn't),
+plus compile-time `#error` guards asserting the `FFT_MIC_N/FFT_IMU_N`
+divisibility `epm_dsp_reduce_bins()` already requires at runtime.
+`net_task.c`'s channel builder now sends these instead of the raw
+`FFT_MIC_N`/`FFT_IMU_N` for the 4 pooled channels (mic, accel x/y/z). `fs`
+and `bin_count` are unchanged. The 3 envelope channels (Phase 11a /
+ADR-032) are unaffected — they were never pooled, since
+`IMU_ENVELOPE_HALF` is already build-time-asserted equal to
+`EPM_MODEL_SPECTRUM_BINS`.
+
+No gateway-side change was needed: `telemetry_frame.py` already decodes
+`fft_size` opaquely per its documented pooled-aware convention, and no
+other consumer (`autoencoder.py`, `mqtt_subscriber.py`, `dashboard.py`,
+`led_control.py`) reads `fft_size` off a decoded frame at all. (Separately,
+`gateway/api/live_plot.py`'s raw mic/imu spectrum panels build their
+frequency axis from CLI-hardcoded native sizes rather than the decoded
+frame, and already silently never render since their axis length doesn't
+match the wire `bin_count` — a pre-existing, unrelated bug this addendum
+does not touch.)
+
+`tests/host/test_spectrum.c` gained `test_wire_fft_size_true_bin_width()`,
+asserting `MIC_FS_HZ / EPM_MIC_WIRE_FFT_SIZE == 62.5` and
+`IMU_FS_HZ / EPM_IMU_WIRE_FFT_SIZE == 100.0` so this can't silently
+regress.

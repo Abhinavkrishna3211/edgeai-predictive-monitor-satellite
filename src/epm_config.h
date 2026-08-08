@@ -64,6 +64,26 @@
 #define EPM_MODEL_SPECTRUM_BINS 128 /* bins per channel epm_dsp_reduce_bins() reduces to (ADR-020) */
 #endif
 
+/* Wire-reported fft_size for the 4 pooled spectrum channels (mic, accel x/y/z
+ * raw spectra). epm_dsp_reduce_bins() (components/epm_dsp/spectrum.c) pools
+ * `band` = native_usable_bins / EPM_MODEL_SPECTRUM_BINS consecutive native
+ * bins into each output bin, so a consumer recovering bin width the
+ * standard way (fs / fft_size) needs the *effective*, post-pooling fft_size
+ * here -- the native FFT_MIC_N/FFT_IMU_N understates the true bin width by
+ * exactly `band` (ADR-020 addendum). Envelope channels (fft_x_env etc.) are
+ * NOT pooled -- IMU_ENVELOPE_HALF already equals EPM_MODEL_SPECTRUM_BINS --
+ * so they keep reporting their native IMU_ENVELOPE_N unchanged. */
+#if (FFT_MIC_N / 2) % EPM_MODEL_SPECTRUM_BINS != 0
+#error "FFT_MIC_N/2 must be an exact multiple of EPM_MODEL_SPECTRUM_BINS (epm_dsp_reduce_bins() requires in_n % out_n == 0)"
+#endif
+#if (FFT_IMU_N / 2) % EPM_MODEL_SPECTRUM_BINS != 0
+#error "FFT_IMU_N/2 must be an exact multiple of EPM_MODEL_SPECTRUM_BINS (epm_dsp_reduce_bins() requires in_n % out_n == 0)"
+#endif
+#define EPM_MIC_SPECTRUM_BAND ((FFT_MIC_N / 2) / EPM_MODEL_SPECTRUM_BINS)
+#define EPM_IMU_SPECTRUM_BAND ((FFT_IMU_N / 2) / EPM_MODEL_SPECTRUM_BINS)
+#define EPM_MIC_WIRE_FFT_SIZE (FFT_MIC_N / EPM_MIC_SPECTRUM_BAND)
+#define EPM_IMU_WIRE_FFT_SIZE (FFT_IMU_N / EPM_IMU_SPECTRUM_BAND)
+
 #ifndef EPM_NET_PUBLISH_INTERVAL_MS
 #define EPM_NET_PUBLISH_INTERVAL_MS 200 /* matches the reference satellite's FUSER_EPOCH_MS */
 #endif
