@@ -12,9 +12,14 @@ Feature vector (INPUT_DIM = 41):
   [0:9]   Statistical features:
             mic_rms, mic_crest, mic_kurtosis, imu_rms, imu_crest,
             high_band_ratio, z_score, log_kurtosis, log_z
-  [9:41]  32 compressed spectral bands from mic FFT (dBFS → normalised [-1,1]).
-            Each band = mean of 16 consecutive FFT bins.
-            Bands 16-32 cover 2-8 kHz (bearing emission zone) — highest sensitivity.
+  [9:41]  32 compressed spectral bands from mic FFT (dBFS → normalised [-1,1]),
+            covering 0-SPEC_FEATURE_MAX_HZ (0-8 kHz by default).
+            Each band averages an equal share of the bins covering that window
+            (the *bin index* reaching SPEC_FEATURE_MAX_HZ is derived from
+            MIC_FS_HZ, so the window tracks the real Hz range even if the
+            mic sample rate changes — see make_feature_vector()).
+            Bands 16-31 (upper half) cover 4-8 kHz at MIC_FS_HZ=16000 —
+            bearing emission zone, highest sensitivity.
 
 Architecture:
   Encoder:  41 → Dense(64,BN,ReLU) → Dense(32,BN,ReLU) → Dense(16,ReLU) ← bottleneck
@@ -46,11 +51,38 @@ INPUT_DIM  = 41
 SPEC_BANDS = 32  # compressed mic FFT bands appended to stats
 STAT_DIM   = 9   # statistical features (indices 0-8)
 
+# Spectral feature window upper bound, in Hz. Fixed by design — it matches
+# what the trained model's input semantics assume (bands 16-31 = the bearing
+# emission zone) — independent of the mic sample rate. Only the *bin index*
+# that reaches this frequency is derived from MIC_FS_HZ (mirrors how
+# alerting.py's _band_ratios() derives its 500/2000 Hz band edges), so a
+# future MIC_FS_HZ change can't silently shift what Hz range these bands
+# represent.
+SPEC_FEATURE_MAX_HZ = 8000.0
+
 _STAT_KEYS = [
     'mic_rms', 'mic_crest', 'mic_kurtosis',
     'imu_rms', 'imu_crest', 'high_band_ratio', 'z_score',
     # indices 7,8 are derived log features — computed below
 ]
+
+
+def _mic_fs_hz() -> float:
+    """Sample rate for spectral bin-width math.
+
+    Reads recv_verify's live MIC_FS_HZ global when running inside the
+    gateway pipeline — same lazy-import rationale as alerting.py's module
+    docstring (recv_verify.py is still mid-initialization when this module
+    is first imported, and CLI overrides reassign the global after that).
+    Falls back to recv_verify.py's own default when it isn't importable at
+    all, which happens when this module's standalone CLI trainer
+    (`__main__` below) runs without mic_tools/ on sys.path.
+    """
+    try:
+        import recv_verify as _rv
+        return float(_rv.MIC_FS_HZ)
+    except ImportError:
+        return 16000.0
 
 
 def make_feature_vector(frame: dict) -> np.ndarray:
@@ -80,8 +112,17 @@ def make_feature_vector(frame: dict) -> np.ndarray:
     mic_fft = frame.get('mic_fft')
     if mic_fft is not None:
         fft_arr = np.asarray(mic_fft, dtype=np.float32)
-        # Use first 512 bins (0–8 kHz at 16 kHz Fs)
-        n = min(len(fft_arr), 512)
+        n_total = len(fft_arr)
+        # fft_arr spans 0 Hz (exclusive) to Nyquist (MIC_FS_HZ/2), per the
+        # wire protocol's self-describing spectrum convention (ADR-020).
+        # Derive the bin index reaching SPEC_FEATURE_MAX_HZ from the actual
+        # sample rate instead of assuming a fixed bin count that only
+        # happens to be correct at MIC_FS_HZ == 16000.
+        if n_total >= 2:
+            hz_per = _mic_fs_hz() / 2.0 / n_total
+            n = min(n_total, max(1, int(round(SPEC_FEATURE_MAX_HZ / hz_per))))
+        else:
+            n = n_total
         if n >= SPEC_BANDS:
             p = fft_arr[:n]
             # dBFS → linear power (avoid log(0) with 1e-12 floor)
