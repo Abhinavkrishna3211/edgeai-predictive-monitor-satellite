@@ -1,0 +1,74 @@
+[
+  {
+    "freq_hz": 20.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 30.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 40.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 50.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 60.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 70.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 80.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 90.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 95.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "presence-only (<100Hz/bin)"
+  },
+  {
+    "freq_hz": 100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "locatable"
+  },
+  {
+    "freq_hz": 125.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "locatable"
+  },
+  {
+    "freq_hz": 150.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "locatable"
+  }
+]

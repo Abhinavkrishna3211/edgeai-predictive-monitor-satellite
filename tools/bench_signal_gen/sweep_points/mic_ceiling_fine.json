@@ -1,0 +1,140 @@
+[
+  {
+    "freq_hz": 100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 200.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 300.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 400.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 500.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 700.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 800.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 900.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1000.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1200.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1300.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1400.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1500.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1700.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1800.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 1900.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "low-band fine"
+  },
+  {
+    "freq_hz": 7900.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "near-Nyquist fine"
+  },
+  {
+    "freq_hz": 7950.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "near-Nyquist fine"
+  },
+  {
+    "freq_hz": 7975.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "near-Nyquist fine"
+  },
+  {
+    "freq_hz": 8000.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "near-Nyquist fine"
+  }
+]

@@ -1,0 +1,194 @@
+[
+  {
+    "freq_hz": 100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 1100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 1350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 1600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 1850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 2100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 2350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 2600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 2850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 3100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 3350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 3600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 3850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 4100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 4350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 4600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 4850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 5100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 5350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 5600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 5850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 6100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 6350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 6600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 6850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 7100.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 7350.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 7600.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  },
+  {
+    "freq_hz": 7850.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "ceiling coarse"
+  }
+]
