@@ -60,10 +60,10 @@ __scratch_test__*
 docs/PHASE_*_PROMPT.md
 
 # ── Internal comparison/outreach notes — never commit ────────────────────────
-docs/RAHUL_COMPARISON_AUDIT.md
+docs/COMPARISON_AUDIT_LOCAL.md
 docs/AUDIT_VERIFICATION_REPORT.md
-docs/PRE_RAHUL_HANDOFF_PROMPT.md
-docs/RAHUL_OUTREACH_DRAFT.md
+docs/PRE_HANDOFF_PROMPT_LOCAL.md
+docs/OUTREACH_DRAFT_LOCAL.md
 
 # ── Ad-hoc scratch prompts (working notes, not part of source) ───────────────
 docs/*_PROMPT.md
