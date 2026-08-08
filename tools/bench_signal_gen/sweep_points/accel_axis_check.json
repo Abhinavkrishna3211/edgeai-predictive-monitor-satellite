@@ -1,0 +1,14 @@
+[
+  {
+    "freq_hz": 90.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "axis comparison, presence-only band"
+  },
+  {
+    "freq_hz": 125.0,
+    "amplitude": 1.0,
+    "repeats": 3,
+    "notes": "axis comparison, locatable band"
+  }
+]

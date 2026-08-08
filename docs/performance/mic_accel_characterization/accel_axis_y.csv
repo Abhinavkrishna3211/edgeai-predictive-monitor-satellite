@@ -1,0 +1,7 @@
+channel,requested_freq_hz,requested_level,peak_bin_freq_hz,peak_bin_db,noise_floor_db,snr_db,locked,spec_avg_n,notes
+accel_y,90.0,1.0,1050.0,-52.461517333984375,-62.55470275878906,10.093185424804688,True,,"axis comparison, presence-only band; attempt 1/3"
+accel_y,90.0,1.0,850.0,-51.82628631591797,-61.95794677734375,10.131660461425781,True,,"axis comparison, presence-only band; attempt 2/3"
+accel_y,90.0,1.0,350.0,-54.07669448852539,-62.82663154602051,8.749937057495117,True,,"axis comparison, presence-only band; attempt 3/3"
+accel_y,125.0,1.0,250.0,-52.194557189941406,-62.42711639404297,10.232559204101562,False,,"axis comparison, locatable band; attempt 1/3"
+accel_y,125.0,1.0,150.0,-52.21797561645508,-61.969383239746094,9.751407623291016,True,,"axis comparison, locatable band; attempt 2/3"
+accel_y,125.0,1.0,1150.0,-50.54888916015625,-61.599891662597656,11.051002502441406,False,,"axis comparison, locatable band; attempt 3/3"

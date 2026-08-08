@@ -143,8 +143,86 @@ exclusion) — noted for the future tuning discussion.
 
 ## Stage 3: Accelerometer
 
-*Pending — frequency sweep (20-150 Hz), amplitude floor sweep (≥100 Hz), and
-chassis-coupling sanity check to be added in a follow-up commit.*
+Signal path for all Stage 3 tests: laptop's built-in speaker → chassis →
+accelerometer physically coupled to the underside of the laptop (not a
+dedicated shaker table — see caveats below). `IMU_FS_HZ=25600`
+(`epm_config.h:44`); wire-pooled bin width for the accel channel measured at
+100 Hz/bin (confirmed from `peak_bin_freq_hz` values in the CSVs, all at
+`(k+0.5)*100`). Per the lock criterion, frequencies below 100 Hz (one bin
+width) use a presence-only check (energy in the lowest 1-2 bins, no exact
+location); 100 Hz and above require the peak bin to land within one bin
+width of the target ("locatable").
+
+### 3A — Frequency sweep (20-150 Hz), X axis
+
+`accel_freq_x.csv`, 12 points × 3 repeats:
+
+| Band | Result |
+|---|---|
+| 20-95 Hz (presence-only) | reliable 3/3 at every point except 50 Hz (2/3) and 70 Hz (2/3); SNR 5.6-10.7 dB |
+| 100/125/150 Hz (locatable) | **0/3 at all three points** — peaks scattered at 350-1150 Hz, far outside the ±1-bin tolerance around the target |
+
+The presence-only band confirms the chassis-coupling path reliably injects
+*some* low-frequency vibration whenever a tone plays in that range. The
+locatable band's failure is not an SNR problem (SNR was actually higher
+here, 9.7-12.7 dB, comfortably over the 6 dB lock threshold) — it's that the
+dominant peak simply isn't near the driven frequency. This points to the
+**laptop-speaker/chassis coupling itself being non-linear/resonance-dominated
+above ~100 Hz** (broadband or harmonic energy overwhelming the fundamental),
+not a sensor limitation — this test setup cannot make a clean claim about
+locatable accel sensitivity above ~100 Hz; a proper shaker-table or
+calibrated vibration source would be needed to characterize that band
+correctly.
+
+### Axis comparison (Y, Z at 90 Hz and 125 Hz)
+
+`accel_axis_y.csv`, `accel_axis_z.csv`, 2 points × 3 repeats each, to check
+whether the locatable-band failure is specific to the X axis:
+
+| Axis | 90 Hz (presence) | 125 Hz (locatable) |
+|---|---|---|
+| X | 3/3 | 0/3 |
+| Y | 3/3 | 1/3 |
+| Z | 3/3 | 0/3 |
+
+All three axes show the same qualitative pattern — this is a property of
+the test setup (speaker/chassis coupling), not an axis-orientation artifact.
+Quiescent baseline (`mean_g`, gravity offset): X≈0.90 g (near-vertical
+axis), Y≈0.16 g, Z≈-0.42 g — X carries most of the static gravity
+component, consistent with it being the axis most aligned with "up," which
+is also the axis used for the primary 3A/3B sweeps.
+
+### 3B — Amplitude/sensitivity floor
+
+Spec-mandated run at 125 Hz (`accel_floor_125.csv`, X axis, 11 amplitude
+steps 1.0 → 0.0316, × 3 each): **no clean floor found — because 125 Hz is
+itself in the unreliable locatable band** (0-2/3 locks scattered
+non-monotonically across the whole amplitude range, SNR 7.9-12.9 dB
+throughout, same pattern as the 3A finding at 125 Hz). This mirrors the
+mic's 1000 Hz result in Stage 2B: the spec frequency for this axis/setup
+happens to sit in a band the test methodology can't cleanly probe.
+
+Supplementary run at 90 Hz (`accel_floor_90.csv`, presence-only band, same
+11 amplitude steps): **3/3 locks at every single amplitude step down to
+amp=0.0316 (~-30 dB relative to max)**, SNR consistently 6.7-11.5 dB. No
+amplitude floor found within the tested range — same outcome as the mic's
+1300 Hz supplementary run.
+
+### 3C — Coupling sanity check
+
+Quiescent baseline (`mean_g`, 27 epochs each, ~8s) captured immediately
+before Stage 3 testing began and again immediately after all sweeps
+completed:
+
+| | X | Y | Z |
+|---|---|---|---|
+| Before | 0.8969 g | 0.1639 g | -0.4244 g |
+| After | 0.8971 g | 0.1648 g | -0.4246 g |
+| Delta | +0.0002 g | +0.0009 g | -0.0002 g |
+
+All deltas are under 0.001 g, well within normal sensor noise — the
+laptop/accelerometer coupling did not shift or degrade over the course of
+testing.
 
 ## What this means for future tuning (open questions, no decisions made here)
 
