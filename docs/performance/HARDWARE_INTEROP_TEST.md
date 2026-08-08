@@ -112,3 +112,72 @@ not a shortened test by design.
 
 Satellite-to-reference-dashboard interop still holds after this session's changes. No
 code changed, so this is a confirmation of the original result, not a new validation.
+
+---
+
+## Addendum: 2026-08-08 — Transient zero-publish window, resolved by reset (unconfirmed cause)
+
+**Date:** 2026-08-08
+**Branch:** feat/base-station-interop
+
+While preparing for the Phase 1 bench-signal-gen hardware run (ADR-035), the satellite
+connected and subscribed cleanly on boot (`connected, subscribed to epm/5ab004/cmd`,
+matching broker target `192.168.1.5:1883`), but **zero application data reached a live
+independent MQTT subscriber for an extended window**, despite the firmware's own
+`net_task_get_stats()` diagnostics reporting `frames_built` incrementing normally with
+`build_failures=0` and `publish_failures=0` throughout — i.e. every layer the firmware
+can see reported success while no bytes demonstrably arrived.
+
+This session had an unrelated real power/router outage shortly before this was observed
+(confirmed separately: WiFi dropped, then recovered once power was restored), which is
+the leading candidate for how broker-side client state could have gone stale, though this
+is not confirmed.
+
+### What was ruled out before the reset
+
+- IP/broker-target mismatch (the specific failure mode from the 2026-08-07 addendum
+  above): firmware's `broker=192.168.1.5:1883` matched this PC's live Ethernet IP
+  exactly — no mismatch this time.
+- Duplicate process bound to port 1883: only one real broker (`mosquitto.exe`) was bound
+  to `0.0.0.0:1883`; the second process found on that port was WSL's `wslrelay.exe`,
+  IPv6-loopback-only, unrelated.
+- Broker listener misconfiguration, ACLs, packet-size limits, bridges: `mosquitto.conf`
+  checked directly, clean/unrestricted (`listener 1883 0.0.0.0`, `allow_anonymous true`,
+  no `acl_file`/`bridge`/`mount_point`).
+- Sensor/queue starvation (no mic+IMU frame pair ever ready to send): `mic`/`dsp`/`imu`/
+  `accel` DIAG counters all showed healthy continuous production alongside the `net`
+  counters, ruling this out.
+- Windows Firewall: rule correctly scoped to allow inbound TCP/1883; also moot since TCP
+  was already demonstrably establishing.
+
+### What actually resolved it
+
+A DTR/RTS serial reset of the satellite (forcing a fresh boot, fresh WiFi association,
+and fresh MQTT session) immediately fixed it. The very next boot's DIAG line showed
+healthy counters (`net: frames_built=100 build_failures=0 publish_failures=0
+cmd_malformed=0 disconnect_reverts=0` by ~31s uptime), and a live independent `paho-mqtt`
+subscriber confirmed 98 real `epm/5ab004/data` messages (3826 bytes each) in the
+following 20s window.
+
+### Suggestive but unconfirmed evidence
+
+`$SYS/broker/clients/connected` read **1** during the zero-publish window (queried while
+a genuinely fresh, freshly-`CONNACK`'d satellite session was the only expected client)
+and **3-4** immediately after the reset, with multiple test-harness connections active.
+This is consistent with — but does not prove — stale broker-side client/session state
+left over from before the outage (or from earlier test-harness connections that weren't
+cleanly torn down) silently stranding the satellite's publishes without surfacing as a
+connection error on either end. `mosquitto`'s broker-side connect/disconnect logging was
+not enabled during this session (same known limitation noted in the original 2026-08-07
+entry above), so this cannot be confirmed from broker logs.
+
+### Status
+
+**Not a closed investigation.** No packet capture was taken (the live independent
+subscriber confirming successful delivery after the reset made it unnecessary for
+unblocking the bench run), so the exact mechanism of the zero-publish window was never
+directly observed — only bracketed by before/after state. Flagging this as an explicit
+**watch item for the Phase 3 soak test**: if a similar zero-publish-despite-healthy-
+counters window recurs during an extended soak, enable broker-side connect/disconnect
+logging first (per the existing known limitation) and capture packets during the actual
+window, rather than resetting past it.
