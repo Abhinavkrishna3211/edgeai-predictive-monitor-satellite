@@ -45,8 +45,15 @@ against a satellite fault-classifier's output — is Phase 2 scope.
    python capture_and_compare.py --manifest manifests/tone_1000hz_<timestamp>.json --channel mic --host <broker-ip> --window-s 8
    ```
 5. Repeat at a few frequencies landing in different FFT bins (e.g. 200 Hz,
-   1 kHz, 4 kHz) to check peak-bin accuracy isn't a coincidence of one
-   lucky bin alignment.
+   1 kHz) to check peak-bin accuracy isn't a coincidence of one lucky bin
+   alignment. **Stay under ~1990 Hz** — the mic channel's wire spectrum only
+   covers roughly 0-1992 Hz (128 bins at this firmware's 15.625 Hz/bin
+   resolution) despite the higher Nyquist the reported sample rate would
+   otherwise allow; a tone above that ceiling cannot appear in the
+   transmitted spectrum at all, no matter how well the satellite's mic
+   actually picks it up (see the real-hardware run's "4 kHz — architecturally
+   out of range" note in
+   `docs/performance/BENCH_SIGNAL_GEN_HARDWARE_RUN.md`).
 
 ## Bench procedure — accelerometer channel
 
