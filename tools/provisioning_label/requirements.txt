@@ -1,0 +1,8 @@
+# tools/provisioning_label dependencies — bench tooling, not installed by CI
+# (see tools/provisioning_label/README.md). Kept separate from
+# mic_tools/requirements.txt on purpose: this tool never runs on the
+# gateway/Arduino Uno Q, only on a technician's bench laptop.
+# Install: pip install -r tools/provisioning_label/requirements.txt
+
+pyserial>=3.5
+qrcode[pil]>=7.4
