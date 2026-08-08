@@ -12,12 +12,16 @@ invokes its script verbatim.
 - WSL with an `Ubuntu-24.04` distro (`wsl --install -d Ubuntu-24.04`), with
   `mosquitto`, `mosquitto-clients`, `python3-venv`, `python3-pip`, `git`
   installed inside it.
-- A read-only clone of the reference repo, sibling to this repo:
+- A read-only clone of the reference repo, sibling to this repo. Copy
+  `tools/devrig/.env.local.example` to `tools/devrig/.env.local` (gitignored)
+  and set `REF_REPO_URL` to the real clone URL, then:
   ```
-  git clone --depth 1 https://github.com/rahuljeyaraj/edgeai-predictive-monitor \
-      /mnt/c/Users/abhin/Documents/edgeai-predictive-monitor-ref
+  git clone --depth 1 "$REF_REPO_URL" /mnt/c/Users/abhin/Documents/edgeai-predictive-monitor-ref
   ```
-  Pinned reference commit used for Phase 0: `ab2d89e22da977c705845e0c1d85c172ecab1089`.
+  `devrig.sh` sources `tools/devrig/.env.local` automatically if present, and
+  uses `REF_REPO_URL` to print the clone command if the reference repo isn't
+  found at `EPM_REF_REPO`. Pinned reference commit used for Phase 0:
+  `ab2d89e22da977c705845e0c1d85c172ecab1089`.
 
 ## Usage
 

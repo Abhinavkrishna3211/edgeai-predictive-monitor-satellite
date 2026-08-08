@@ -10,9 +10,19 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REF_REPO="${EPM_REF_REPO:-/mnt/c/Users/abhin/Documents/edgeai-predictive-monitor-ref}"
 
+ENV_LOCAL="${REPO_ROOT}/tools/devrig/.env.local"
+if [ -f "${ENV_LOCAL}" ]; then
+    # shellcheck disable=SC1090
+    source "${ENV_LOCAL}"
+fi
+
 if [ ! -f "${REF_REPO}/base-station/start_desktop_dashboard.sh" ]; then
     echo "Reference repo not found at ${REF_REPO} (set EPM_REF_REPO to override)." >&2
-    echo "Clone it read-only: git clone --depth 1 https://github.com/rahuljeyaraj/edgeai-predictive-monitor ${REF_REPO}" >&2
+    if [ -z "${REF_REPO_URL:-}" ]; then
+        echo "REF_REPO_URL not set: create tools/devrig/.env.local (copy tools/devrig/.env.local.example) or export REF_REPO_URL." >&2
+    else
+        echo "Clone it read-only: git clone --depth 1 ${REF_REPO_URL} ${REF_REPO}" >&2
+    fi
     exit 1
 fi
 
