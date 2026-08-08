@@ -48,6 +48,7 @@
 #include "drivers/mic_inmp441_i2s.h"
 #include "threads/net_task.h"
 #include "hal/hal_accel.h"
+#include "drivers/link_mqtt.h"
 
 static const char *TAG = "main";
 
@@ -92,9 +93,13 @@ static void diagnostics_task_fn(void *arg)
         ESP_LOGI("DIAG", "CPU runtime stats: not available (SMP FreeRTOS)");
 #endif
 
-        /* Heap health */
-        ESP_LOGI("DIAG", "Heap free: internal=%lu PSRAM=%lu IRAM=%lu",
+        /* Heap health. largest_free tells fragmentation (falling free with
+         * stable largest_free) apart from real exhaustion (both falling
+         * together) — stress-soak instrumentation, see
+         * docs/performance/SATELLITE_STRESS_STABILITY_TEST.md. */
+        ESP_LOGI("DIAG", "Heap free: internal=%lu largest_free=%lu PSRAM=%lu IRAM=%lu",
             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+            (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_EXEC));
 
@@ -106,6 +111,19 @@ static void diagnostics_task_fn(void *arg)
         ESP_LOGI("DIAG", "wifi: connects=%lu disconnects=%lu retry_cnt=%lu",
             (unsigned long)wifi_st.connects, (unsigned long)wifi_st.disconnects,
             (unsigned long)wifi_st.retry_cnt);
+
+        /* MQTT-level connects/disconnects are esp-mqtt's own internal
+         * reconnect state machine (link_mqtt.c's network.reconnect_timeout_ms),
+         * distinct from wifi_st above — logged separately so a heap dip can be
+         * correlated against MQTT-only churn (broker restarts, keepalive
+         * timeouts) vs. WiFi-level drops. */
+        struct link_mqtt_stats mqtt_st;
+        link_mqtt_get_stats(&mqtt_st);
+        ESP_LOGI("DIAG", "mqtt: connects=%lu disconnects=%lu publishes=%lu "
+                 "publish_failures=%lu cmds_received=%lu",
+            (unsigned long)mqtt_st.connects, (unsigned long)mqtt_st.disconnects,
+            (unsigned long)mqtt_st.publishes, (unsigned long)mqtt_st.publish_failures,
+            (unsigned long)mqtt_st.cmds_received);
 
         struct wifi_provision_stats prov_st;
         wifi_provision_task_get_stats(&prov_st);
