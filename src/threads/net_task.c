@@ -246,6 +246,69 @@ static void net_task_selftest_task(void *arg)
 }
 #endif
 
+#if CONFIG_EPM_MQTT_RECONNECT_STRESS_TEST
+/* TEMPORARY, test-only. Accelerated leak-per-call test for
+ * link_mqtt_start()'s retry-path fix (commit dab1064: destroying the stale
+ * s_client handle before re-init). Normal operation calls link_mqtt_start()
+ * exactly once per boot - net_task_fn()'s own retry loop below only repeats
+ * if that first call fails outright, and once the publish loop starts,
+ * mid-session drops are handled entirely inside esp-mqtt's own internal
+ * reconnect state machine, which never touches link_mqtt_start() again.
+ * That means ordinary running time, however long, can't exercise this
+ * function's leak-fix path more than once. This task does, directly,
+ * MQTT_STRESS_TEST_ITERATIONS times, logging free internal heap
+ * immediately before/after each call so a per-call leak - if any -
+ * shows up as a monotonic decline across the run. Delayed 30s past boot
+ * so it doesn't pollute the steady-state DIAG baseline; safe to run
+ * concurrently with the real publish loop only because link_mqtt_start()
+ * now guards its client swap with s_mutex (see link_mqtt.c). */
+#define MQTT_STRESS_TEST_ITERATIONS 50
+
+static void net_task_mqtt_stress_task(void *arg)
+{
+	(void)arg;
+	vTaskDelay(pdMS_TO_TICKS(30000));
+
+	ESP_LOGW(TAG, "EPM_MQTT_RECONNECT_STRESS_TEST: starting %d x link_mqtt_start() calls",
+		 MQTT_STRESS_TEST_ITERATIONS);
+
+	size_t first_heap = 0, last_heap = 0, min_heap = SIZE_MAX;
+
+	for (int i = 0; i < MQTT_STRESS_TEST_ITERATIONS; i++) {
+		size_t before = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+		int rc = link_mqtt_start();
+		size_t after = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+
+		ESP_LOGW(TAG, "mqtt_stress[%d/%d]: rc=%d before=%u after=%u delta=%d",
+			 i + 1, MQTT_STRESS_TEST_ITERATIONS, rc, (unsigned)before,
+			 (unsigned)after, (int)after - (int)before);
+
+		if (i == 0) {
+			first_heap = after;
+		}
+		last_heap = after;
+		if (after < min_heap) {
+			min_heap = after;
+		}
+
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
+
+	ESP_LOGW(TAG, "EPM_MQTT_RECONNECT_STRESS_TEST done: first=%u last=%u min=%u "
+		 "net_delta=%d avg_per_call=%.1f",
+		 (unsigned)first_heap, (unsigned)last_heap, (unsigned)min_heap,
+		 (int)last_heap - (int)first_heap,
+		 (double)((int)last_heap - (int)first_heap) / (MQTT_STRESS_TEST_ITERATIONS - 1));
+
+	/* link_mqtt_start()'s transport_init() call unconditionally wipes the
+	 * cmd handler each time - re-register it so the board is left in a
+	 * normal working state after the test finishes. */
+	transport_set_cmd_handler(net_task_cmd_handler);
+
+	vTaskDelete(NULL);
+}
+#endif
+
 static void net_task_fn(void *arg)
 {
 	net_task_args_t *args = (net_task_args_t *)arg;
@@ -291,6 +354,12 @@ static void net_task_fn(void *arg)
 	 * net_task_selftest_task()'s comment above for why this is deferred
 	 * to a delayed background task instead of firing inline here). */
 	xTaskCreate(net_task_selftest_task, "led_selftest", 2048, NULL, 3, NULL);
+#endif
+
+#if CONFIG_EPM_MQTT_RECONNECT_STRESS_TEST
+	/* TEMPORARY, test-only (see net_task_mqtt_stress_task()'s comment
+	 * above and Kconfig help). */
+	xTaskCreate(net_task_mqtt_stress_task, "mqtt_stress", 4096, NULL, 3, NULL);
 #endif
 
 	while (1) {

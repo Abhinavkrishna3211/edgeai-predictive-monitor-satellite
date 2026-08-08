@@ -36,4 +36,23 @@ menu "EPM Drivers"
             reachable stand-in broker blocks real command delivery).
             Leave n for normal builds -- see docs/decisions/ADR-025.
 
+    config EPM_MQTT_RECONNECT_STRESS_TEST
+        bool "TEMPORARY/TEST-ONLY: repeatedly call link_mqtt_start() at boot"
+        default n
+        help
+            Accelerated leak-per-call test for link_mqtt_start()'s
+            retry-path fix (commit dab1064: destroying the stale s_client
+            handle before re-init). Normal operation only calls
+            link_mqtt_start() once at boot -- net_task.c's own retry loop
+            only repeats if that first call fails outright, and every
+            mid-session drop afterward is handled entirely inside
+            esp-mqtt's own internal reconnect state machine, which never
+            calls link_mqtt_start() again. That means ordinary running
+            time, however long, can't exercise this function's leak-fix
+            path more than once per boot. This makes
+            src/threads/net_task.c call it 50 times back to back 30s after
+            boot, logging free internal heap before/after each call, so a
+            per-call leak - if any - shows up as a monotonic decline.
+            Leave n for normal builds.
+
 endmenu
