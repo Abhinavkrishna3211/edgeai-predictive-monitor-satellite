@@ -79,6 +79,9 @@ docs/MASTER_PLAN.md
 # ── devrig local config (real reference-repo URL) — never commit ────────────
 tools/devrig/.env.local
 
+# ── dev-bench local config (real MQTT broker host/port) — never commit ──────
+/.env.local
+
 # ── provisioning labels (real per-device WPA2 passwords, plaintext) — never commit ──
 tools/provisioning_label/labels/
 

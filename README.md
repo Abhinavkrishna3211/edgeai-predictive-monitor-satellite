@@ -244,11 +244,16 @@ no WiFi credentials are saved in NVS), the satellite brings up its own AP,
    `1883`). Credentials persist in NVS (`components/epm_drivers/net_credentials.c`)
    and survive reboots/reflashes.
 
-For a dev-bench default without touching the portal each time, `platformio.ini`
-can still seed a first-boot default via `-DEPM_MQTT_BROKER_HOST=\"...\"` build
-flags read by `components/epm_drivers/link_mqtt.c`'s `#ifndef`-guarded default
+For a dev-bench default without touching the portal each time, seed a
+first-boot default via `-DEPM_MQTT_BROKER_HOST=\"...\"` build flags, read by
+`components/epm_drivers/link_mqtt.c`'s `#ifndef`-guarded default
 (`"10.42.0.1"`) — but any value submitted through the portal always wins once
-saved. See `docs/decisions/ADR-031-provisioning-ap-random-per-device-password.md`
+saved. Rather than exporting `PLATFORMIO_BUILD_FLAGS` by hand each time the
+bench network changes, copy `.env.local.example` to `.env.local` (gitignored)
+and build/flash through `pio.sh`/`pio.ps1` instead of `pio` directly — they
+read `.env.local` and pass the override through automatically, the same
+`.env.local` pattern `tools/devrig/` uses for its reference-repo URL. See
+`docs/decisions/ADR-031-provisioning-ap-random-per-device-password.md`
 and `docs/PHASE_12A_PROMPT.md`/`docs/PHASE_12B_PROMPT.md` for the full design.
 
 ### 3. Build and Flash
