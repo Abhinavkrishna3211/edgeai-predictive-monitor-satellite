@@ -21,9 +21,98 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from generate_and_play import ideal_sine_stats, select_defect_frequency
+from capture_and_compare import is_locked, compute_noise_floor_db
 from gateway.pipeline.bearing_math import BearingFreqs, COMMON_BEARINGS
 
 BEARING_6205 = COMMON_BEARINGS["6205"]
+
+
+class _FakeSpectrum:
+    """Minimal stand-in for telemetry_frame.ChannelSpectrum -- is_locked()
+    only touches .bins/.fs/.fft_size."""
+
+    def __init__(self, bins, fs, fft_size):
+        self.bins = bins
+        self.fs = fs
+        self.fft_size = fft_size
+
+
+def _flat_noise_spectrum(n_bins=128, floor_db=-60.0):
+    return [floor_db] * n_bins
+
+
+class TestComputeNoiseFloorDb(unittest.TestCase):
+    def test_median_ignores_excluded_and_resists_outliers(self):
+        bins = [-60.0] * 10 + [0.0]  # one loud outlier bin
+        floor = compute_noise_floor_db(bins, {10})
+        self.assertEqual(floor, -60.0)
+
+
+class TestIsLocked(unittest.TestCase):
+    def test_locks_on_clean_peak_within_tolerance(self):
+        # mic-like: fs=16000, fft_size=256 -> 62.5 Hz/bin, 128 bins
+        bins = _flat_noise_spectrum(128, -60.0)
+        bins[16] = -20.0  # bin 16 center = 16.5*62.5 = 1031.25 Hz
+        spectrum = _FakeSpectrum(bins, fs=16000, fft_size=256)
+        locked, info = is_locked(spectrum, expected_freq_hz=1000.0, tolerance_bins=1, min_snr_db=6.0)
+        self.assertTrue(locked)
+        self.assertAlmostEqual(info["peak_bin_freq_hz"], 1031.25)
+        self.assertAlmostEqual(info["snr_db"], 40.0)
+
+    def test_no_lock_when_peak_outside_tolerance(self):
+        bins = _flat_noise_spectrum(128, -60.0)
+        bins[50] = -20.0  # far from the 1000 Hz target
+        spectrum = _FakeSpectrum(bins, fs=16000, fft_size=256)
+        locked, info = is_locked(spectrum, expected_freq_hz=1000.0, tolerance_bins=1, min_snr_db=6.0)
+        self.assertFalse(locked)
+
+    def test_no_lock_when_snr_below_threshold(self):
+        bins = _flat_noise_spectrum(128, -60.0)
+        bins[16] = -55.0  # right bin, only 5 dB above floor
+        spectrum = _FakeSpectrum(bins, fs=16000, fft_size=256)
+        locked, info = is_locked(spectrum, expected_freq_hz=1000.0, tolerance_bins=1, min_snr_db=6.0)
+        self.assertFalse(locked)
+        self.assertAlmostEqual(info["snr_db"], 5.0)
+
+    def test_lock_at_exact_tolerance_boundary(self):
+        # bin 16 center = 1031.25 Hz, one bin width = 62.5 Hz -> boundary at 1093.75
+        bins = _flat_noise_spectrum(128, -60.0)
+        bins[16] = -20.0
+        spectrum = _FakeSpectrum(bins, fs=16000, fft_size=256)
+        locked, _ = is_locked(spectrum, expected_freq_hz=1093.75, tolerance_bins=1, min_snr_db=6.0)
+        self.assertTrue(locked)
+
+    def test_pure_noise_floor_never_locks(self):
+        bins = _flat_noise_spectrum(128, -60.0)
+        spectrum = _FakeSpectrum(bins, fs=16000, fft_size=256)
+        locked, info = is_locked(spectrum, expected_freq_hz=1000.0, tolerance_bins=1, min_snr_db=6.0)
+        self.assertFalse(locked)
+        self.assertEqual(info["snr_db"], 0.0)
+
+    def test_sub_bin_width_target_uses_presence_only_check(self):
+        # accel-like: fs=25600, fft_size=256 -> 100 Hz/bin, target 60 Hz < bin width
+        bins = _flat_noise_spectrum(128, -60.0)
+        bins[0] = -20.0  # elevated energy in the lowest bin
+        spectrum = _FakeSpectrum(bins, fs=25600, fft_size=256)
+        locked, info = is_locked(spectrum, expected_freq_hz=60.0, tolerance_bins=1, min_snr_db=6.0)
+        self.assertTrue(locked)
+        self.assertAlmostEqual(info["snr_db"], 40.0)
+
+    def test_sub_bin_width_target_no_presence_no_lock(self):
+        bins = _flat_noise_spectrum(128, -60.0)
+        bins[70] = -20.0  # loud, but not in the low 2 bins
+        spectrum = _FakeSpectrum(bins, fs=25600, fft_size=256)
+        locked, info = is_locked(spectrum, expected_freq_hz=60.0, tolerance_bins=1, min_snr_db=6.0)
+        self.assertFalse(locked)
+
+    def test_configurable_min_snr_db(self):
+        bins = _flat_noise_spectrum(128, -60.0)
+        bins[16] = -55.0  # 5 dB above floor
+        spectrum = _FakeSpectrum(bins, fs=16000, fft_size=256)
+        locked_strict, _ = is_locked(spectrum, expected_freq_hz=1000.0, tolerance_bins=1, min_snr_db=6.0)
+        locked_loose, _ = is_locked(spectrum, expected_freq_hz=1000.0, tolerance_bins=1, min_snr_db=3.0)
+        self.assertFalse(locked_strict)
+        self.assertTrue(locked_loose)
 
 
 class TestIdealSineStats(unittest.TestCase):
