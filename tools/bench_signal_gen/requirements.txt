@@ -1,0 +1,12 @@
+# tools/bench_signal_gen dependencies — bench tooling, runs on a technician's
+# laptop (see README.md), not installed by CI.
+# Install: pip install -r tools/bench_signal_gen/requirements.txt -r mic_tools/requirements.txt
+#
+# capture_and_compare.py imports gateway.ingestion.mqtt_subscriber's decode
+# path, which needs paho-mqtt>=2.1.0 -- already declared in
+# mic_tools/requirements.txt, not repeated here to avoid two version
+# constraints on the same package drifting apart.
+
+numpy>=1.24,<2.0     # <2.0: matches the pin mic_tools/requirements.txt uses elsewhere in this repo
+scipy>=1.11          # generate_and_play.py's --out WAV write (scipy.io.wavfile)
+sounddevice>=0.4.6   # generate_and_play.py's playback
