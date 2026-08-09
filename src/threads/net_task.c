@@ -318,6 +318,58 @@ static void net_task_fn(void *arg)
 
 	wifi_wait_connected(portMAX_DELAY);
 
+#if CONFIG_EPM_LOW_HEAP_BOOT_STALL_TEST
+	/* TEMPORARY, test-only. Deterministic repro/verify aid for the
+	 * low-heap MQTT-init stall documented as an ADR-036 watchdog blind
+	 * spot (docs/decisions/ADR-036-mqtt-reconnect-watchdog.md's dated
+	 * addendum). The original finding hit this precondition (free heap
+	 * below ADR-024's 32768-byte margin by the time link_mqtt_start()
+	 * first runs, below) via an extended real WiFi boot-retry loop timed
+	 * against a router power-cycle — not reproducible on demand. This
+	 * reserves (and deliberately never frees) enough internal-DRAM heap
+	 * right here, on an otherwise-normal WiFi connection, to land below
+	 * the same margin directly.
+	 *
+	 * Arms exactly once, via an RTC_NOINIT_ATTR magic value — not an
+	 * esp_reset_reason() check: an earlier version of this hook gated on
+	 * esp_reset_reason() != ESP_RST_SW, but that never armed right after
+	 * a fresh `pio run -t upload` on this board (esp-builtin/OpenOCD's
+	 * post-flash reset apparently doesn't read back as ESP_RST_POWERON).
+	 *
+	 * IMPORTANT: RTC memory survives esp_restart() AND an esp-builtin/
+	 * OpenOCD reflash — confirmed the hard way when a second flash (with
+	 * the Gap 1 fix applied) inherited the magic value armed by the
+	 * previous test run and silently skipped the heap reservation. Only
+	 * an actual power-loss (VDD_RTC dropping — unplug/replug USB) clears
+	 * it. So: first boot after a genuine power-on arms the test. Next
+	 * boot, if the watchdog fix restarts the board via esp_restart():
+	 * magic already set, does NOT re-arm — a fixed board recovers once
+	 * and stays recovered instead of re-triggering the same low-heap
+	 * condition and loop-restarting forever. But re-running this test
+	 * after a reflash requires a real power cycle first, not just the
+	 * reflash. */
+	static RTC_NOINIT_ATTR uint32_t s_low_heap_test_armed;
+#define LOW_HEAP_TEST_MAGIC 0xEA51EA51u
+	if (s_low_heap_test_armed != LOW_HEAP_TEST_MAGIC) {
+		s_low_heap_test_armed = LOW_HEAP_TEST_MAGIC;
+
+		size_t free_now = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+		size_t target_free = 20000;
+
+		if (free_now > target_free) {
+			size_t reserve = free_now - target_free;
+			void *hog = heap_caps_malloc(reserve, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+
+			ESP_LOGW(TAG, "EPM_LOW_HEAP_BOOT_STALL_TEST: reserved %u bytes "
+				 "(leaked for this boot), free now %u vs ADR-024's "
+				 "32768-byte margin",
+				 (unsigned)reserve,
+				 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+			(void)hog;
+		}
+	}
+#endif
+
 	/* Free internal-DRAM heap immediately before esp-mqtt's client init —
 	 * the measurement Phase 7b's ADR-024 decision is based on (ADR-017:
 	 * esp_mqtt_client_init() null-derefs later if esp_event_loop_create()

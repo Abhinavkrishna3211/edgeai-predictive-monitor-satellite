@@ -155,7 +155,16 @@ int transport_init(void)
 		}
 	}
 
+	/* link_mqtt_start() calls this on every retry, not just once at boot
+	 * (see its own comment below on the destroy-through-start sequence).
+	 * consecutive_disconnects has to survive that repeated reset, or a
+	 * link_mqtt_start() that never gets far enough to connect - stuck
+	 * below the ADR-024 heap margin, e.g. - would silently zero the
+	 * ADR-036 watchdog's counter on every 2s retry and never trip it. */
+	uint32_t consecutive_disconnects = s_stats.consecutive_disconnects;
+
 	memset(&s_stats, 0, sizeof(s_stats));
+	s_stats.consecutive_disconnects = consecutive_disconnects;
 	s_connected = false;
 	s_cmd_handler = NULL;
 
@@ -220,6 +229,12 @@ int link_mqtt_start(void)
 		ESP_LOGE(TAG, "free heap %u below %u-byte MQTT init safety margin - "
 			 "skipping esp_mqtt_client_init() (see ADR-024)",
 			 (unsigned)free_heap, (unsigned)EPM_MQTT_MIN_FREE_HEAP_BYTES);
+		/* Counts as a failure to connect for ADR-036's watchdog. Without
+		 * this, a boot stuck below the heap margin never reaches
+		 * esp_mqtt_client_init(), so MQTT_EVENT_DISCONNECTED never fires
+		 * and consecutive_disconnects never climbs - the watchdog never
+		 * trips and the board is stuck until an external power-cycle. */
+		s_stats.consecutive_disconnects++;
 		return -ENOMEM;
 	}
 
@@ -264,6 +279,9 @@ int link_mqtt_start(void)
 	s_client = esp_mqtt_client_init(&cfg);
 	if (s_client == NULL) {
 		xSemaphoreGive(s_mutex);
+		/* See the heap-guard branch above: any failure to reach a live
+		 * connection has to count, or the ADR-036 watchdog never sees it. */
+		s_stats.consecutive_disconnects++;
 		return -ENOMEM;
 	}
 
@@ -275,6 +293,7 @@ int link_mqtt_start(void)
 
 	if (err != ESP_OK) {
 		ESP_LOGE(TAG, "esp_mqtt_client_start failed: 0x%x", err);
+		s_stats.consecutive_disconnects++;
 		return -EIO;
 	}
 

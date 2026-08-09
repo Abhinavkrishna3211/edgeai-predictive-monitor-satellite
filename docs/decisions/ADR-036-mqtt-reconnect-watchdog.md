@@ -172,3 +172,74 @@ broker default) directly onto that stuck board, and a fresh serial capture
 confirmed recovery — see
 `docs/performance/SATELLITE_STRESS_STABILITY_TEST.md` for the exact
 before/after log excerpt and the post-restart reconnect timeline.
+
+## Addendum: 2026-08-09 — watchdog blind spot for a boot stuck below the ADR-024 heap margin
+
+`consecutive_disconnects` as shipped above only incremented inside
+`mqtt_event_handler`'s `MQTT_EVENT_DISCONNECTED` case
+(`components/epm_drivers/link_mqtt.c`). That event is only ever posted by
+esp-mqtt *after* `esp_mqtt_client_init()`/`esp_mqtt_client_start()` have
+succeeded at least once and a live connection was subsequently lost. If
+`link_mqtt_start()` never gets that far — free heap sitting below
+ADR-024's 32768-byte `EPM_MQTT_MIN_FREE_HEAP_BYTES` guard on every one of
+`net_task.c`'s boot-time retries — `esp_mqtt_client_init()` is never even
+called, so `MQTT_EVENT_DISCONNECTED` never fires, `consecutive_disconnects`
+never leaves 0, and this watchdog never trips. The board sits indefinitely
+with WiFi connected and zero MQTT telemetry (`mqtt: connects=0
+disconnects=0` on every DIAG line), recoverable only by an external
+power-cycle — exactly the failure mode this ADR was written to close, just
+reached by a different path than the one originally measured.
+
+**Repro.** A new Kconfig-gated test hook (`CONFIG_EPM_LOW_HEAP_BOOT_STALL_TEST`,
+`components/epm_drivers/Kconfig`, hooked in `src/threads/net_task.c` right
+after `wifi_wait_connected()`) reserves internal-DRAM heap at boot to land
+free heap at ~19.8KB, deterministically landing below the 32768-byte margin
+on a normal WiFi connection. Before the fix
+(`docs/performance/raw/gap1_before_lowheap_stall_20260809.log`): heap stuck
+at 19824 bytes, `E (...) link_mqtt: free heap 19824 below 32768-byte MQTT
+init safety margin ... skipping esp_mqtt_client_init()` repeating every
+~2s from t≈11s, `mqtt: connects=0 disconnects=0` on every DIAG line,
+confirmed stuck through t≈1.4M ms (~23+ minutes, well over 3x this
+watchdog's normal ~6.5-minute-equivalent window at the 2s retry cadence)
+with zero restarts.
+
+**Fix.** `link_mqtt_start()` now increments `consecutive_disconnects`
+directly on all three of its own failure paths — the ADR-024 heap-guard
+skip, `esp_mqtt_client_init()` returning `NULL`, and
+`esp_mqtt_client_start()` returning non-`ESP_OK` — not just inside the
+event handler. `transport_init()` (called at the top of every
+`link_mqtt_start()` retry, not just once at boot) now preserves
+`consecutive_disconnects` across its `memset(&s_stats, 0, ...)` instead of
+zeroing it, so repeated init-time failures accumulate toward this ADR's
+existing threshold of 30 instead of being wiped every 2s retry. No change
+was needed to the threshold, the check, or `diagnostics_task_fn()` itself
+— the fix feeds the existing counter/threshold from a path that previously
+never reached it.
+
+**Verification.** Same test hook, fixed firmware
+(`docs/performance/raw/gap1_after_lowheap_stall_20260809.log`): identical
+stuck pattern from t≈19s (`free heap 19824 below 32768-byte...`, ~2s
+cadence), then at t=91772ms: `E (91772) DIAG: mqtt stuck: 44 consecutive
+disconnects with no successful reconnect - restarting to recover
+(ADR-036)` followed by `rst:0xc (RTC_SW_CPU_RST)`. The count reaching 44
+(not exactly 30) reflects the 30s-cadence DIAG check catching the counter
+mid-climb past the threshold, not a bug. Post-restart, the one-shot test
+hook did not re-arm (by design — see the hook's own comment), heap was
+back to normal, and MQTT connected on the very first attempt: `I (31497)
+DIAG: mqtt: connects=1 disconnects=0 publishes=130 ...` — full self-heal in
+one restart cycle, ≈92s total from stall onset to confirmed reconnect.
+
+**Methodology note.** The test hook arms via an `RTC_NOINIT_ATTR`
+magic-value marker, cleared only by an actual power-loss event (not by an
+esp_restart() reboot, and — confirmed the hard way, mid-investigation —
+not by an OpenOCD/esp-builtin JTAG reflash either). The first attempt at
+this "after" capture silently reused the marker armed by the "before" run
+across an intervening reflash, so the heap reservation never reapplied and
+that capture showed healthy operation with no evidence value. A real
+power-cycle (unplug/replug USB) between the before and after captures was
+required to get a valid result; both the Kconfig help text and the hook's
+own comment in `net_task.c` have been corrected to document this.
+
+The live-router power-cycle trial (reproducing the original finding's exact
+conditions rather than the synthetic heap-reservation hook) remains
+deferred to a future validation pass.

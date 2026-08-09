@@ -55,4 +55,52 @@ menu "EPM Drivers"
             per-call leak - if any - shows up as a monotonic decline.
             Leave n for normal builds.
 
+    config EPM_LOW_HEAP_BOOT_STALL_TEST
+        bool "TEMPORARY/TEST-ONLY: reserve heap at boot to force the ADR-024 MQTT-init guard"
+        default n
+        help
+            Deterministic repro/verify aid for the low-heap MQTT-init
+            stall documented as a watchdog blind spot in
+            docs/decisions/ADR-036-mqtt-reconnect-watchdog.md's dated
+            addendum. The original finding hit this precondition (free
+            heap below the 32768-byte ADR-024 margin by the time
+            link_mqtt_start() first runs) via an extended real WiFi
+            boot-retry loop timed against a router power-cycle -- hard to
+            reproduce on demand. This instead reserves enough
+            internal-DRAM heap right before that first call to land below
+            the same margin directly, on a normal WiFi connection. Arms
+            exactly once via an RTC_NOINIT_ATTR magic-value marker, so a
+            fixed board recovers once (via ADR-036's esp_restart()) and
+            stays recovered instead of re-arming the same low-heap
+            condition and loop-restarting forever. RTC memory is NOT
+            cleared by an OpenOCD/esp-builtin reflash or by esp_restart()
+            -- only an actual power-loss (VDD_RTC dropping, e.g. unplug/
+            replug USB) clears it, so re-arming this test for a fresh run
+            after a reflash needs a real power cycle, not just a re-flash.
+            Leave n for normal builds.
+
+    config EPM_PROVISIONING_STARVATION_TEST
+        bool "TEMPORARY/TEST-ONLY: force a bad saved SSID to reach PROVISIONING on demand"
+        default n
+        help
+            Deterministic repro/verify aid for the captive-portal HTTP
+            server starvation documented in
+            docs/performance/SATELLITE_STRESS_STABILITY_TEST.md's "New
+            finding: captive-portal HTTP server starves under extended STA
+            retry churn". The original finding needed the board to sit in
+            PROVISIONING against an unreachable saved SSID for tens of
+            minutes -- normally only reached by an unlucky real-world
+            credential/AP failure, not reproducible on demand. This
+            substitutes an in-RAM bogus SSID/password for the loaded
+            credentials at the point src/threads/wifi_task.c's
+            wifi_rf_init() would otherwise hand them to
+            esp_wifi_set_config(WIFI_IF_STA, ...), so the very first join
+            attempt fails and the existing wifi_provision_task.c state
+            machine carries the board into PROVISIONING on its own,
+            exactly as it would for a genuinely bad AP. Never touches NVS
+            or the real saved credentials -- net_credentials_save() only
+            runs on a successful join, which this prevents by
+            construction, so a reboot without this flag set reconnects
+            normally. Leave n for normal builds.
+
 endmenu
