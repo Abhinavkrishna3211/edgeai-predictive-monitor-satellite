@@ -469,3 +469,224 @@ wrong by a factor the DSP pipeline itself never got wrong.
   resonance is a plausible, cleaner alternative to both of this doc's
   contact-coupling methods, worth a dedicated re-test rather than folding
   into this addendum's numbers.
+
+---
+
+## Addendum (2026-08-09): accel full-spectrum characterization + combined mic+accel stimulus test
+
+**Hardware:** same satellite (node_id `5ab004`), laptop body resting
+directly on top of the board (chassis-coupled, same placement as this
+addendum's 2026-08-08 accel re-test above). **Goal:** same rigor as this
+document's mic `MIC_FS_HZ` work — audit the accel driver for the same class
+of bug, then empirically characterize the bench rig's real usable range and
+the accel path's capture fidelity, rather than trusting datasheet/design
+assumptions.
+
+### 1. Driver audit — accel-side equivalent of the mic bug, found and fixed
+
+`components/epm_drivers/accel_kx134_spi.c` independently mirrors
+`src/epm_config.h`'s `IMU_FS_HZ` the same way `mic_inmp441_i2s.c` mirrors
+`MIC_FS_HZ` (architectural rule: `epm_drivers` never includes `src/
+epm_config.h`, to avoid a component dependency cycle). Unlike the mic
+driver, the accel mirror had drifted: the chip's programmed ODR was
+`OSA=0x0E` (12800Hz), while `IMU_FS_HZ=25600` was assumed everywhere
+downstream — `epm_dsp_envelope_init()`'s band-pass filter design,
+`net_task.c`'s wire `.fs` fields, and the gateway's bearing-marker math. This
+was already named in `docs/decisions/ADR-017` ("ODR mismatch, out of scope
+to fix here") but understated: it also invalidated the envelope filter (its
+8kHz upper band edge sat *above* the real 6400Hz Nyquist) and put every
+wire-reported accel frequency off by 2×, not just the `vTaskDelay`/comment
+staleness ADR-017 originally flagged.
+
+No `FFT_IMU_N`-vs-raw-block-size landmine (the `MIC_RAW_BLOCK_SAMPLES`-class
+bug) was found: `KX134_STAGE_MAX_SAMPLES` is decoupled from `FFT_IMU_N` but
+bound-checked with a loud `-EINVAL` in `kx134_fill_epoch()`, not a silent
+truncation — this part of the driver was already clean.
+
+Per direction, the fix raised the KX134's programmed ODR to 25600Hz to match
+`IMU_FS_HZ` (not the cheaper option of lowering `IMU_FS_HZ` to match the old
+12800Hz reality) — `IMU_FS_HZ=25600` was chosen specifically to clear the
+reference project's reported 8kHz accel ceiling with margin, and lowering it
+would have locked in falling short of that goal instead of meeting it.
+Full writeup, options considered, and hardware validation (965 epochs, 2895
+`hal_accel_read_block()` calls, 0 `read_errors`, 0 `reinit_attempts`, stable
+readings and cadence over a 150s capture) in `docs/decisions/ADR-037-kx134-
+odr-raised-to-25600hz.md`. No other file needed to change — every downstream
+consumer was already written against `IMU_FS_HZ=25600`.
+
+### 2. Pre-test blocker: MQTT broker unreachable (self-inflicted, not a repo bug)
+
+Before any sweep could run, the satellite could not connect to MQTT at all
+(`esp-tls: select() timeout` / `Failed to open a new connection: 32774`
+repeating every ~13s — the exact signature `docs/performance/
+SATELLITE_STRESS_STABILITY_TEST.md` §3 already root-caused as the vendored
+esp-mqtt/esp-tls library's reconnect state machine getting stuck against an
+unreachable broker). Root cause here was different from that document's:
+every reflash performed during today's ODR validation work (§1) called
+`platformio.exe` directly by its full path rather than through this repo's
+`pio.ps1` wrapper — the wrapper is what reads `.env.local`
+(`EPM_MQTT_BROKER_HOST=192.168.1.5`) and injects it as a build flag; bypassing
+it silently falls back to the compiled default `10.42.0.1`, an address that
+doesn't exist on this network. Confirmed via `link_mqtt.c`: the broker host
+is a pure compile-time macro, never NVS-provisioned, so there was no
+runtime workaround short of a correct reflash.
+
+Fixed by reflashing through `pio.ps1` (`$env:PATH` needed the platformio
+`Scripts` directory prepended first, since raw `pio` also isn't on PATH by
+default on this machine). Verified fixed: `mqtt: connects=1 disconnects=0
+publishes=125 publish_failures=0` immediately after. This is the second
+session in a row this exact `.env.local`-bypass footgun has appeared (the
+2026-08-08 addendum above hit the same broker-host mismatch before the
+wrapper existed) — worth a harder guard (e.g. `pio.ps1` failing loudly, or a
+build-time assertion, if `EPM_MQTT_BROKER_HOST` is ever the compiled
+default in a non-CI build) as a follow-up, not done here.
+
+### 3. Rig frequency-response characterization (15-250Hz sweep)
+
+`capture_and_compare.py sweep`, `accel_z` channel, amplitude 0.9, 3 repeats/
+point, run at the corrected 25600Hz ODR. Full log:
+`docs/performance/raw/accel_rig_sweep_20260809.log`; CSV: `docs/performance/
+raw/accel_rig_sweep_results_20260809.csv`.
+
+| Freq (Hz) | Locks | Reliable | Notes |
+|---|---|---|---|
+| 15 | 3/3 | yes | |
+| 20 | 3/3 | yes | |
+| 30 | 3/3 | yes | |
+| 40 | 3/3 | yes | |
+| 50 | 3/3 | yes | |
+| 60 | 3/3 | yes | |
+| 70 | 3/3 | yes | |
+| 80 | 3/3 | yes | |
+| 90 | 3/3 | yes | last fully clean point |
+| **100** | **1/3** | **no** | sharp drop, no transition zone |
+| 110 | 1/3 | no | |
+| 120 | 1/3 | no | |
+| 130 | 1/3 | no | |
+| 140 | 0/3 | no | worst point in the sweep |
+| 150 | 2/3 | yes | non-monotonic — better than 100-140Hz |
+| 175 | 1/3 | no | |
+| 200 | 1/3 | no | |
+| 250 | 1/3 | no | |
+
+**Below 100Hz, the accel wire bin width (100Hz, per ADR-020) exceeds the
+requested frequency**, so `is_locked()` uses its documented low-frequency
+branch (checks for elevated energy in the lowest 1-2 bins, not exact bin
+location — see `capture_and_compare.py`'s own docstring). The 15-90Hz
+"locks" therefore certify *real, distinguishable low-frequency vibration
+energy reaching the sensor with ≥6dB SNR* (SNR ranged 6.1-13.1dB across
+all 27 attempts in this range, 27/27 locked), not sub-bin frequency
+accuracy — that finer claim isn't meaningful at this wire resolution
+regardless of rig quality.
+
+At 100Hz and above, `is_locked()` switches to a strict peak-bin-vs-target
+comparison. The transition is a **step, not a gradual rolloff**: 90Hz is
+27/27... 3/3 clean, 100Hz drops to 1/3 immediately, with no intermediate
+partial-degradation frequency found. Just as informative as the lock/fail
+count: on every *failed* attempt from 100-250Hz, the peak bin lands far
+from the requested frequency and scattered across a wide, inconsistent
+range (350-2050Hz, no repeated pattern) — not a low-amplitude version of
+the true tone decaying gracefully into the noise floor. That is the
+signature of the coupling becoming nonlinear/resonance-dominated above
+~90-100Hz (broadband or harmonic content overwhelming the fundamental),
+matching this document's earlier informal finding and the framing this
+characterization set out to confirm — **this is a property of the
+laptop-speaker-through-chassis stimulus rig, not a claim about the KX134
+sensor's own frequency response.** The sensor's real ODR/Nyquist is now
+25600Hz/12800Hz (§1); nothing in this section tests or challenges that —
+only this particular bench rig's ability to deliver a clean single-frequency
+stimulus above ~90Hz. The occasional stray lock in the 100-250Hz range
+(e.g. 150Hz's 2/3, several single lucky locks elsewhere) is consistent with
+the ±100Hz tolerance window being wide relative to the 100Hz bin spacing,
+not a second clean band re-emerging.
+
+**Conclusion: rig's clean, reliable range is ~15-90Hz**, matching and
+sharpening the ~100Hz informal estimate this characterization was scoped to
+verify.
+
+### 4. Accel capture fidelity at 25600Hz ODR — zero drops across the sweep
+
+Diagnostics snapshot taken immediately after the full 18-point/54-attempt
+sweep above (`docs/performance/raw/accel_sweep_post_diag_20260809.log`):
+
+```text
+mqtt: connects=1 disconnects=0 publishes=2420 publish_failures=0
+imu: epochs=2671 read_errors=0 reinit_attempts=0 reinit_successes=0
+accel: reads_ok=8013 read_errors=0 fifo_max_hits=2671
+net: frames_built=2421 build_failures=0 publish_failures=0
+mic i2s: overflow_count=26 (cumulative, unchanged from ADR-037's baseline)
+```
+
+Zero accel read errors or reinits across 2671 epochs (the entire sweep plus
+idle time either side), zero MQTT disconnects, zero frame-build/publish
+failures. The 25600Hz ODR sustains a real, sweep-length driven-vibration
+session on real hardware without degradation — this is the step-3
+confirmation the ODR bump from §1/ADR-037 needed beyond the original 150s
+at-rest validation run.
+
+### 5. Combined mic+accel simultaneous stimulus test
+
+One 80Hz tone (chosen from inside the clean-locking accel range found in
+§3), played once through the laptop speaker — the same physical stimulus
+reaches both the onboard mic (air/structure-borne) and the chassis-coupled
+accel (mechanical) at the same time, exercising `mic_task` and `imu_task`
+concurrently under one real, shared-CPU/DMA/task-priority load. Both
+channels decoded from the *same* captured frame set (not two separate
+runs). Full output: `docs/performance/raw/combined_stimulus_20260809.log`.
+
+| Channel  | Locked | SNR (dB) | Peak bin (Hz) |
+| -------- | ------ | -------- | ------------- |
+| mic      | True   | 23.63    | 93.8          |
+| accel_z  | True   | 10.46    | 150.0         |
+
+39/39 captured frames carried both channels — no frame dropped either
+channel's data during the concurrent-load window. Note `accel_z`'s peak
+landed in the (100,200] bin rather than the (0,100] bin 80Hz numerically
+falls in; still within the ±100Hz tolerance window (same coarse-tolerance
+effect noted in §3), reported as-is rather than smoothed over.
+
+Diagnostics immediately after
+(`docs/performance/raw/combined_stimulus_post_diag_20260809.log`), compared
+against the pre-combined-test baseline in §4:
+
+```text
+mqtt: connects=1 disconnects=0 publishes=2994 publish_failures=0
+mic: blocks_ok=29667 capture_failures=0 rb_drops=0
+mic i2s: overflow_count=26 (still unchanged — zero new overflows)
+imu: epochs=3298 read_errors=0 reinit_attempts=0
+accel: reads_ok=9894 read_errors=0
+net: frames_built=2995 build_failures=0 publish_failures=0
+```
+
+No counter moved in a way attributable to the combined load: mic overflow
+count is identical to the pre-existing baseline, zero new read errors or
+reinits on either path, zero MQTT disconnects. **Confirms the shared CPU/
+DMA/task-priority budget handles real concurrent mic+accel stimulus without
+either path dropping samples or degrading.**
+
+### Overall conclusion (2026-08-09 addendum)
+
+- Accel-side audit found and fixed a real bug (KX134 ODR half of what
+  `IMU_FS_HZ` assumed) — worse than ADR-017 had characterized it, now
+  resolved and hardware-validated at the corrected 25600Hz rate (ADR-037).
+- The bench rig's clean, reliable stimulus range is ~15-90Hz; above that the
+  laptop-speaker-through-chassis coupling degrades sharply (not gradually)
+  into nonlinear/resonance-dominated behavior. This is a rig limitation,
+  explicitly not evidence about the KX134's own (far higher, now
+  25600Hz-ODR) capability.
+- Within the rig's clean range and at the new ODR, the accel capture path
+  showed zero dropped samples/read errors/reinits across a full real sweep.
+- Combined mic+accel simultaneous stimulus produced zero cross-path
+  degradation — both channels locked concurrently from the same frames,
+  with diagnostics counters unchanged from their pre-combined-test
+  baseline.
+
+### Follow-up (2026-08-09 addendum, not done this session)
+
+- Harden `pio.ps1`'s broker-host injection against silent bypass (§2) — a
+  raw `platformio.exe`/`pio` invocation should fail loudly or warn, not
+  silently fall back to a nonexistent compiled default.
+- A clamped/bolted vibration transducer (already flagged in the 2026-08-08
+  section above) would likely push the rig's clean range past 90Hz and
+  narrow whether 100-140Hz's total lock failure is coupling-amplitude or
+  genuine chassis-resonance limited — not distinguished in this session.

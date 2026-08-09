@@ -1,0 +1,91 @@
+[15 Hz / amp 0.9] attempt 1/3: locked=True snr_db=7.067535400390625 peak=850.0
+[15 Hz / amp 0.9] attempt 2/3: locked=True snr_db=6.0788421630859375 peak=3350.0
+[15 Hz / amp 0.9] attempt 3/3: locked=True snr_db=8.043746948242188 peak=350.0
+  -> 3/3 locks, reliable=True
+
+[20 Hz / amp 0.9] attempt 1/3: locked=True snr_db=10.006595611572266 peak=250.0
+[20 Hz / amp 0.9] attempt 2/3: locked=True snr_db=8.034805297851562 peak=150.0
+[20 Hz / amp 0.9] attempt 3/3: locked=True snr_db=9.169164657592773 peak=150.0
+  -> 3/3 locks, reliable=True
+
+[30 Hz / amp 0.9] attempt 1/3: locked=True snr_db=6.366172790527344 peak=550.0
+[30 Hz / amp 0.9] attempt 2/3: locked=True snr_db=7.680490493774414 peak=350.0
+[30 Hz / amp 0.9] attempt 3/3: locked=True snr_db=9.270210266113281 peak=250.0
+  -> 3/3 locks, reliable=True
+
+[40 Hz / amp 0.9] attempt 1/3: locked=True snr_db=6.502668380737305 peak=250.0
+[40 Hz / amp 0.9] attempt 2/3: locked=True snr_db=8.77938461303711 peak=350.0
+[40 Hz / amp 0.9] attempt 3/3: locked=True snr_db=8.35659408569336 peak=250.0
+  -> 3/3 locks, reliable=True
+
+[50 Hz / amp 0.9] attempt 1/3: locked=True snr_db=8.289138793945312 peak=1150.0
+[50 Hz / amp 0.9] attempt 2/3: locked=True snr_db=10.168804168701172 peak=250.0
+[50 Hz / amp 0.9] attempt 3/3: locked=True snr_db=8.546773910522461 peak=250.0
+  -> 3/3 locks, reliable=True
+
+[60 Hz / amp 0.9] attempt 1/3: locked=True snr_db=6.607160568237305 peak=350.0
+[60 Hz / amp 0.9] attempt 2/3: locked=True snr_db=7.109516143798828 peak=650.0
+[60 Hz / amp 0.9] attempt 3/3: locked=True snr_db=6.828975677490234 peak=950.0
+  -> 3/3 locks, reliable=True
+
+[70 Hz / amp 0.9] attempt 1/3: locked=True snr_db=8.133630752563477 peak=350.0
+[70 Hz / amp 0.9] attempt 2/3: locked=True snr_db=6.932456970214844 peak=1350.0
+[70 Hz / amp 0.9] attempt 3/3: locked=True snr_db=9.331060409545898 peak=550.0
+  -> 3/3 locks, reliable=True
+
+[80 Hz / amp 0.9] attempt 1/3: locked=True snr_db=8.072998046875 peak=1350.0
+[80 Hz / amp 0.9] attempt 2/3: locked=True snr_db=13.102542877197266 peak=150.0
+[80 Hz / amp 0.9] attempt 3/3: locked=True snr_db=7.687253952026367 peak=850.0
+  -> 3/3 locks, reliable=True
+
+[90 Hz / amp 0.9] attempt 1/3: locked=True snr_db=8.932235717773438 peak=650.0
+[90 Hz / amp 0.9] attempt 2/3: locked=True snr_db=8.632272720336914 peak=450.0
+[90 Hz / amp 0.9] attempt 3/3: locked=True snr_db=7.398162841796875 peak=650.0
+  -> 3/3 locks, reliable=True
+
+[100 Hz / amp 0.9] attempt 1/3: locked=False snr_db=10.659507751464844 peak=750.0
+[100 Hz / amp 0.9] attempt 2/3: locked=False snr_db=7.820247650146484 peak=650.0
+[100 Hz / amp 0.9] attempt 3/3: locked=True snr_db=7.453838348388672 peak=150.0
+  -> 1/3 locks, reliable=False
+
+[110 Hz / amp 0.9] attempt 1/3: locked=False snr_db=9.013130187988281 peak=750.0
+[110 Hz / amp 0.9] attempt 2/3: locked=False snr_db=8.944732666015625 peak=350.0
+[110 Hz / amp 0.9] attempt 3/3: locked=True snr_db=7.214023590087891 peak=150.0
+  -> 1/3 locks, reliable=False
+
+[120 Hz / amp 0.9] attempt 1/3: locked=False snr_db=8.704414367675781 peak=550.0
+[120 Hz / amp 0.9] attempt 2/3: locked=False snr_db=7.981029510498047 peak=1150.0
+[120 Hz / amp 0.9] attempt 3/3: locked=True snr_db=10.127975463867188 peak=150.0
+  -> 1/3 locks, reliable=False
+
+[130 Hz / amp 0.9] attempt 1/3: locked=False snr_db=9.324607849121094 peak=2050.0
+[130 Hz / amp 0.9] attempt 2/3: locked=True snr_db=11.610275268554688 peak=150.0
+[130 Hz / amp 0.9] attempt 3/3: locked=False snr_db=8.760345458984375 peak=450.0
+  -> 1/3 locks, reliable=False
+
+[140 Hz / amp 0.9] attempt 1/3: locked=False snr_db=7.333980560302734 peak=550.0
+[140 Hz / amp 0.9] attempt 2/3: locked=False snr_db=9.797733306884766 peak=750.0
+[140 Hz / amp 0.9] attempt 3/3: locked=False snr_db=10.78329849243164 peak=550.0
+  -> 0/3 locks, reliable=False
+
+[150 Hz / amp 0.9] attempt 1/3: locked=True snr_db=8.600086212158203 peak=250.0
+[150 Hz / amp 0.9] attempt 2/3: locked=False snr_db=9.16998291015625 peak=1450.0
+[150 Hz / amp 0.9] attempt 3/3: locked=True snr_db=11.163917541503906 peak=250.0
+  -> 2/3 locks, reliable=True
+
+[175 Hz / amp 0.9] attempt 1/3: locked=False snr_db=9.595565795898438 peak=1250.0
+[175 Hz / amp 0.9] attempt 2/3: locked=False snr_db=10.374683380126953 peak=650.0
+[175 Hz / amp 0.9] attempt 3/3: locked=True snr_db=10.771404266357422 peak=150.0
+  -> 1/3 locks, reliable=False
+
+[200 Hz / amp 0.9] attempt 1/3: locked=True snr_db=10.929885864257812 peak=250.0
+[200 Hz / amp 0.9] attempt 2/3: locked=False snr_db=10.447090148925781 peak=350.0
+[200 Hz / amp 0.9] attempt 3/3: locked=False snr_db=7.963428497314453 peak=950.0
+  -> 1/3 locks, reliable=False
+
+[250 Hz / amp 0.9] attempt 1/3: locked=False snr_db=11.255680084228516 peak=450.0
+[250 Hz / amp 0.9] attempt 2/3: locked=False snr_db=10.297470092773438 peak=450.0
+[250 Hz / amp 0.9] attempt 3/3: locked=True snr_db=12.89072036743164 peak=150.0
+  -> 1/3 locks, reliable=False
+
+wrote 54 row(s) to C:\Users\abhin\AppData\Local\Temp\claude\c--Users-abhin-Documents-edgeai-predictive-monitor-satellite\e42228c0-6d71-47a8-b441-e1b84cacdd88\scratchpad\accel_rig_sweep_results.csv

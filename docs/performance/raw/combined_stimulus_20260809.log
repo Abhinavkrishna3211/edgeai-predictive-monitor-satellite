@@ -1,0 +1,9 @@
+capturing 8.0s of frames during 80.0Hz combined stimulus...
+
+39 frame(s) captured in window
+mic        locked=True   snr_db=23.63 peak_bin_freq_hz=93.8 peak_bin_db=-82.66 noise_floor_db=-106.28
+accel_z    locked=True   snr_db=10.46 peak_bin_freq_hz=150.0 peak_bin_db=-46.76 noise_floor_db=-57.22
+
+node_id(s) seen: ['5ab004']
+frames with mic channel: 39
+frames with accel_z channel: 39
