@@ -30,12 +30,18 @@ extern "C" {
 #define MIC_I2S_WS_PIN        GPIO_NUM_3   // XIAO pin D2
 #define MIC_I2S_DATA_IN_PIN   GPIO_NUM_4   // XIAO pin D3
 
-// Sample rate. 16 kHz is the recommended starting point for acoustic
-// motor/bearing fault signatures (covers content up to 8 kHz). Raise it
-// later if Stage-3 FFT analysis shows energy clipped at the top of band.
+// Sample rate -- mirrors src/epm_config.h's MIC_FS_HZ (48000, raised from
+// the 16 kHz placeholder after a real-hardware SNR sweep confirmed strong
+// 15-20kHz bearing-fault signal at 48 kHz). Not #include-d directly:
+// epm_drivers must not depend back on the main component's config, same
+// rule accel_stub.c documents for IMU_FS_HZ and accel_kx134_spi.c documents
+// for FFT_IMU_N. This is the value that actually configures the I2S clock
+// (see I2S_STD_CLK_DEFAULT_CONFIG below) -- if this drifts from MIC_FS_HZ,
+// the wire protocol's advertised sample rate no longer matches what the
+// mic hardware is physically doing.
 // Wrapped in #ifndef so test builds can override via -DMIC_SAMPLE_RATE_HZ=X.
 #ifndef MIC_SAMPLE_RATE_HZ
-#define MIC_SAMPLE_RATE_HZ    16000
+#define MIC_SAMPLE_RATE_HZ    48000
 #endif
 
 // Raw read block size in samples. This is independent of the eventual
