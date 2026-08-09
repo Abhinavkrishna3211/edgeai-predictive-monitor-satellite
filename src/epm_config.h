@@ -28,7 +28,7 @@
 #endif
 
 #ifndef SPEC_AVG_N
-#define SPEC_AVG_N  4       /* spectral frames to average before sending      */
+#define SPEC_AVG_N  8       /* spectral frames to average before sending      */
 #endif
 #if SPEC_AVG_N <= 0
 #error "SPEC_AVG_N must be > 0 (division by zero in mic_task / imu_task)"
