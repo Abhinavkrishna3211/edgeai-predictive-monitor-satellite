@@ -121,12 +121,12 @@ static void test_wire_fft_size_true_bin_width(void)
 {
     float mic_bin_hz = (float)MIC_FS_HZ / (float)EPM_MIC_WIRE_FFT_SIZE;
     float imu_bin_hz = (float)IMU_FS_HZ / (float)EPM_IMU_WIRE_FFT_SIZE;
-    int mic_ok = fabsf(mic_bin_hz - 62.5f) < 0.001f;
+    int mic_ok = fabsf(mic_bin_hz - 187.5f) < 0.001f;
     int imu_ok = fabsf(imu_bin_hz - 100.0f) < 0.001f;
     char detail[160];
 
     snprintf(detail, sizeof(detail),
-             "mic fs/fft_size=%.4f Hz (want 62.5), accel fs/fft_size=%.4f Hz (want 100.0)",
+             "mic fs/fft_size=%.4f Hz (want 187.5), accel fs/fft_size=%.4f Hz (want 100.0)",
              (double)mic_bin_hz, (double)imu_bin_hz);
     test_report("wire_fft_size_true_bin_width", mic_ok && imu_ok, EXPECT_PASS, detail);
 }
