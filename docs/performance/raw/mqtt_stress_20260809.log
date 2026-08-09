@@ -1,0 +1,2484 @@
+--- forcing DTR inactive
+--- forcing RTS inactive
+
+Please build project in debug configuration to get more details about an exception.
+See https://docs.platformio.org/page/projectconf/build_configurations.html
+
+
+--- Terminal on COM15 | 115200 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+W (10017642) kx134: FIFO seen at max capacity (86/86 frames) -- W (24374) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (24374) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.252 max_fifo=86/86
+W (24634) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (24634) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.254 max_fifo=86/86
+W (24904) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (24904) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.251 max_fifo=86/86
+W (25164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25164) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.252 max_fifo=86/86
+W (25434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25434) kx134: epoch: n=2048 mean_g x=0.965 y=0.053 z=-0.249 max_fifo=86/86
+W (25704) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25704) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.254 max_fifo=86/86
+W (25974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25974) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (26234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (26234) kx134: epoch: n=2048 mean_g x=0.969 y=0.049 z=-0.248 max_fifo=86/86
+W (26514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (26514) kx134: epoch: n=2048 mean_g x=0.968 y=0.051 z=-0.251 max_fifo=86/86
+W (26774) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (26774) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.247 max_fifo=86/86
+W (27044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27044) kx134: epoch: n=2048 mean_g x=0.967 y=0.052 z=-0.250 max_fifo=86/86
+W (27314) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27314) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.252 max_fifo=86/86
+W (27584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27584) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.249 max_fifo=86/86
+W (27844) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27844) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.250 max_fifo=86/86
+W (28104) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28104) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.253 max_fifo=86/86
+E (28264) esp-tls: [sock=54] select() timeout
+E (28264) transport_base: Failed to open a new connection: 32774
+E (28264) mqtt_client: Error transport connect
+W (28264) link_mqtt: disconnected
+W (28374) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28374) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.248 max_fifo=86/86
+W (28644) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28644) kx134: epoch: n=2048 mean_g x=0.970 y=0.049 z=-0.249 max_fifo=86/86
+W (28914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28914) kx134: epoch: n=2048 mean_g x=0.967 y=0.058 z=-0.250 max_fifo=86/86
+W (29174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (29174) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.248 max_fifo=86/86
+W (29454) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (29454) kx134: epoch: n=2048 mean_g x=0.975 y=0.048 z=-0.250 max_fifo=86/86
+W (29724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (29724) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.249 max_fifo=86/86
+W (29984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (29984) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.248 max_fifo=86/86
+W (30254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (30254) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.247 max_fifo=86/86
+W (30514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (30514) kx134: epoch: n=2048 mean_g x=0.968 y=0.050 z=-0.248 max_fifo=86/86
+W (30784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (30784) kx134: epoch: n=2048 mean_g x=0.966 y=0.054 z=-0.245 max_fifo=86/86
+W (31044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31044) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.248 max_fifo=86/86
+W (31314) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31314) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.247 max_fifo=86/86
+I (31464) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1740 diag=2188
+I (31464) DIAG: CPU runtime:
+diag           	270		<1%
+IDLE1          	29735572		98%
+IDLE0          	23344940		77%
+mic_task       	238815		<1%
+net            	1517301		5%
+tiT            	41413		<1%
+wifi_prov      	875		<1%
+imu_task       	4390508		14%
+dsp_task       	378484		1%
+mqtt_stress    	14		<1%
+mqtt_task      	17445		<1%
+rgb_led        	111335		<1%
+main           	157606		<1%
+ipc1           	50577		<1%
+ipc0           	37893		<1%
+sys_evt        	4256		<1%
+esp_timer      	7167		<1%
+wifi           	548401		1%
+Tmr Svc        	17		<1%
+
+I (31514) DIAG: Heap free: internal=26500 largest_free=17408 PSRAM=8209980 IRAM=0
+I (31514) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (31524) DIAG: mqtt: connects=0 disconnects=2 publishes=0 publish_failures=0 cmds_received=0
+I (31534) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (31534) DIAG: mic: blocks_ok=466 capture_failures=0 rb_drops=0
+W (31544) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (31554) DIAG: dsp: fft_count=467 frames_emitted=116 rb_timeouts=0 last_fft_us=608
+I (31564) DIAG: imu: epochs=111 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (31564) DIAG: accel: reads_ok=333 read_errors=0 fifo_max_hits=111
+I (31574) DIAG: net: frames_built=126 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (31584) DIAG: led: state_changes=3 remote_updates=0 hw_errors=0
+W (31584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31594) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.249 max_fifo=86/86
+W (31874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31874) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.250 max_fifo=86/86
+W (32144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32144) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.252 max_fifo=86/86
+W (32404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32404) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (32674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32674) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.251 max_fifo=86/86
+W (32934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32934) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.249 max_fifo=86/86
+W (33204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (33204) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.248 max_fifo=86/86
+W (33474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (33474) kx134: epoch: n=2048 mean_g x=0.971 y=0.048 z=-0.244 max_fifo=86/86
+W (33744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (33744) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.248 max_fifo=86/86
+W (34004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34004) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (34284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34284) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (34544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34544) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.251 max_fifo=86/86
+W (34814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34814) kx134: epoch: n=2048 mean_g x=0.968 y=0.057 z=-0.251 max_fifo=86/86
+W (35084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35084) kx134: epoch: n=2048 mean_g x=0.974 y=0.052 z=-0.246 max_fifo=86/86
+W (35244) net_task: EPM_MQTT_RECONNECT_STRESS_TEST: starting 50 x link_mqtt_start() calls
+E (35244) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (35244) net_task: mqtt_stress[1/50]: rc=-12 before=26500 after=26500 delta=0
+W (35354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35354) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.249 max_fifo=86/86
+W (35614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35614) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.253 max_fifo=86/86
+W (35874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35874) kx134: epoch: n=2048 mean_g x=0.966 y=0.052 z=-0.248 max_fifo=86/86
+W (36144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (36144) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.249 max_fifo=86/86
+E (36254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (36254) net_task: mqtt_stress[2/50]: rc=-12 before=26500 after=26500 delta=0
+W (36424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (36424) kx134: epoch: n=2048 mean_g x=0.975 y=0.047 z=-0.249 max_fifo=86/86
+W (36684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (36684) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.252 max_fifo=86/86
+W (36944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (36944) kx134: epoch: n=2048 mean_g x=0.971 y=0.056 z=-0.247 max_fifo=86/86
+W (37224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (37224) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+E (37254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (37254) net_task: mqtt_stress[3/50]: rc=-12 before=26500 after=26500 delta=0
+W (37484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (37484) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.250 max_fifo=86/86
+W (37754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (37754) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.255 max_fifo=86/86
+W (38024) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38024) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.253 max_fifo=86/86
+E (38254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (38254) net_task: mqtt_stress[4/50]: rc=-12 before=26500 after=26500 delta=0
+W (38294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38294) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.252 max_fifo=86/86
+W (38564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38564) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.249 max_fifo=86/86
+W (38814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38814) kx134: epoch: n=2048 mean_g x=0.966 y=0.055 z=-0.252 max_fifo=86/86
+W (39084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39084) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.251 max_fifo=86/86
+E (39254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (39254) net_task: mqtt_stress[5/50]: rc=-12 before=26500 after=26500 delta=0
+W (39364) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39364) kx134: epoch: n=2048 mean_g x=0.966 y=0.052 z=-0.250 max_fifo=86/86
+W (39624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39624) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.250 max_fifo=86/86
+W (39884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39884) kx134: epoch: n=2048 mean_g x=0.965 y=0.053 z=-0.248 max_fifo=86/86
+W (40164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40164) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.248 max_fifo=86/86
+E (40254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (40254) net_task: mqtt_stress[6/50]: rc=-12 before=26500 after=26500 delta=0
+W (40434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40434) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.250 max_fifo=86/86
+W (40694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40694) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.252 max_fifo=86/86
+W (40964) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40964) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.250 max_fifo=86/86
+W (41224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (41224) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.247 max_fifo=86/86
+E (41254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (41254) net_task: mqtt_stress[7/50]: rc=-12 before=26500 after=26500 delta=0
+E (41274) esp-tls: [sock=54] select() timeout
+E (41274) transport_base: Failed to open a new connection: 32774
+E (41274) mqtt_client: Error transport connect
+W (41274) link_mqtt: disconnected
+W (41504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (41504) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.249 max_fifo=86/86
+W (41754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (41754) kx134: epoch: n=2048 mean_g x=0.973 y=0.050 z=-0.246 max_fifo=86/86
+W (42014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (42014) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.247 max_fifo=86/86
+E (42254) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (42254) net_task: mqtt_stress[8/50]: rc=-12 before=27092 after=27092 delta=0
+W (42274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (42274) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.249 max_fifo=86/86
+W (42544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (42544) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.251 max_fifo=86/86
+W (42804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (42804) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (43074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43074) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.250 max_fifo=86/86
+E (43254) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (43254) net_task: mqtt_stress[9/50]: rc=-12 before=27092 after=27092 delta=0
+W (43344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43344) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.251 max_fifo=86/86
+W (43614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43614) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+W (43874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43874) kx134: epoch: n=2048 mean_g x=0.967 y=0.051 z=-0.244 max_fifo=86/86
+W (44154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44154) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.247 max_fifo=86/86
+E (44254) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (44254) net_task: mqtt_stress[10/50]: rc=-12 before=27092 after=27092 delta=0
+W (44424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44424) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.251 max_fifo=86/86
+W (44684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44684) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.251 max_fifo=86/86
+W (44954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44954) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.251 max_fifo=86/86
+W (45214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (45214) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.251 max_fifo=86/86
+E (45254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (45254) net_task: mqtt_stress[11/50]: rc=-12 before=26500 after=26500 delta=0
+W (45484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (45484) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.253 max_fifo=86/86
+W (45744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (45744) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+W (46014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46014) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.255 max_fifo=86/86
+E (46254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (46254) net_task: mqtt_stress[12/50]: rc=-12 before=26500 after=26500 delta=0
+W (46294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46294) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.254 max_fifo=86/86
+W (46554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46554) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.253 max_fifo=86/86
+W (46814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46814) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.252 max_fifo=86/86
+W (47094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47094) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.255 max_fifo=86/86
+E (47254) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (47254) net_task: mqtt_stress[13/50]: rc=-12 before=26500 after=26500 delta=0
+W (47354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47364) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.253 max_fifo=86/86
+W (47624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47624) kx134: epoch: n=2048 mean_g x=0.974 y=0.049 z=-0.253 max_fifo=86/86
+W (47894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47894) kx134: epoch: n=2048 mean_g x=0.968 y=0.051 z=-0.249 max_fifo=86/86
+W (48154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48154) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.253 max_fifo=86/86
+E (48264) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (48264) net_task: mqtt_stress[14/50]: rc=-12 before=26500 after=26500 delta=0
+W (48424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48424) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.254 max_fifo=86/86
+W (48684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48684) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.253 max_fifo=86/86
+W (48954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48954) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.252 max_fifo=86/86
+W (49224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (49224) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.251 max_fifo=86/86
+E (49264) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (49264) net_task: mqtt_stress[15/50]: rc=-12 before=26500 after=26500 delta=0
+W (49494) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (49494) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.255 max_fifo=86/86
+W (49754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (49754) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.252 max_fifo=86/86
+W (50034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50034) kx134: epoch: n=2048 mean_g x=0.971 y=0.057 z=-0.254 max_fifo=86/86
+E (50264) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (50264) net_task: mqtt_stress[16/50]: rc=-12 before=26500 after=26500 delta=0
+W (50304) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50304) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.254 max_fifo=86/86
+W (50564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50564) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.251 max_fifo=86/86
+W (50834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50834) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.252 max_fifo=86/86
+W (51104) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51104) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.251 max_fifo=86/86
+E (51264) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (51264) net_task: mqtt_stress[17/50]: rc=-12 before=26500 after=26500 delta=0
+W (51364) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51364) kx134: epoch: n=2048 mean_g x=0.967 y=0.052 z=-0.249 max_fifo=86/86
+W (51624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51624) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.253 max_fifo=86/86
+W (51894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51894) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.252 max_fifo=86/86
+W (52164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52164) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.251 max_fifo=86/86
+E (52264) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (52264) net_task: mqtt_stress[18/50]: rc=-12 before=26500 after=26500 delta=0
+W (52434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52434) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.251 max_fifo=86/86
+W (52694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52694) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.247 max_fifo=86/86
+W (52974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52974) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.249 max_fifo=86/86
+W (53244) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (53244) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.251 max_fifo=86/86
+E (53264) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (53264) net_task: mqtt_stress[19/50]: rc=-12 before=26500 after=26500 delta=0
+W (53504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (53504) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.250 max_fifo=86/86
+W (53774) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (53774) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.251 max_fifo=86/86
+W (54034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54034) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+E (54264) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (54264) net_task: mqtt_stress[20/50]: rc=-12 before=26500 after=26500 delta=0
+E (54284) esp-tls: [sock=54] select() timeout
+E (54284) transport_base: Failed to open a new connection: 32774
+E (54284) mqtt_client: Error transport connect
+W (54284) link_mqtt: disconnected
+W (54314) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54314) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.249 max_fifo=86/86
+W (54564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54564) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.249 max_fifo=86/86
+W (54834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54834) kx134: epoch: n=2048 mean_g x=0.969 y=0.048 z=-0.248 max_fifo=86/86
+W (55104) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55104) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.249 max_fifo=86/86
+E (55264) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (55264) net_task: mqtt_stress[21/50]: rc=-12 before=27092 after=27092 delta=0
+W (55384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55384) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.246 max_fifo=86/86
+W (55634) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55634) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.250 max_fifo=86/86
+W (55914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55914) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.247 max_fifo=86/86
+W (56174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (56174) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.248 max_fifo=86/86
+E (56264) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (56264) net_task: mqtt_stress[22/50]: rc=-12 before=27092 after=27092 delta=0
+W (56444) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (56444) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.248 max_fifo=86/86
+W (56714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (56714) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.250 max_fifo=86/86
+W (56974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (56974) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.249 max_fifo=86/86
+W (57244) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (57244) kx134: epoch: n=2048 mean_g x=0.974 y=0.053 z=-0.250 max_fifo=86/86
+E (57264) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (57264) net_task: mqtt_stress[23/50]: rc=-12 before=27092 after=27092 delta=0
+W (57514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (57514) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.251 max_fifo=86/86
+W (57794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (57794) kx134: epoch: n=2048 mean_g x=0.966 y=0.056 z=-0.252 max_fifo=86/86
+W (58064) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58064) kx134: epoch: n=2048 mean_g x=0.968 y=0.049 z=-0.246 max_fifo=86/86
+E (58274) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (58274) net_task: mqtt_stress[24/50]: rc=-12 before=26500 after=26500 delta=0
+W (58334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58334) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.245 max_fifo=86/86
+W (58604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58604) kx134: epoch: n=2048 mean_g x=0.967 y=0.051 z=-0.247 max_fifo=86/86
+W (58864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58864) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+W (59134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59134) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.249 max_fifo=86/86
+E (59274) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (59274) net_task: mqtt_stress[25/50]: rc=-12 before=26500 after=26500 delta=0
+W (59394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59394) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.254 max_fifo=86/86
+W (59664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59664) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.251 max_fifo=86/86
+W (59934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59934) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.251 max_fifo=86/86
+W (60204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (60204) kx134: epoch: n=2048 mean_g x=0.973 y=0.048 z=-0.252 max_fifo=86/86
+E (60274) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (60274) net_task: mqtt_stress[26/50]: rc=-12 before=26500 after=26500 delta=0
+W (60464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (60464) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.252 max_fifo=86/86
+W (60744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (60744) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.248 max_fifo=86/86
+W (61004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61004) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.252 max_fifo=86/86
+W (61274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61274) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.249 max_fifo=86/86
+E (61284) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (61294) net_task: mqtt_stress[27/50]: rc=-12 before=26500 after=26500 delta=0
+W (61544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61544) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.247 max_fifo=86/86
+I (61634) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1724 diag=828
+I (61634) DIAG: CPU runtime:
+rgb_led        	219619		<1%
+diag           	106827		<1%
+IDLE1          	59369708		98%
+IDLE0          	46618623		77%
+mic_task       	481025		<1%
+net            	3253534		5%
+tiT            	81463		<1%
+mqtt_stress    	207743		<1%
+wifi_prov      	1372		<1%
+dsp_task       	763937		1%
+mqtt_task      	32722		<1%
+imu_task       	8878143		14%
+main           	157606		<1%
+ipc0           	37893		<1%
+sys_evt        	4256		<1%
+esp_timer      	11968		<1%
+wifi           	643646		1%
+Tmr Svc        	17		<1%
+ipc1           	50577		<1%
+
+I (61674) DIAG: Heap free: internal=26500 largest_free=17408 PSRAM=8209980 IRAM=0
+I (61684) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (61694) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (61694) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (61704) DIAG: mic: blocks_ok=938 capture_failures=0 rb_drops=0
+W (61714) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (61724) DIAG: dsp: fft_count=938 frames_emitted=234 rb_timeouts=0 last_fft_us=608
+I (61734) DIAG: imu: epochs=224 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (61734) DIAG: accel: reads_ok=672 read_errors=0 fifo_max_hits=224
+I (61754) DIAG: net: frames_built=270 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (61754) DIAG: led: state_changes=3 remote_updates=0 hw_errors=0
+W (61814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61814) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.251 max_fifo=86/86
+W (62074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (62074) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.249 max_fifo=86/86
+E (62294) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (62294) net_task: mqtt_stress[28/50]: rc=-12 before=26500 after=26500 delta=0
+W (62334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (62334) kx134: epoch: n=2048 mean_g x=0.971 y=0.048 z=-0.247 max_fifo=86/86
+W (62604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (62604) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.249 max_fifo=86/86
+W (62874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (62874) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.248 max_fifo=86/86
+W (63144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63144) kx134: epoch: n=2048 mean_g x=0.973 y=0.054 z=-0.252 max_fifo=86/86
+E (63294) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (63294) net_task: mqtt_stress[29/50]: rc=-12 before=26500 after=26500 delta=0
+W (63414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63414) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.251 max_fifo=86/86
+W (63684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63684) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.253 max_fifo=86/86
+W (63954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63954) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.250 max_fifo=86/86
+W (64214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (64214) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.253 max_fifo=86/86
+E (64294) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (64294) net_task: mqtt_stress[30/50]: rc=-12 before=26500 after=26500 delta=0
+W (64484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (64484) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.251 max_fifo=86/86
+W (64744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (64744) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.252 max_fifo=86/86
+W (65014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65014) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.249 max_fifo=86/86
+W (65274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65274) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.249 max_fifo=86/86
+E (65294) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (65294) net_task: mqtt_stress[31/50]: rc=-12 before=26500 after=26500 delta=0
+W (65544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65544) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+I (65654) dsp_task: HST warmed up at frame 250
+W (65814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65814) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.252 max_fifo=86/86
+W (66084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66084) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.252 max_fifo=86/86
+E (66294) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (66294) net_task: mqtt_stress[32/50]: rc=-12 before=26500 after=26500 delta=0
+W (66354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66354) kx134: epoch: n=2048 mean_g x=0.975 y=0.049 z=-0.250 max_fifo=86/86
+W (66624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66624) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.251 max_fifo=86/86
+W (66884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66884) kx134: epoch: n=2048 mean_g x=0.966 y=0.056 z=-0.251 max_fifo=86/86
+W (67154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67154) kx134: epoch: n=2048 mean_g x=0.968 y=0.057 z=-0.251 max_fifo=86/86
+E (67294) esp-tls: [sock=54] select() timeout
+E (67294) transport_base: Failed to open a new connection: 32774
+E (67294) mqtt_client: Error transport connect
+W (67294) link_mqtt: disconnected
+E (67294) link_mqtt: free heap 27008 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (67304) net_task: mqtt_stress[33/50]: rc=-12 before=27008 after=27072 delta=64
+W (67424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67424) kx134: epoch: n=2048 mean_g x=0.969 y=0.057 z=-0.255 max_fifo=86/86
+W (67694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67694) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.252 max_fifo=86/86
+W (67954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67954) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.256 max_fifo=86/86
+W (68214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (68214) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.255 max_fifo=86/86
+E (68314) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (68314) net_task: mqtt_stress[34/50]: rc=-12 before=27092 after=27092 delta=0
+W (68484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (68484) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.254 max_fifo=86/86
+W (68754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (68754) kx134: epoch: n=2048 mean_g x=0.974 y=0.050 z=-0.253 max_fifo=86/86
+W (69024) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (69024) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.257 max_fifo=86/86
+W (69284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (69284) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.253 max_fifo=86/86
+E (69314) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (69314) net_task: mqtt_stress[35/50]: rc=-12 before=27092 after=27092 delta=0
+W (69574) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (69574) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.253 max_fifo=86/86
+W (69844) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (69844) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.253 max_fifo=86/86
+W (70104) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70104) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.251 max_fifo=86/86
+E (70314) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (70314) net_task: mqtt_stress[36/50]: rc=-12 before=26500 after=26500 delta=0
+W (70384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70384) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.254 max_fifo=86/86
+W (70644) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70644) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.254 max_fifo=86/86
+W (70914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70914) kx134: epoch: n=2048 mean_g x=0.975 y=0.049 z=-0.246 max_fifo=86/86
+W (71174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71174) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+E (71314) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (71314) net_task: mqtt_stress[37/50]: rc=-12 before=26500 after=26500 delta=0
+W (71464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71464) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+W (71724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71724) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.252 max_fifo=86/86
+W (71984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71984) kx134: epoch: n=2048 mean_g x=0.968 y=0.051 z=-0.253 max_fifo=86/86
+W (72254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (72254) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.253 max_fifo=86/86
+E (72314) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (72314) net_task: mqtt_stress[38/50]: rc=-12 before=26500 after=26500 delta=0
+W (72524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (72524) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.250 max_fifo=86/86
+W (72784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (72784) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.252 max_fifo=86/86
+W (73044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73044) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.252 max_fifo=86/86
+W (73304) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73304) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.251 max_fifo=86/86
+E (73314) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (73314) net_task: mqtt_stress[39/50]: rc=-12 before=26500 after=26500 delta=0
+W (73584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73584) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.247 max_fifo=86/86
+W (73854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73854) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (74114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74114) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.251 max_fifo=86/86
+E (74324) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (74324) net_task: mqtt_stress[40/50]: rc=-12 before=26500 after=26500 delta=0
+W (74404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74404) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.252 max_fifo=86/86
+W (74664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74664) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.252 max_fifo=86/86
+W (74924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74924) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.252 max_fifo=86/86
+W (75194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75194) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.251 max_fifo=86/86
+E (75324) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (75324) net_task: mqtt_stress[41/50]: rc=-12 before=26500 after=26500 delta=0
+W (75454) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75454) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.251 max_fifo=86/86
+W (75724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75724) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.251 max_fifo=86/86
+W (75984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75984) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.253 max_fifo=86/86
+W (76254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (76254) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.250 max_fifo=86/86
+E (76324) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (76324) net_task: mqtt_stress[42/50]: rc=-12 before=26500 after=26500 delta=0
+W (76524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (76524) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+W (76794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (76794) kx134: epoch: n=2048 mean_g x=0.969 y=0.049 z=-0.251 max_fifo=86/86
+W (77054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77054) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.251 max_fifo=86/86
+E (77324) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (77324) net_task: mqtt_stress[43/50]: rc=-12 before=26500 after=26500 delta=0
+W (77334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77334) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.252 max_fifo=86/86
+W (77604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77604) kx134: epoch: n=2048 mean_g x=0.972 y=0.055 z=-0.252 max_fifo=86/86
+W (77864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77864) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.253 max_fifo=86/86
+W (78134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78134) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.251 max_fifo=86/86
+E (78324) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (78324) net_task: mqtt_stress[44/50]: rc=-12 before=26500 after=26500 delta=0
+W (78394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78394) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.251 max_fifo=86/86
+W (78664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78664) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.252 max_fifo=86/86
+W (78924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78924) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.253 max_fifo=86/86
+W (79184) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79184) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.251 max_fifo=86/86
+E (79324) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (79324) net_task: mqtt_stress[45/50]: rc=-12 before=26500 after=26500 delta=0
+W (79454) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79454) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.252 max_fifo=86/86
+W (79714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79714) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.252 max_fifo=86/86
+W (79974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79974) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.250 max_fifo=86/86
+W (80244) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (80244) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.252 max_fifo=86/86
+E (80304) esp-tls: [sock=54] select() timeout
+E (80304) transport_base: Failed to open a new connection: 32774
+E (80304) mqtt_client: Error transport connect
+W (80304) link_mqtt: disconnected
+E (80324) link_mqtt: free heap 27072 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (80324) net_task: mqtt_stress[46/50]: rc=-12 before=27072 after=27072 delta=0
+W (80514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (80514) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.250 max_fifo=86/86
+W (80784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (80784) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (81044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81044) kx134: epoch: n=2048 mean_g x=0.965 y=0.055 z=-0.253 max_fifo=86/86
+E (81324) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (81324) net_task: mqtt_stress[47/50]: rc=-12 before=27092 after=27092 delta=0
+W (81324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81334) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.251 max_fifo=86/86
+W (81604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81604) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.250 max_fifo=86/86
+W (81864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81864) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.251 max_fifo=86/86
+W (82134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (82134) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.252 max_fifo=86/86
+E (82324) link_mqtt: free heap 27092 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (82324) net_task: mqtt_stress[48/50]: rc=-12 before=27092 after=27092 delta=0
+W (82404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (82404) kx134: epoch: n=2048 mean_g x=0.969 y=0.058 z=-0.254 max_fifo=86/86
+W (82674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (82674) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.253 max_fifo=86/86
+W (82934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (82934) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (83214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (83214) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.249 max_fifo=86/86
+E (83334) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (83334) net_task: mqtt_stress[49/50]: rc=-12 before=26500 after=26500 delta=0
+W (83484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (83484) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.252 max_fifo=86/86
+W (83744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (83744) kx134: epoch: n=2048 mean_g x=0.973 y=0.048 z=-0.247 max_fifo=86/86
+W (84014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84014) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.251 max_fifo=86/86
+W (84284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84284) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.251 max_fifo=86/86
+E (84334) link_mqtt: free heap 26500 below 32768-byte MQTT init safety margin - skipping esp_mqtt_client_init() (see ADR-024)
+W (84334) net_task: mqtt_stress[50/50]: rc=-12 before=26500 after=26500 delta=0
+W (84544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84544) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+W (84804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84804) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.249 max_fifo=86/86
+W (85074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85074) kx134: epoch: n=2048 mean_g x=0.974 y=0.052 z=-0.251 max_fifo=86/86
+W (85334) net_task: EPM_MQTT_RECONNECT_STRESS_TEST done: first=26500 last=26500 min=26500 net_delta=0 avg_per_call=0.0
+W (85344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85344) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.247 max_fifo=86/86
+W (85614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85614) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.245 max_fifo=86/86
+W (85874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85874) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.249 max_fifo=86/86
+W (86154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86154) kx134: epoch: n=2048 mean_g x=0.968 y=0.049 z=-0.251 max_fifo=86/86
+W (86424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86424) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.250 max_fifo=86/86
+W (86684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86684) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.250 max_fifo=86/86
+W (86954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86954) kx134: epoch: n=2048 mean_g x=0.967 y=0.058 z=-0.252 max_fifo=86/86
+W (87214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (87214) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.248 max_fifo=86/86
+W (87484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (87484) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.252 max_fifo=86/86
+W (87744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (87744) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.252 max_fifo=86/86
+W (88014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88014) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.252 max_fifo=86/86
+W (88284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88284) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.254 max_fifo=86/86
+W (88554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88554) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.251 max_fifo=86/86
+W (88814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88814) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.248 max_fifo=86/86
+W (89094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (89094) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.253 max_fifo=86/86
+W (89354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (89354) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.253 max_fifo=86/86
+W (89624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (89624) kx134: epoch: n=2048 mean_g x=0.968 y=0.058 z=-0.255 max_fifo=86/86
+W (89894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (89894) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.248 max_fifo=86/86
+W (90154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90154) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.250 max_fifo=86/86
+W (90424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90424) kx134: epoch: n=2048 mean_g x=0.973 y=0.050 z=-0.251 max_fifo=86/86
+W (90684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90684) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.249 max_fifo=86/86
+W (90954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90954) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.248 max_fifo=86/86
+W (91224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (91224) kx134: epoch: n=2048 mean_g x=0.968 y=0.051 z=-0.251 max_fifo=86/86
+W (91494) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (91494) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (91754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (91754) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.250 max_fifo=86/86
+I (91794) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1724 diag=828
+I (91794) DIAG: CPU runtime:
+diag           	215013		<1%
+IDLE1          	89105895		98%
+IDLE0          	69920072		77%
+mic_task       	715968		<1%
+imu_task       	13353947		14%
+net            	4986385		5%
+wifi_prov      	1867		<1%
+mqtt_task      	48204		<1%
+dsp_task       	1144674		1%
+tiT            	119501		<1%
+main           	157606		<1%
+sys_evt        	4256		<1%
+Tmr Svc        	17		<1%
+rgb_led        	234549		<1%
+esp_timer      	16778		<1%
+wifi           	737338		<1%
+ipc1           	50577		<1%
+ipc0           	37893		<1%
+
+I (91834) DIAG: Heap free: internal=30956 largest_free=21504 PSRAM=8209980 IRAM=0
+I (91844) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (91854) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (91854) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (91864) DIAG: mic: blocks_ok=1409 capture_failures=0 rb_drops=0
+W (91874) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (91884) DIAG: dsp: fft_count=1409 frames_emitted=352 rb_timeouts=0 last_fft_us=608
+I (91894) DIAG: imu: epochs=337 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (91894) DIAG: accel: reads_ok=1011 read_errors=0 fifo_max_hits=337
+I (91904) DIAG: net: frames_built=413 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (91914) DIAG: led: state_changes=4 remote_updates=0 hw_errors=0
+W (92034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92034) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.253 max_fifo=86/86
+W (92294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92294) kx134: epoch: n=2048 mean_g x=0.972 y=0.055 z=-0.251 max_fifo=86/86
+W (92564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92564) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.251 max_fifo=86/86
+W (92834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92834) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.251 max_fifo=86/86
+W (93094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93094) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.251 max_fifo=86/86
+E (93314) esp-tls: [sock=54] select() timeout
+E (93314) transport_base: Failed to open a new connection: 32774
+E (93314) mqtt_client: Error transport connect
+W (93314) link_mqtt: disconnected
+W (93374) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93374) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.250 max_fifo=86/86
+W (93624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93624) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.248 max_fifo=86/86
+W (93894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93894) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (94164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94164) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.250 max_fifo=86/86
+W (94434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94434) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.251 max_fifo=86/86
+W (94694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94694) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.251 max_fifo=86/86
+W (94974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94974) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (95234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (95234) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.252 max_fifo=86/86
+W (95504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (95504) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (95774) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (95774) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (96044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96044) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.250 max_fifo=86/86
+W (96304) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96304) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.249 max_fifo=86/86
+W (96564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96564) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.252 max_fifo=86/86
+W (96834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96834) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.252 max_fifo=86/86
+W (97104) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97104) kx134: epoch: n=2048 mean_g x=0.975 y=0.048 z=-0.246 max_fifo=86/86
+W (97374) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97374) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.247 max_fifo=86/86
+W (97634) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97634) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (97914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97914) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.251 max_fifo=86/86
+W (98184) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98184) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (98444) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98444) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.247 max_fifo=86/86
+W (98714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98714) kx134: epoch: n=2048 mean_g x=0.972 y=0.056 z=-0.248 max_fifo=86/86
+W (98974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98974) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.249 max_fifo=86/86
+W (99244) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (99244) kx134: epoch: n=2048 mean_g x=0.968 y=0.051 z=-0.250 max_fifo=86/86
+W (99504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (99504) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.249 max_fifo=86/86
+W (99774) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (99774) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.248 max_fifo=86/86
+W (100044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100044) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.253 max_fifo=86/86
+W (100314) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100314) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.250 max_fifo=86/86
+W (100574) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100574) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (100854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100854) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.248 max_fifo=86/86
+W (101114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101114) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.247 max_fifo=86/86
+W (101384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101384) kx134: epoch: n=2048 mean_g x=0.972 y=0.055 z=-0.252 max_fifo=86/86
+W (101654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101654) kx134: epoch: n=2048 mean_g x=0.972 y=0.056 z=-0.248 max_fifo=86/86
+W (101914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101914) kx134: epoch: n=2048 mean_g x=0.972 y=0.056 z=-0.247 max_fifo=86/86
+W (102184) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (102184) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (102444) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (102444) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.251 max_fifo=86/86
+W (102714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (102714) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.249 max_fifo=86/86
+W (102984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (102984) kx134: epoch: n=2048 mean_g x=0.969 y=0.057 z=-0.249 max_fifo=86/86
+W (103254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (103254) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.248 max_fifo=86/86
+W (103514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (103514) kx134: epoch: n=2048 mean_g x=0.972 y=0.055 z=-0.249 max_fifo=86/86
+W (103794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (103794) kx134: epoch: n=2048 mean_g x=0.969 y=0.057 z=-0.252 max_fifo=86/86
+W (104054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104054) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.253 max_fifo=86/86
+W (104324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104324) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.253 max_fifo=86/86
+W (104594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104594) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.250 max_fifo=86/86
+W (104854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104854) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.246 max_fifo=86/86
+W (105124) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105124) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.253 max_fifo=86/86
+W (105384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105384) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (105654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105654) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.250 max_fifo=86/86
+W (105924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105924) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.251 max_fifo=86/86
+W (106194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (106194) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.251 max_fifo=86/86
+E (106324) esp-tls: [sock=54] select() timeout
+E (106324) transport_base: Failed to open a new connection: 32774
+E (106324) mqtt_client: Error transport connect
+W (106324) link_mqtt: disconnected
+W (106464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (106464) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.250 max_fifo=86/86
+W (106744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (106744) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.251 max_fifo=86/86
+W (107014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107014) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.250 max_fifo=86/86
+W (107274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107274) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.248 max_fifo=86/86
+W (107534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107534) kx134: epoch: n=2048 mean_g x=0.975 y=0.053 z=-0.251 max_fifo=86/86
+W (107804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107804) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.252 max_fifo=86/86
+W (108064) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (108064) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.249 max_fifo=86/86
+W (108324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (108324) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.252 max_fifo=86/86
+W (108594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (108594) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.252 max_fifo=86/86
+W (108864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (108864) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.254 max_fifo=86/86
+W (109134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109134) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+W (109394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109394) kx134: epoch: n=2048 mean_g x=0.968 y=0.057 z=-0.253 max_fifo=86/86
+W (109674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109674) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.253 max_fifo=86/86
+W (109944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109944) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.249 max_fifo=86/86
+W (110204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (110204) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.253 max_fifo=86/86
+W (110474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (110474) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.251 max_fifo=86/86
+W (110734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (110734) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.252 max_fifo=86/86
+W (111004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111004) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.253 max_fifo=86/86
+W (111264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111264) kx134: epoch: n=2048 mean_g x=0.973 y=0.048 z=-0.244 max_fifo=86/86
+W (111534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111534) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (111804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111804) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.247 max_fifo=86/86
+W (112074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112074) kx134: epoch: n=2048 mean_g x=0.973 y=0.056 z=-0.249 max_fifo=86/86
+W (112334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112334) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.250 max_fifo=86/86
+W (112614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112614) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.249 max_fifo=86/86
+W (112874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112874) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (113144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113144) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.253 max_fifo=86/86
+W (113414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113414) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (113674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113674) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.249 max_fifo=86/86
+W (113944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113944) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.249 max_fifo=86/86
+W (114204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (114204) kx134: epoch: n=2048 mean_g x=0.971 y=0.048 z=-0.248 max_fifo=86/86
+W (114474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (114474) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.252 max_fifo=86/86
+W (114744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (114744) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.250 max_fifo=86/86
+W (115014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115014) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.250 max_fifo=86/86
+W (115274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115274) kx134: epoch: n=2048 mean_g x=0.966 y=0.052 z=-0.252 max_fifo=86/86
+W (115554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115554) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.252 max_fifo=86/86
+W (115814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115814) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.247 max_fifo=86/86
+W (116084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116084) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.249 max_fifo=86/86
+W (116354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116354) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (116614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116614) kx134: epoch: n=2048 mean_g x=0.973 y=0.049 z=-0.248 max_fifo=86/86
+W (116884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116884) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.246 max_fifo=86/86
+W (117144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117144) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.252 max_fifo=86/86
+W (117414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117414) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.245 max_fifo=86/86
+W (117684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117684) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.248 max_fifo=86/86
+W (117954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117954) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.251 max_fifo=86/86
+W (118214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (118214) kx134: epoch: n=2048 mean_g x=0.965 y=0.053 z=-0.246 max_fifo=86/86
+W (118494) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (118494) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.251 max_fifo=86/86
+W (118754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (118754) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.255 max_fifo=86/86
+W (119024) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119024) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.248 max_fifo=86/86
+W (119294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119294) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.250 max_fifo=86/86
+E (119334) esp-tls: [sock=54] select() timeout
+E (119334) transport_base: Failed to open a new connection: 32774
+E (119334) mqtt_client: Error transport connect
+W (119334) link_mqtt: disconnected
+W (119564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119564) kx134: epoch: n=2048 mean_g x=0.975 y=0.052 z=-0.247 max_fifo=86/86
+W (119824) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119824) kx134: epoch: n=2048 mean_g x=0.974 y=0.050 z=-0.248 max_fifo=86/86
+W (120084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120084) kx134: epoch: n=2048 mean_g x=0.966 y=0.059 z=-0.256 max_fifo=86/86
+W (120344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120344) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.248 max_fifo=86/86
+W (120614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120614) kx134: epoch: n=2048 mean_g x=0.970 y=0.049 z=-0.251 max_fifo=86/86
+W (120874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120874) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.247 max_fifo=86/86
+W (121134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (121134) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.252 max_fifo=86/86
+W (121404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (121404) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (121674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (121674) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.245 max_fifo=86/86
+I (121914) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1660 diag=828
+I (121914) DIAG: CPU runtime:
+diag           	335830		<1%
+IDLE1          	118847343		98%
+IDLE0          	93360632		77%
+net            	6705322		5%
+tiT            	157469		<1%
+mqtt_task      	70579		<1%
+wifi_prov      	2388		<1%
+imu_task       	17806232		14%
+dsp_task       	1520796		1%
+mic_task       	949162		<1%
+main           	157606		<1%
+Tmr Svc        	17		<1%
+rgb_led        	234549		<1%
+ipc1           	50577		<1%
+esp_timer      	21597		<1%
+wifi           	832052		<1%
+ipc0           	37893		<1%
+sys_evt        	4256		<1%
+
+W (121944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (121964) kx134: epoch: n=2048 mean_g x=0.967 y=0.050 z=-0.247 max_fifo=86/86
+I (121994) DIAG: Heap free: internal=31548 largest_free=21504 PSRAM=8210148 IRAM=0
+I (121994) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (121994) DIAG: mqtt: connects=0 disconnects=3 publishes=0 publish_failures=0 cmds_received=0
+I (122004) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (122024) DIAG: mic: blocks_ok=1880 capture_failures=0 rb_drops=0
+W (122024) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (122024) DIAG: dsp: fft_count=1880 frames_emitted=470 rb_timeouts=0 last_fft_us=608
+I (122034) DIAG: imu: epochs=450 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (122044) DIAG: accel: reads_ok=1350 read_errors=0 fifo_max_hits=450
+I (122044) DIAG: net: frames_built=557 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (122054) DIAG: led: state_changes=4 remote_updates=0 hw_errors=0
+W (122234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (122234) kx134: epoch: n=2048 mean_g x=0.973 y=0.055 z=-0.248 max_fifo=86/86
+W (122494) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (122494) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.250 max_fifo=86/86
+W (122764) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (122764) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.250 max_fifo=86/86
+W (123024) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123024) kx134: epoch: n=2048 mean_g x=0.974 y=0.051 z=-0.249 max_fifo=86/86
+W (123294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123294) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (123564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123564) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (123834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123834) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.252 max_fifo=86/86
+W (124094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124094) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.250 max_fifo=86/86
+W (124374) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124374) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.251 max_fifo=86/86
+W (124634) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124634) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.246 max_fifo=86/86
+W (124904) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124904) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.250 max_fifo=86/86
+W (125174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125174) kx134: epoch: n=2048 mean_g x=0.978 y=0.050 z=-0.249 max_fifo=86/86
+W (125434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125434) kx134: epoch: n=2048 mean_g x=0.970 y=0.049 z=-0.250 max_fifo=86/86
+W (125704) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125704) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.253 max_fifo=86/86
+W (125964) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125964) kx134: epoch: n=2048 mean_g x=0.974 y=0.055 z=-0.251 max_fifo=86/86
+W (126234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (126234) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.249 max_fifo=86/86
+W (126504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (126504) kx134: epoch: n=2048 mean_g x=0.974 y=0.051 z=-0.252 max_fifo=86/86
+W (126774) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (126774) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.250 max_fifo=86/86
+W (127034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (127034) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.252 max_fifo=86/86
+W (127314) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (127314) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.252 max_fifo=86/86
+W (127574) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (127574) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.250 max_fifo=86/86
+W (127844) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (127844) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.253 max_fifo=86/86
+W (128114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128114) kx134: epoch: n=2048 mean_g x=0.971 y=0.048 z=-0.249 max_fifo=86/86
+W (128374) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128374) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.253 max_fifo=86/86
+W (128644) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128644) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.252 max_fifo=86/86
+W (128904) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128904) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.251 max_fifo=86/86
+W (129174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129174) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.250 max_fifo=86/86
+W (129444) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129444) kx134: epoch: n=2048 mean_g x=0.967 y=0.052 z=-0.249 max_fifo=86/86
+W (129714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129714) kx134: epoch: n=2048 mean_g x=0.974 y=0.049 z=-0.247 max_fifo=86/86
+W (129974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129974) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.246 max_fifo=86/86
+W (130254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (130254) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+W (130514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (130514) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.250 max_fifo=86/86
+W (130784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (130784) kx134: epoch: n=2048 mean_g x=0.966 y=0.057 z=-0.250 max_fifo=86/86
+W (131054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131054) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.248 max_fifo=86/86
+W (131324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131324) kx134: epoch: n=2048 mean_g x=0.973 y=0.050 z=-0.251 max_fifo=86/86
+W (131594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131594) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.252 max_fifo=86/86
+W (131844) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131844) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.249 max_fifo=86/86
+W (132114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132114) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.246 max_fifo=86/86
+E (132344) esp-tls: [sock=54] select() timeout
+E (132344) transport_base: Failed to open a new connection: 32774
+E (132344) mqtt_client: Error transport connect
+W (132344) link_mqtt: disconnected
+W (132384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132384) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.249 max_fifo=86/86
+W (132654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132654) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.248 max_fifo=86/86
+W (132914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132914) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.248 max_fifo=86/86
+W (133194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133194) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.249 max_fifo=86/86
+W (133464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133464) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.252 max_fifo=86/86
+W (133724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133724) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.250 max_fifo=86/86
+W (133994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133994) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.252 max_fifo=86/86
+W (134254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (134254) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.251 max_fifo=86/86
+W (134524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (134524) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.250 max_fifo=86/86
+W (134784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (134784) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.252 max_fifo=86/86
+W (135054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135054) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.250 max_fifo=86/86
+W (135324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135324) kx134: epoch: n=2048 mean_g x=0.966 y=0.055 z=-0.250 max_fifo=86/86
+W (135604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135604) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (135854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135854) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (136134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136134) kx134: epoch: n=2048 mean_g x=0.974 y=0.050 z=-0.246 max_fifo=86/86
+W (136394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136394) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (136664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136664) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.251 max_fifo=86/86
+W (136934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136934) kx134: epoch: n=2048 mean_g x=0.975 y=0.052 z=-0.250 max_fifo=86/86
+W (137194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137194) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.250 max_fifo=86/86
+W (137464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137464) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.253 max_fifo=86/86
+W (137724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137724) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.252 max_fifo=86/86
+W (137994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137994) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.250 max_fifo=86/86
+W (138264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (138264) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.252 max_fifo=86/86
+W (138534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (138534) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.248 max_fifo=86/86
+W (138794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (138794) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.249 max_fifo=86/86
+W (139074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139074) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.251 max_fifo=86/86
+W (139334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139334) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.252 max_fifo=86/86
+W (139604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139604) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.249 max_fifo=86/86
+W (139874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139874) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.250 max_fifo=86/86
+W (140134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (140134) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.247 max_fifo=86/86
+W (140404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (140404) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.250 max_fifo=86/86
+W (140664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (140664) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.249 max_fifo=86/86
+W (140934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (140934) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (141204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (141204) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.246 max_fifo=86/86
+W (141474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (141474) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.250 max_fifo=86/86
+W (141734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (141734) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (142014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142014) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.249 max_fifo=86/86
+W (142274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142274) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.250 max_fifo=86/86
+W (142544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142544) kx134: epoch: n=2048 mean_g x=0.966 y=0.055 z=-0.252 max_fifo=86/86
+W (142814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142814) kx134: epoch: n=2048 mean_g x=0.974 y=0.048 z=-0.247 max_fifo=86/86
+W (143084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143084) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+W (143344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143344) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.251 max_fifo=86/86
+W (143604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143604) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+W (143874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143874) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.251 max_fifo=86/86
+W (144144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144144) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.255 max_fifo=86/86
+W (144414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144414) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.251 max_fifo=86/86
+W (144674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144674) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.252 max_fifo=86/86
+W (144954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144954) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.251 max_fifo=86/86
+W (145224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (145224) kx134: epoch: n=2048 mean_g x=0.969 y=0.057 z=-0.254 max_fifo=86/86
+E (145354) esp-tls: [sock=54] select() timeout
+E (145354) transport_base: Failed to open a new connection: 32774
+E (145354) mqtt_client: Error transport connect
+W (145354) link_mqtt: disconnected
+W (145494) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (145494) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.252 max_fifo=86/86
+W (145754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (145754) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.249 max_fifo=86/86
+W (146014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (146014) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (146284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (146284) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.253 max_fifo=86/86
+W (146544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (146544) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.248 max_fifo=86/86
+W (146814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (146814) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.251 max_fifo=86/86
+W (147084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147084) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.249 max_fifo=86/86
+W (147354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147354) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.250 max_fifo=86/86
+W (147614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147614) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.251 max_fifo=86/86
+W (147894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147894) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.252 max_fifo=86/86
+W (148154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148154) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.249 max_fifo=86/86
+W (148424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148424) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.250 max_fifo=86/86
+W (148694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148694) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (148954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148954) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.249 max_fifo=86/86
+W (149224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (149224) kx134: epoch: n=2048 mean_g x=0.975 y=0.051 z=-0.251 max_fifo=86/86
+W (149484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (149484) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.251 max_fifo=86/86
+W (149754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (149754) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.251 max_fifo=86/86
+W (150024) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150024) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.253 max_fifo=86/86
+W (150294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150294) kx134: epoch: n=2048 mean_g x=0.969 y=0.061 z=-0.252 max_fifo=86/86
+W (150554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150554) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.245 max_fifo=86/86
+W (150834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150834) kx134: epoch: n=2048 mean_g x=0.972 y=0.056 z=-0.251 max_fifo=86/86
+W (151094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151094) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.250 max_fifo=86/86
+W (151364) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151364) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (151634) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151634) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+W (151894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151894) kx134: epoch: n=2048 mean_g x=0.974 y=0.049 z=-0.249 max_fifo=86/86
+I (152064) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1660 diag=828
+I (152064) DIAG: CPU runtime:
+diag           	438224		<1%
+IDLE0          	116812761		77%
+IDLE1          	148607053		98%
+mic_task       	1181575		<1%
+net            	8434295		5%
+wifi_prov      	2906		<1%
+imu_task       	22293623		14%
+dsp_task       	1897643		1%
+mqtt_task      	88419		<1%
+tiT            	196548		<1%
+main           	157606		<1%
+rgb_led        	234549		<1%
+ipc1           	50577		<1%
+ipc0           	37893		<1%
+esp_timer      	26429		<1%
+wifi           	924063		<1%
+sys_evt        	4256		<1%
+Tmr Svc        	17		<1%
+
+I (152104) DIAG: Heap free: internal=30976 largest_free=21504 PSRAM=8209980 IRAM=0
+I (152114) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (152114) DIAG: mqtt: connects=0 disconnects=5 publishes=0 publish_failures=0 cmds_received=0
+I (152124) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (152134) DIAG: mic: blocks_ok=2351 capture_failures=0 rb_drops=0
+W (152144) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (152154) DIAG: dsp: fft_count=2351 frames_emitted=587 rb_timeouts=0 last_fft_us=608
+I (152154) DIAG: imu: epochs=562 read_errors=0 reinit_attempts=0 reinit_successes=0
+W (152164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152174) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.252 max_fifo=86/86
+I (152204) DIAG: accel: reads_ok=1689 read_errors=0 fifo_max_hits=563
+I (152204) DIAG: net: frames_built=700 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (152204) DIAG: led: state_changes=4 remote_updates=0 hw_errors=0
+W (152434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152434) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.253 max_fifo=86/86
+W (152714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152714) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.250 max_fifo=86/86
+W (152984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152984) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (153254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (153254) kx134: epoch: n=2048 mean_g x=0.969 y=0.049 z=-0.249 max_fifo=86/86
+W (153524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (153524) kx134: epoch: n=2048 mean_g x=0.970 y=0.049 z=-0.248 max_fifo=86/86
+W (153794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (153794) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.250 max_fifo=86/86
+W (154054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154054) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.248 max_fifo=86/86
+W (154314) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154314) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.251 max_fifo=86/86
+W (154584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154584) kx134: epoch: n=2048 mean_g x=0.974 y=0.052 z=-0.248 max_fifo=86/86
+W (154854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154854) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.251 max_fifo=86/86
+W (155124) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155124) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.248 max_fifo=86/86
+W (155384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155384) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.249 max_fifo=86/86
+W (155664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155664) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.250 max_fifo=86/86
+W (155934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155934) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.251 max_fifo=86/86
+W (156194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156194) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.249 max_fifo=86/86
+W (156464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156464) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.249 max_fifo=86/86
+W (156724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156724) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (156994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156994) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.251 max_fifo=86/86
+W (157254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (157254) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+W (157524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (157524) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.249 max_fifo=86/86
+W (157794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (157794) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.248 max_fifo=86/86
+W (158064) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158064) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.250 max_fifo=86/86
+W (158324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158324) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+E (158364) esp-tls: [sock=54] select() timeout
+E (158364) transport_base: Failed to open a new connection: 32774
+E (158364) mqtt_client: Error transport connect
+W (158364) link_mqtt: disconnected
+W (158604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158604) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.250 max_fifo=86/86
+W (158864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158864) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.247 max_fifo=86/86
+W (159134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (159134) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.249 max_fifo=86/86
+W (159404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (159404) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.248 max_fifo=86/86
+W (159664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (159664) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (159934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (159934) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.251 max_fifo=86/86
+W (160194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (160194) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.252 max_fifo=86/86
+W (160464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (160464) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.250 max_fifo=86/86
+W (160734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (160734) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.249 max_fifo=86/86
+W (161004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161004) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.248 max_fifo=86/86
+W (161264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161264) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.249 max_fifo=86/86
+W (161544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161544) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.252 max_fifo=86/86
+W (161804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161804) kx134: epoch: n=2048 mean_g x=0.973 y=0.050 z=-0.247 max_fifo=86/86
+W (162074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162074) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.247 max_fifo=86/86
+W (162344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162344) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.251 max_fifo=86/86
+W (162604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162604) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.249 max_fifo=86/86
+W (162874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162874) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.252 max_fifo=86/86
+W (163134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163134) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.248 max_fifo=86/86
+W (163404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163404) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (163674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163674) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.252 max_fifo=86/86
+W (163944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163944) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.251 max_fifo=86/86
+W (164204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (164204) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.251 max_fifo=86/86
+W (164484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (164484) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.248 max_fifo=86/86
+W (164744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (164744) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.249 max_fifo=86/86
+W (165014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165014) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.250 max_fifo=86/86
+W (165284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165284) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.246 max_fifo=86/86
+W (165554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165554) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.249 max_fifo=86/86
+W (165814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165814) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.247 max_fifo=86/86
+W (166074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (166074) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.253 max_fifo=86/86
+W (166344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (166344) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.249 max_fifo=86/86
+W (166614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (166614) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.247 max_fifo=86/86
+W (166884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (166884) kx134: epoch: n=2048 mean_g x=0.969 y=0.057 z=-0.252 max_fifo=86/86
+W (167144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167144) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.249 max_fifo=86/86
+W (167424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167424) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.251 max_fifo=86/86
+W (167694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167694) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.249 max_fifo=86/86
+W (167954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167954) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (168224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (168224) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.249 max_fifo=86/86
+W (168484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (168484) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.250 max_fifo=86/86
+W (168754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (168754) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.249 max_fifo=86/86
+W (169014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169014) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.251 max_fifo=86/86
+W (169274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169274) kx134: epoch: n=2048 mean_g x=0.969 y=0.057 z=-0.254 max_fifo=86/86
+W (169534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169534) kx134: epoch: n=2048 mean_g x=0.967 y=0.058 z=-0.256 max_fifo=86/86
+W (169804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169804) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.252 max_fifo=86/86
+W (170064) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170064) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.253 max_fifo=86/86
+W (170334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170334) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (170604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170604) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.247 max_fifo=86/86
+W (170874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170874) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.250 max_fifo=86/86
+W (171134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171134) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.248 max_fifo=86/86
+E (171374) esp-tls: [sock=54] select() timeout
+E (171374) transport_base: Failed to open a new connection: 32774
+E (171374) mqtt_client: Error transport connect
+W (171374) link_mqtt: disconnected
+W (171414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171424) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (171684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171684) kx134: epoch: n=2048 mean_g x=0.974 y=0.051 z=-0.246 max_fifo=86/86
+W (171944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171944) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (172214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (172214) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.247 max_fifo=86/86
+W (172474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (172474) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.249 max_fifo=86/86
+W (172744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (172744) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.249 max_fifo=86/86
+W (173004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173004) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.250 max_fifo=86/86
+W (173274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173274) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+W (173544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173544) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.247 max_fifo=86/86
+W (173814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173814) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.252 max_fifo=86/86
+W (174074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174074) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (174354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174354) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.249 max_fifo=86/86
+W (174624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174624) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.248 max_fifo=86/86
+W (174884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174884) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.252 max_fifo=86/86
+W (175154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175154) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.249 max_fifo=86/86
+W (175414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175414) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.250 max_fifo=86/86
+W (175684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175684) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+W (175944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175944) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.253 max_fifo=86/86
+W (176214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (176214) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (176484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (176484) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.249 max_fifo=86/86
+W (176754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (176754) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (177014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177014) kx134: epoch: n=2048 mean_g x=0.967 y=0.050 z=-0.248 max_fifo=86/86
+W (177294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177294) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.243 max_fifo=86/86
+W (177554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177554) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.250 max_fifo=86/86
+W (177824) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177824) kx134: epoch: n=2048 mean_g x=0.974 y=0.052 z=-0.249 max_fifo=86/86
+W (178094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178094) kx134: epoch: n=2048 mean_g x=0.971 y=0.056 z=-0.247 max_fifo=86/86
+W (178364) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178364) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.249 max_fifo=86/86
+W (178634) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178634) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.247 max_fifo=86/86
+W (178884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178884) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.249 max_fifo=86/86
+W (179154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (179154) kx134: epoch: n=2048 mean_g x=0.967 y=0.052 z=-0.245 max_fifo=86/86
+W (179424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (179424) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.249 max_fifo=86/86
+W (179694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (179694) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (179954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (179954) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.253 max_fifo=86/86
+W (180234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (180234) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.248 max_fifo=86/86
+W (180504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (180504) kx134: epoch: n=2048 mean_g x=0.968 y=0.049 z=-0.249 max_fifo=86/86
+W (180764) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (180764) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.249 max_fifo=86/86
+W (181034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181034) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.251 max_fifo=86/86
+W (181294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181294) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (181564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181564) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.252 max_fifo=86/86
+W (181824) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181824) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (182094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182094) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+I (182214) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1660 diag=828
+I (182214) DIAG: CPU runtime:
+diag           	545793		<1%
+IDLE0          	140273223		77%
+IDLE1          	178371465		98%
+mic_task       	1413934		<1%
+net            	10151640		5%
+wifi_prov      	3422		<1%
+imu_task       	26782514		14%
+dsp_task       	2274211		1%
+mqtt_task      	104654		<1%
+tiT            	237420		<1%
+main           	157606		<1%
+ipc1           	50577		<1%
+ipc0           	37893		<1%
+sys_evt        	4256		<1%
+esp_timer      	31267		<1%
+wifi           	1013996		<1%
+Tmr Svc        	17		<1%
+rgb_led        	234549		<1%
+
+I (182254) DIAG: Heap free: internal=30976 largest_free=21504 PSRAM=8209980 IRAM=0
+I (182264) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (182264) DIAG: mqtt: connects=0 disconnects=7 publishes=0 publish_failures=0 cmds_received=0
+I (182274) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (182294) DIAG: mic: blocks_ok=2822 capture_failures=0 rb_drops=0
+W (182294) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (182304) DIAG: dsp: fft_count=2822 frames_emitted=705 rb_timeouts=0 last_fft_us=608
+I (182314) DIAG: imu: epochs=675 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (182314) DIAG: accel: reads_ok=2025 read_errors=0 fifo_max_hits=675
+I (182324) DIAG: net: frames_built=844 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (182334) DIAG: led: state_changes=4 remote_updates=0 hw_errors=0
+W (182354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182354) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+W (182624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182624) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.248 max_fifo=86/86
+W (182884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182884) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+W (183164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183164) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+W (183434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183434) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.248 max_fifo=86/86
+W (183704) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183704) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.251 max_fifo=86/86
+W (183974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183974) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.248 max_fifo=86/86
+W (184234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (184234) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.250 max_fifo=86/86
+E (184384) esp-tls: [sock=54] select() timeout
+E (184384) transport_base: Failed to open a new connection: 32774
+E (184384) mqtt_client: Error transport connect
+W (184384) link_mqtt: disconnected
+W (184514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (184514) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.253 max_fifo=86/86
+W (184774) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (184774) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.248 max_fifo=86/86
+W (185054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (185054) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.248 max_fifo=86/86
+W (185324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (185324) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.249 max_fifo=86/86
+W (185594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (185594) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.250 max_fifo=86/86
+W (185864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (185864) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.251 max_fifo=86/86
+W (186124) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186124) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.247 max_fifo=86/86
+W (186394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186394) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.249 max_fifo=86/86
+W (186654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186654) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.249 max_fifo=86/86
+W (186924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186924) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.249 max_fifo=86/86
+W (187194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (187194) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (187464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (187464) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.247 max_fifo=86/86
+W (187724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (187724) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.251 max_fifo=86/86
+W (188004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188004) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.249 max_fifo=86/86
+W (188264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188264) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (188534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188534) kx134: epoch: n=2048 mean_g x=0.973 y=0.054 z=-0.248 max_fifo=86/86
+W (188804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188804) kx134: epoch: n=2048 mean_g x=0.973 y=0.056 z=-0.251 max_fifo=86/86
+W (189074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189074) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (189334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189334) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.247 max_fifo=86/86
+W (189594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189594) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.247 max_fifo=86/86
+W (189864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189864) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.249 max_fifo=86/86
+W (190134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190134) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (190404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190404) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.250 max_fifo=86/86
+W (190664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190664) kx134: epoch: n=2048 mean_g x=0.971 y=0.048 z=-0.246 max_fifo=86/86
+W (190944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190944) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.250 max_fifo=86/86
+W (191214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (191214) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.250 max_fifo=86/86
+W (191474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (191474) kx134: epoch: n=2048 mean_g x=0.965 y=0.054 z=-0.251 max_fifo=86/86
+W (191744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (191744) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.251 max_fifo=86/86
+W (192004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (192004) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.250 max_fifo=86/86
+W (192274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (192274) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.251 max_fifo=86/86
+W (192534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (192534) kx134: epoch: n=2048 mean_g x=0.977 y=0.049 z=-0.247 max_fifo=86/86
+W (192804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (192804) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.251 max_fifo=86/86
+W (193074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193074) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.250 max_fifo=86/86
+W (193344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193344) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (193604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193604) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.246 max_fifo=86/86
+W (193884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193884) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.247 max_fifo=86/86
+W (194144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194144) kx134: epoch: n=2048 mean_g x=0.976 y=0.049 z=-0.249 max_fifo=86/86
+W (194414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194414) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.248 max_fifo=86/86
+W (194684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194684) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.249 max_fifo=86/86
+W (194944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194944) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.247 max_fifo=86/86
+W (195214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (195214) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (195474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (195474) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.249 max_fifo=86/86
+W (195744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (195744) kx134: epoch: n=2048 mean_g x=0.974 y=0.051 z=-0.247 max_fifo=86/86
+W (196014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196014) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (196284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196284) kx134: epoch: n=2048 mean_g x=0.974 y=0.052 z=-0.247 max_fifo=86/86
+W (196544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196544) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.249 max_fifo=86/86
+W (196824) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196824) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (197084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197084) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.254 max_fifo=86/86
+W (197354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197354) kx134: epoch: n=2048 mean_g x=0.968 y=0.058 z=-0.252 max_fifo=86/86
+E (197394) esp-tls: [sock=54] select() timeout
+E (197394) transport_base: Failed to open a new connection: 32774
+E (197394) mqtt_client: Error transport connect
+W (197394) link_mqtt: disconnected
+W (197624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197624) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.252 max_fifo=86/86
+W (197884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197884) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.252 max_fifo=86/86
+W (198154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (198154) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.253 max_fifo=86/86
+W (198414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (198414) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.253 max_fifo=86/86
+W (198684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (198684) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.252 max_fifo=86/86
+W (198954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (198954) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (199224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (199224) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.252 max_fifo=86/86
+W (199484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (199484) kx134: epoch: n=2048 mean_g x=0.966 y=0.053 z=-0.250 max_fifo=86/86
+W (199764) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (199764) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.250 max_fifo=86/86
+W (200024) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200024) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.247 max_fifo=86/86
+W (200294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200294) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.251 max_fifo=86/86
+W (200564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200564) kx134: epoch: n=2048 mean_g x=0.975 y=0.053 z=-0.247 max_fifo=86/86
+W (200834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200834) kx134: epoch: n=2048 mean_g x=0.975 y=0.049 z=-0.249 max_fifo=86/86
+W (201094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201094) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.247 max_fifo=86/86
+W (201354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201354) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.252 max_fifo=86/86
+W (201624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201624) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.250 max_fifo=86/86
+W (201894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201894) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.247 max_fifo=86/86
+W (202164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202164) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (202424) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202424) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.248 max_fifo=86/86
+W (202704) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202704) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.248 max_fifo=86/86
+W (202974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202974) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.253 max_fifo=86/86
+W (203234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (203234) kx134: epoch: n=2048 mean_g x=0.968 y=0.058 z=-0.252 max_fifo=86/86
+W (203504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (203504) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.248 max_fifo=86/86
+W (203764) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (203764) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.249 max_fifo=86/86
+W (204034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204034) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (204294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204294) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (204564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204564) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.246 max_fifo=86/86
+W (204834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204834) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.253 max_fifo=86/86
+W (205104) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (205104) kx134: epoch: n=2048 mean_g x=0.972 y=0.055 z=-0.250 max_fifo=86/86
+W (205364) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (205364) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (205644) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (205644) kx134: epoch: n=2048 mean_g x=0.972 y=0.047 z=-0.248 max_fifo=86/86
+W (205904) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (205904) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.248 max_fifo=86/86
+W (206174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206174) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.250 max_fifo=86/86
+W (206444) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206444) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+W (206704) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206704) kx134: epoch: n=2048 mean_g x=0.968 y=0.051 z=-0.250 max_fifo=86/86
+W (206974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206974) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.252 max_fifo=86/86
+W (207234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (207234) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.249 max_fifo=86/86
+W (207504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (207504) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.251 max_fifo=86/86
+W (207774) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (207774) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.251 max_fifo=86/86
+W (208044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208044) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.251 max_fifo=86/86
+W (208304) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208304) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.250 max_fifo=86/86
+W (208584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208584) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.251 max_fifo=86/86
+W (208844) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208844) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.250 max_fifo=86/86
+W (209114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209114) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.248 max_fifo=86/86
+W (209384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209384) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.248 max_fifo=86/86
+W (209644) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209644) kx134: epoch: n=2048 mean_g x=0.967 y=0.057 z=-0.250 max_fifo=86/86
+W (209914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209914) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.247 max_fifo=86/86
+W (210174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210174) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.249 max_fifo=86/86
+E (210404) esp-tls: [sock=54] select() timeout
+E (210404) transport_base: Failed to open a new connection: 32774
+E (210404) mqtt_client: Error transport connect
+W (210404) link_mqtt: disconnected
+W (210454) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210454) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.252 max_fifo=86/86
+W (210714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210714) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.249 max_fifo=86/86
+W (210984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210984) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.252 max_fifo=86/86
+W (211244) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (211244) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+W (211524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (211524) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.251 max_fifo=86/86
+W (211784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (211784) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.247 max_fifo=86/86
+W (212054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212054) kx134: epoch: n=2048 mean_g x=0.968 y=0.050 z=-0.248 max_fifo=86/86
+W (212324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212324) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+I (212354) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1660 diag=828
+I (212354) DIAG: CPU runtime:
+diag           	651924		<1%
+IDLE1          	208127437		98%
+IDLE0          	163712414		77%
+mqtt_task      	127522		<1%
+imu_task       	31270371		14%
+net            	11881419		5%
+wifi_prov      	3918		<1%
+tiT            	274818		<1%
+dsp_task       	2651141		1%
+mic_task       	1646049		<1%
+main           	157606		<1%
+ipc0           	37893		<1%
+sys_evt        	4256		<1%
+Tmr Svc        	17		<1%
+esp_timer      	36093		<1%
+wifi           	1102517		<1%
+rgb_led        	234549		<1%
+ipc1           	50577		<1%
+
+I (212394) DIAG: Heap free: internal=31568 largest_free=21504 PSRAM=8210148 IRAM=0
+I (212404) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (212414) DIAG: mqtt: connects=0 disconnects=10 publishes=0 publish_failures=0 cmds_received=0
+I (212424) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (212424) DIAG: mic: blocks_ok=3293 capture_failures=0 rb_drops=0
+W (212434) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (212444) DIAG: dsp: fft_count=3293 frames_emitted=823 rb_timeouts=0 last_fft_us=608
+I (212454) DIAG: imu: epochs=788 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (212454) DIAG: accel: reads_ok=2364 read_errors=0 fifo_max_hits=788
+I (212464) DIAG: net: frames_built=987 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (212474) DIAG: led: state_changes=4 remote_updates=0 hw_errors=0
+W (212594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212594) kx134: epoch: n=2048 mean_g x=0.972 y=0.049 z=-0.248 max_fifo=86/86
+W (212854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212854) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (213114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213114) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.247 max_fifo=86/86
+W (213384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213384) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.248 max_fifo=86/86
+W (213654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213654) kx134: epoch: n=2048 mean_g x=0.968 y=0.058 z=-0.252 max_fifo=86/86
+W (213924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213924) kx134: epoch: n=2048 mean_g x=0.967 y=0.051 z=-0.250 max_fifo=86/86
+W (214184) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214184) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.252 max_fifo=86/86
+W (214464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214464) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.248 max_fifo=86/86
+W (214734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214734) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.249 max_fifo=86/86
+W (214994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214994) kx134: epoch: n=2048 mean_g x=0.976 y=0.049 z=-0.247 max_fifo=86/86
+W (215264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (215264) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (215524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (215524) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.249 max_fifo=86/86
+W (215794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (215794) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.250 max_fifo=86/86
+W (216054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216054) kx134: epoch: n=2048 mean_g x=0.976 y=0.049 z=-0.248 max_fifo=86/86
+W (216324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216324) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+W (216594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216594) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.251 max_fifo=86/86
+W (216864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216864) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.246 max_fifo=86/86
+W (217124) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217124) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.249 max_fifo=86/86
+W (217404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217404) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+W (217664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217664) kx134: epoch: n=2048 mean_g x=0.974 y=0.049 z=-0.247 max_fifo=86/86
+W (217934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217934) kx134: epoch: n=2048 mean_g x=0.972 y=0.055 z=-0.246 max_fifo=86/86
+W (218204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (218204) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (218464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (218464) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.251 max_fifo=86/86
+W (218734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (218734) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.248 max_fifo=86/86
+W (218994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (218994) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (219254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (219254) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (219514) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (219514) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.251 max_fifo=86/86
+W (219784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (219784) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.247 max_fifo=86/86
+W (220044) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220044) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.249 max_fifo=86/86
+W (220314) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220314) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.249 max_fifo=86/86
+W (220584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220584) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.247 max_fifo=86/86
+W (220854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220854) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.250 max_fifo=86/86
+W (221114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221114) kx134: epoch: n=2048 mean_g x=0.970 y=0.046 z=-0.247 max_fifo=86/86
+W (221394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221394) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.245 max_fifo=86/86
+W (221654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221654) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (221924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221924) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.245 max_fifo=86/86
+W (222194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222194) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.245 max_fifo=86/86
+W (222454) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222454) kx134: epoch: n=2048 mean_g x=0.976 y=0.051 z=-0.246 max_fifo=86/86
+W (222724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222724) kx134: epoch: n=2048 mean_g x=0.966 y=0.053 z=-0.250 max_fifo=86/86
+W (222984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222984) kx134: epoch: n=2048 mean_g x=0.974 y=0.050 z=-0.246 max_fifo=86/86
+W (223254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (223254) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.253 max_fifo=86/86
+E (223414) esp-tls: [sock=54] select() timeout
+E (223414) transport_base: Failed to open a new connection: 32774
+E (223414) mqtt_client: Error transport connect
+W (223414) link_mqtt: disconnected
+W (223524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (223524) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (223794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (223794) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (224054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224054) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+W (224334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224334) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.248 max_fifo=86/86
+W (224594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224594) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.251 max_fifo=86/86
+W (224864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224864) kx134: epoch: n=2048 mean_g x=0.974 y=0.051 z=-0.249 max_fifo=86/86
+W (225134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (225134) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.250 max_fifo=86/86
+W (225404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (225404) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.249 max_fifo=86/86
+W (225664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (225664) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+W (225924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (225924) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.249 max_fifo=86/86
+W (226194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226194) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (226464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226464) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.250 max_fifo=86/86
+W (226734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226734) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.248 max_fifo=86/86
+W (226994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226994) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.249 max_fifo=86/86
+W (227274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (227274) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.249 max_fifo=86/86
+W (227544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (227544) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (227804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (227804) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (228074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228074) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.246 max_fifo=86/86
+W (228334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228334) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.248 max_fifo=86/86
+W (228604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228604) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.250 max_fifo=86/86
+W (228864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228864) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.245 max_fifo=86/86
+W (229134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229134) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.248 max_fifo=86/86
+W (229404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229404) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.250 max_fifo=86/86
+W (229674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229674) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.251 max_fifo=86/86
+W (229934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229934) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.253 max_fifo=86/86
+W (230214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (230214) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.251 max_fifo=86/86
+W (230474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (230474) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.253 max_fifo=86/86
+W (230744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (230744) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.253 max_fifo=86/86
+W (231014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (231014) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.252 max_fifo=86/86
+W (231274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (231274) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.255 max_fifo=86/86
+W (231544) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (231544) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.252 max_fifo=86/86
+W (231804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (231804) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (232074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232074) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.252 max_fifo=86/86
+W (232344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232344) kx134: epoch: n=2048 mean_g x=0.974 y=0.053 z=-0.249 max_fifo=86/86
+W (232614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232614) kx134: epoch: n=2048 mean_g x=0.967 y=0.053 z=-0.251 max_fifo=86/86
+W (232874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232874) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (233154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233154) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.253 max_fifo=86/86
+W (233414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233414) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.249 max_fifo=86/86
+W (233684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233684) kx134: epoch: n=2048 mean_g x=0.971 y=0.049 z=-0.249 max_fifo=86/86
+W (233954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233954) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.249 max_fifo=86/86
+W (234214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (234214) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.250 max_fifo=86/86
+W (234484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (234484) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.251 max_fifo=86/86
+W (234744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (234744) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.245 max_fifo=86/86
+W (235014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235014) kx134: epoch: n=2048 mean_g x=0.965 y=0.054 z=-0.251 max_fifo=86/86
+W (235284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235284) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.250 max_fifo=86/86
+W (235554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235564) kx134: epoch: n=2048 mean_g x=0.971 y=0.056 z=-0.248 max_fifo=86/86
+W (235814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235814) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+W (236094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236094) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.250 max_fifo=86/86
+W (236354) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236354) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.247 max_fifo=86/86
+E (236424) esp-tls: [sock=54] select() timeout
+E (236424) transport_base: Failed to open a new connection: 32774
+E (236424) mqtt_client: Error transport connect
+W (236424) link_mqtt: disconnected
+W (236624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236624) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.246 max_fifo=86/86
+W (236894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236894) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.251 max_fifo=86/86
+W (237164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (237164) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.250 max_fifo=86/86
+W (237434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (237434) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (237684) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (237684) kx134: epoch: n=2048 mean_g x=0.965 y=0.057 z=-0.253 max_fifo=86/86
+W (237954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (237954) kx134: epoch: n=2048 mean_g x=0.966 y=0.055 z=-0.253 max_fifo=86/86
+W (238224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (238224) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.253 max_fifo=86/86
+W (238494) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (238494) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.251 max_fifo=86/86
+W (238754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (238754) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.250 max_fifo=86/86
+W (239034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239034) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.249 max_fifo=86/86
+W (239304) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239304) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.248 max_fifo=86/86
+W (239564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239564) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+W (239834) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239834) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.250 max_fifo=86/86
+W (240094) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240094) kx134: epoch: n=2048 mean_g x=0.966 y=0.058 z=-0.254 max_fifo=86/86
+W (240364) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240364) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.250 max_fifo=86/86
+W (240624) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240624) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.250 max_fifo=86/86
+W (240894) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240894) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.253 max_fifo=86/86
+W (241164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241164) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.250 max_fifo=86/86
+W (241434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241434) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.252 max_fifo=86/86
+W (241694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241694) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.247 max_fifo=86/86
+W (241974) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241974) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (242234) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (242234) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.251 max_fifo=86/86
+I (242484) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1660 diag=684
+I (242484) DIAG: CPU runtime:
+diag           	774180		<1%
+IDLE0          	187160492		77%
+IDLE1          	237873608		98%
+net            	13600185		5%
+tiT            	314608		<1%
+wifi_prov      	4419		<1%
+imu_task       	35727927		14%
+dsp_task       	3026958		1%
+mqtt_task      	145312		<1%
+mic_task       	1878915		<1%
+main           	157606		<1%
+sys_evt        	4256		<1%
+Tmr Svc        	17		<1%
+rgb_led        	234549		<1%
+esp_timer      	41079		<1%
+wifi           	1195760		<1%
+ipc1           	50577		<1%
+ipc0           	37893		<1%
+
+W (242504) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (242534) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+I (242574) DIAG: Heap free: internal=30976 largest_free=21504 PSRAM=8209980 IRAM=0
+I (242574) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (242574) DIAG: mqtt: connects=0 disconnects=12 publishes=0 publish_failures=0 cmds_received=0
+I (242584) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (242594) DIAG: mic: blocks_ok=3764 capture_failures=0 rb_drops=0
+W (242604) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (242604) DIAG: dsp: fft_count=3764 frames_emitted=941 rb_timeouts=0 last_fft_us=608
+I (242614) DIAG: imu: epochs=901 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (242624) DIAG: accel: reads_ok=2703 read_errors=0 fifo_max_hits=901
+I (242634) DIAG: net: frames_built=1131 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (242644) DIAG: led: state_changes=4 remote_updates=0 hw_errors=0
+W (242814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (242814) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.249 max_fifo=86/86
+W (243074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243074) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.250 max_fifo=86/86
+W (243344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243344) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.246 max_fifo=86/86
+W (243614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243614) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.248 max_fifo=86/86
+W (243874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243874) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.247 max_fifo=86/86
+W (244144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (244144) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.250 max_fifo=86/86
+W (244404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (244404) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.249 max_fifo=86/86
+W (244674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (244674) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (244944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (244944) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.251 max_fifo=86/86
+W (245214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (245214) kx134: epoch: n=2048 mean_g x=0.968 y=0.050 z=-0.248 max_fifo=86/86
+W (245474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (245474) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.248 max_fifo=86/86
+W (245754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (245754) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.249 max_fifo=86/86
+W (246014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246014) kx134: epoch: n=2048 mean_g x=0.973 y=0.049 z=-0.251 max_fifo=86/86
+W (246284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246284) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.250 max_fifo=86/86
+W (246554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246554) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.252 max_fifo=86/86
+W (246824) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246824) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.252 max_fifo=86/86
+W (247084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247084) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.247 max_fifo=86/86
+W (247344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247344) kx134: epoch: n=2048 mean_g x=0.966 y=0.060 z=-0.252 max_fifo=86/86
+W (247614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247614) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (247884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247884) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.249 max_fifo=86/86
+W (248154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248154) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.249 max_fifo=86/86
+W (248414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248414) kx134: epoch: n=2048 mean_g x=0.967 y=0.052 z=-0.250 max_fifo=86/86
+W (248694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248694) kx134: epoch: n=2048 mean_g x=0.971 y=0.057 z=-0.251 max_fifo=86/86
+W (248964) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248964) kx134: epoch: n=2048 mean_g x=0.975 y=0.052 z=-0.247 max_fifo=86/86
+W (249224) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (249224) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.248 max_fifo=86/86
+E (249434) esp-tls: [sock=54] select() timeout
+E (249434) transport_base: Failed to open a new connection: 32774
+E (249434) mqtt_client: Error transport connect
+W (249434) link_mqtt: disconnected
+W (249494) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (249494) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.250 max_fifo=86/86
+W (249764) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (249764) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.250 max_fifo=86/86
+W (250034) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250034) kx134: epoch: n=2048 mean_g x=0.975 y=0.050 z=-0.248 max_fifo=86/86
+W (250294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250294) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.248 max_fifo=86/86
+W (250574) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250574) kx134: epoch: n=2048 mean_g x=0.973 y=0.052 z=-0.249 max_fifo=86/86
+W (250844) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250844) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.247 max_fifo=86/86
+W (251114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (251114) kx134: epoch: n=2048 mean_g x=0.968 y=0.057 z=-0.252 max_fifo=86/86
+W (251384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (251384) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.249 max_fifo=86/86
+W (251644) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (251644) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.251 max_fifo=86/86
+W (251914) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (251914) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.248 max_fifo=86/86
+W (252174) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252174) kx134: epoch: n=2048 mean_g x=0.970 y=0.046 z=-0.245 max_fifo=86/86
+W (252444) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252444) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.250 max_fifo=86/86
+W (252714) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252714) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (252984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252984) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (253244) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (253244) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.247 max_fifo=86/86
+W (253524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (253524) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.250 max_fifo=86/86
+W (253784) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (253784) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.250 max_fifo=86/86
+W (254054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254054) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.250 max_fifo=86/86
+W (254324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254324) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.251 max_fifo=86/86
+W (254584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254584) kx134: epoch: n=2048 mean_g x=0.968 y=0.049 z=-0.248 max_fifo=86/86
+W (254854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254854) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.251 max_fifo=86/86
+W (255114) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255114) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.249 max_fifo=86/86
+W (255384) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255384) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.247 max_fifo=86/86
+W (255654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255654) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.246 max_fifo=86/86
+W (255924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255924) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.248 max_fifo=86/86
+W (256184) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256184) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.248 max_fifo=86/86
+W (256464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256464) kx134: epoch: n=2048 mean_g x=0.972 y=0.050 z=-0.251 max_fifo=86/86
+W (256724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256724) kx134: epoch: n=2048 mean_g x=0.973 y=0.049 z=-0.247 max_fifo=86/86
+W (256994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256994) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.250 max_fifo=86/86
+W (257264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (257264) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.248 max_fifo=86/86
+W (257534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (257534) kx134: epoch: n=2048 mean_g x=0.974 y=0.051 z=-0.250 max_fifo=86/86
+W (257794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (257794) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.252 max_fifo=86/86
+W (258054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258054) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.247 max_fifo=86/86
+W (258324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258324) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.250 max_fifo=86/86
+W (258594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258594) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.248 max_fifo=86/86
+W (258864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258864) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.247 max_fifo=86/86
+W (259124) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (259124) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.246 max_fifo=86/86
+W (259404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (259404) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.248 max_fifo=86/86
+W (259674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (259674) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.252 max_fifo=86/86
+W (259934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (259934) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.252 max_fifo=86/86
+W (260204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (260204) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.248 max_fifo=86/86
+W (260464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (260464) kx134: epoch: n=2048 mean_g x=0.970 y=0.055 z=-0.248 max_fifo=86/86
+W (260734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (260734) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.249 max_fifo=86/86
+W (260994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (260994) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.247 max_fifo=86/86
+W (261264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (261264) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.248 max_fifo=86/86
+W (261534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (261534) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.253 max_fifo=86/86
+W (261804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (261804) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.251 max_fifo=86/86
+W (262064) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (262064) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.248 max_fifo=86/86
+W (262344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (262344) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.249 max_fifo=86/86
+E (262444) esp-tls: [sock=54] select() timeout
+E (262444) transport_base: Failed to open a new connection: 32774
+E (262444) mqtt_client: Error transport connect
+W (262444) link_mqtt: disconnected
+W (262614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (262614) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.246 max_fifo=86/86
+W (262874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (262874) kx134: epoch: n=2048 mean_g x=0.968 y=0.052 z=-0.247 max_fifo=86/86
+W (263144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (263144) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.249 max_fifo=86/86
+W (263404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (263404) kx134: epoch: n=2048 mean_g x=0.967 y=0.056 z=-0.250 max_fifo=86/86
+W (263674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (263674) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.248 max_fifo=86/86
+W (263934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (263934) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.249 max_fifo=86/86
+W (264194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (264194) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.249 max_fifo=86/86
+W (264454) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (264454) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.250 max_fifo=86/86
+W (264724) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (264724) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.251 max_fifo=86/86
+W (264984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (264984) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.249 max_fifo=86/86
+W (265254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (265254) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.248 max_fifo=86/86
+W (265534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (265534) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.251 max_fifo=86/86
+W (265794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (265794) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.252 max_fifo=86/86
+W (266054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (266054) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.253 max_fifo=86/86
+W (266334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (266334) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.253 max_fifo=86/86
+W (266594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (266594) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.249 max_fifo=86/86
+W (266864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (266864) kx134: epoch: n=2048 mean_g x=0.967 y=0.052 z=-0.251 max_fifo=86/86
+W (267134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (267134) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.249 max_fifo=86/86
+W (267394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (267394) kx134: epoch: n=2048 mean_g x=0.968 y=0.056 z=-0.249 max_fifo=86/86
+W (267664) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (267664) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.249 max_fifo=86/86
+W (267924) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (267924) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.249 max_fifo=86/86
+W (268194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (268194) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (268464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (268464) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.247 max_fifo=86/86
+W (268734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (268734) kx134: epoch: n=2048 mean_g x=0.967 y=0.051 z=-0.248 max_fifo=86/86
+W (268994) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (268994) kx134: epoch: n=2048 mean_g x=0.969 y=0.052 z=-0.249 max_fifo=86/86
+W (269274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (269274) kx134: epoch: n=2048 mean_g x=0.971 y=0.050 z=-0.248 max_fifo=86/86
+W (269534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (269534) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.249 max_fifo=86/86
+W (269804) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (269804) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.248 max_fifo=86/86
+W (270074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (270074) kx134: epoch: n=2048 mean_g x=0.975 y=0.051 z=-0.247 max_fifo=86/86
+W (270344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (270344) kx134: epoch: n=2048 mean_g x=0.972 y=0.048 z=-0.247 max_fifo=86/86
+W (270604) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (270604) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.250 max_fifo=86/86
+W (270864) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (270864) kx134: epoch: n=2048 mean_g x=0.967 y=0.055 z=-0.253 max_fifo=86/86
+W (271134) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (271134) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.252 max_fifo=86/86
+W (271404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (271404) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.251 max_fifo=86/86
+W (271674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (271674) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.250 max_fifo=86/86
+W (271934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (271934) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.250 max_fifo=86/86
+W (272214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (272214) kx134: epoch: n=2048 mean_g x=0.973 y=0.049 z=-0.250 max_fifo=86/86
+W (272484) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (272484) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.255 max_fifo=86/86
+I (272644) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1660 diag=684
+I (272644) DIAG: CPU runtime:
+diag           	888108		<1%
+IDLE0          	210614449		77%
+IDLE1          	267649164		98%
+tiT            	352717		<1%
+wifi_prov      	4903		<1%
+net            	15330124		5%
+imu_task       	40215996		14%
+dsp_task       	3404690		1%
+mqtt_task      	161575		<1%
+mic_task       	2111642		<1%
+main           	157606		<1%
+Tmr Svc        	17		<1%
+rgb_led        	234549		<1%
+ipc1           	50577		<1%
+esp_timer      	45904		<1%
+wifi           	1284267		<1%
+ipc0           	37893		<1%
+sys_evt        	4256		<1%
+
+I (272684) DIAG: Heap free: internal=30976 largest_free=21504 PSRAM=8209980 IRAM=0
+I (272694) DIAG: wifi: connects=1 disconnects=0 retry_cnt=0
+I (272704) DIAG: mqtt: connects=0 disconnects=14 publishes=0 publish_failures=0 cmds_received=0
+I (272704) DIAG: wifi_prov: state=1 provisioning_entries=0 recovery_entries=0 recovery_successes=0
+I (272714) DIAG: mic: blocks_ok=4235 capture_failures=0 rb_drops=0
+W (272724) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (272734) DIAG: dsp: fft_count=4235 frames_emitted=1058 rb_timeouts=0 last_fft_us=608
+I (272734) DIAG: imu: epochs=1013 read_errors=0 reinit_attempts=0 reinit_successes=0
+W (272744) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (272754) kx134: epoch: n=2048 mean_g x=0.971 y=0.056 z=-0.253 max_fifo=86/86
+I (272784) DIAG: accel: reads_ok=3042 read_errors=0 fifo_max_hits=1014
+I (272784) DIAG: net: frames_built=1274 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (272784) DIAG: led: state_changes=4 remote_updates=0 hw_errors=0
+W (273024) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (273024) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.253 max_fifo=86/86
+W (273294) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (273294) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.252 max_fifo=86/86
+W (273564) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (273564) kx134: epoch: n=2048 mean_g x=0.973 y=0.050 z=-0.253 max_fifo=86/86
+W (273824) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (273824) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.252 max_fifo=86/86
+W (274104) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (274104) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.251 max_fifo=86/86
+W (274364) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (274364) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (274634) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (274634) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.251 max_fifo=86/86
+W (274904) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (274904) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.251 max_fifo=86/86
+W (275164) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (275164) kx134: epoch: n=2048 mean_g x=0.969 y=0.053 z=-0.249 max_fifo=86/86
+W (275434) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (275434) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+E (275454) esp-tls: [sock=54] select() timeout
+E (275454) transport_base: Failed to open a new connection: 32774
+E (275454) mqtt_client: Error transport connect
+W (275454) link_mqtt: disconnected
+W (275704) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (275704) kx134: epoch: n=2048 mean_g x=0.968 y=0.053 z=-0.249 max_fifo=86/86
+W (275984) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (275984) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.250 max_fifo=86/86
+W (276254) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (276254) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.246 max_fifo=86/86
+W (276524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (276524) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.249 max_fifo=86/86
+W (276794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (276794) kx134: epoch: n=2048 mean_g x=0.970 y=0.053 z=-0.248 max_fifo=86/86
+W (277054) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (277054) kx134: epoch: n=2048 mean_g x=0.973 y=0.051 z=-0.248 max_fifo=86/86
+W (277324) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (277324) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.248 max_fifo=86/86
+W (277584) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (277584) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.251 max_fifo=86/86
+W (277854) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (277854) kx134: epoch: n=2048 mean_g x=0.965 y=0.055 z=-0.253 max_fifo=86/86
+W (278124) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (278124) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.251 max_fifo=86/86
+W (278394) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (278394) kx134: epoch: n=2048 mean_g x=0.967 y=0.057 z=-0.250 max_fifo=86/86
+W (278654) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (278654) kx134: epoch: n=2048 mean_g x=0.969 y=0.049 z=-0.249 max_fifo=86/86
+W (278934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (278934) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.248 max_fifo=86/86
+W (279194) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (279194) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.249 max_fifo=86/86
+W (279464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (279464) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.250 max_fifo=86/86
+W (279734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (279734) kx134: epoch: n=2048 mean_g x=0.971 y=0.051 z=-0.247 max_fifo=86/86
+W (280004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (280004) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.248 max_fifo=86/86
+W (280264) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (280264) kx134: epoch: n=2048 mean_g x=0.973 y=0.050 z=-0.249 max_fifo=86/86
+W (280524) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (280524) kx134: epoch: n=2048 mean_g x=0.973 y=0.050 z=-0.249 max_fifo=86/86
+W (280794) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (280794) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.251 max_fifo=86/86
+W (281064) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (281064) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.251 max_fifo=86/86
+W (281334) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (281334) kx134: epoch: n=2048 mean_g x=0.970 y=0.056 z=-0.253 max_fifo=86/86
+W (281594) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (281594) kx134: epoch: n=2048 mean_g x=0.969 y=0.055 z=-0.250 max_fifo=86/86
+W (281874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (281874) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.250 max_fifo=86/86
+W (282144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (282144) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.252 max_fifo=86/86
+W (282404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (282404) kx134: epoch: n=2048 mean_g x=0.969 y=0.051 z=-0.256 max_fifo=86/86
+W (282674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (282674) kx134: epoch: n=2048 mean_g x=0.972 y=0.052 z=-0.255 max_fifo=86/86
+W (282934) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (282934) kx134: epoch: n=2048 mean_g x=0.969 y=0.049 z=-0.253 max_fifo=86/86
+W (283204) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (283204) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.253 max_fifo=86/86
+W (283464) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (283464) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.257 max_fifo=86/86
+W (283734) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (283734) kx134: epoch: n=2048 mean_g x=0.971 y=0.052 z=-0.255 max_fifo=86/86
+W (284004) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (284004) kx134: epoch: n=2048 mean_g x=0.973 y=0.049 z=-0.255 max_fifo=86/86
+W (284274) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (284274) kx134: epoch: n=2048 mean_g x=0.969 y=0.056 z=-0.250 max_fifo=86/86
+W (284534) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (284534) kx134: epoch: n=2048 mean_g x=0.972 y=0.049 z=-0.250 max_fifo=86/86
+W (284814) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (284814) kx134: epoch: n=2048 mean_g x=0.971 y=0.055 z=-0.253 max_fifo=86/86
+W (285074) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (285074) kx134: epoch: n=2048 mean_g x=0.968 y=0.055 z=-0.254 max_fifo=86/86
+W (285344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (285344) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.253 max_fifo=86/86
+W (285614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (285614) kx134: epoch: n=2048 mean_g x=0.967 y=0.053 z=-0.250 max_fifo=86/86
+W (285874) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (285874) kx134: epoch: n=2048 mean_g x=0.970 y=0.057 z=-0.251 max_fifo=86/86
+W (286144) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (286144) kx134: epoch: n=2048 mean_g x=0.969 y=0.050 z=-0.248 max_fifo=86/86
+W (286404) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (286404) kx134: epoch: n=2048 mean_g x=0.971 y=0.053 z=-0.252 max_fifo=86/86
+W (286674) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (286674) kx134: epoch: n=2048 mean_g x=0.968 y=0.054 z=-0.252 max_fifo=86/86
+W (286944) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (286944) kx134: epoch: n=2048 mean_g x=0.971 y=0.054 z=-0.250 max_fifo=86/86
+W (287214) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (287214) kx134: epoch: n=2048 mean_g x=0.971 y=0.058 z=-0.251 max_fifo=86/86
+W (287474) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (287474) kx134: epoch: n=2048 mean_g x=0.970 y=0.054 z=-0.249 max_fifo=86/86
+W (287754) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (287754) kx134: epoch: n=2048 mean_g x=0.972 y=0.049 z=-0.245 max_fifo=86/86
+W (288014) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (288014) kx134: epoch: n=2048 mean_g x=0.972 y=0.054 z=-0.249 max_fifo=86/86
+W (288284) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (288284) kx134: epoch: n=2048 mean_g x=0.967 y=0.057 z=-0.248 max_fifo=86/86
+E (288464) esp-tls: [sock=54] select() timeout
+E (288464) transport_base: Failed to open a new connection: 32774
+E (288464) mqtt_client: Error transport connect
+W (288464) link_mqtt: disconnected
+W (288554) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (288554) kx134: epoch: n=2048 mean_g x=0.973 y=0.053 z=-0.249 max_fifo=86/86
+W (288824) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (288824) kx134: epoch: n=2048 mean_g x=0.967 y=0.054 z=-0.249 max_fifo=86/86
+W (289084) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (289084) kx134: epoch: n=2048 mean_g x=0.969 y=0.054 z=-0.252 max_fifo=86/86
+W (289344) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (289344) kx134: epoch: n=2048 mean_g x=0.970 y=0.051 z=-0.246 max_fifo=86/86
+W (289614) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (289614) kx134: epoch: n=2048 mean_g x=0.970 y=0.050 z=-0.246 max_fifo=86/86
+W (289884) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (289884) kx134: epoch: n=2048 mean_g x=0.970 y=0.052 z=-0.245 max_fifo=86/86
+W (290154) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (290154) kx134: epoch: n=2048 mean_g x=0.972 y=0.053 z=-0.247 max_fifo=86/86
+W (290414) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (290414) kx134: epoch: n=2048 mean_g x=0.971 y=0.056 z=-0.249 max_fifo=86/86
+W (290694) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (290694) kx134: epoch: n=2048 mean_g x=0.972 y=0.051 z=-0.250 max_fifo=86/86
+W (290954) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (290954) kx134: epoch: n=2048 mean_g x=0.966 y=0.054 z=-0.250 max_fifo=86/86

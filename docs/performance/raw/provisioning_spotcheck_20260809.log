@@ -1,0 +1,2299 @@
+--- forcing DTR inactive
+--- forcing RTS inactive
+
+Please build project in debug configuration to get more details about an exception.
+See https://docs.platformio.org/page/projectconf/build_configurations.html
+
+
+--- Terminal on COM15 | 115200 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+W (9712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (9712) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.204 max_fifo=86/86
+W (9972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (9972) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.202 max_fifo=86/86
+W (10222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (10222) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.201 max_fifo=86/86
+W (10482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (10482) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.203 max_fifo=86/86
+W (10742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (10742) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.208 max_fifo=86/86
+W (11002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (11002) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.204 max_fifo=86/86
+W (11052) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=4
+W (11252) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (11252) kx134: epoch: n=2048 mean_g x=0.974 y=0.079 z=-0.206 max_fifo=86/86
+W (11512) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (11512) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.201 max_fifo=86/86
+W (11772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (11772) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (12032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (12032) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.205 max_fifo=86/86
+W (12292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (12292) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.202 max_fifo=86/86
+W (12552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (12552) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.206 max_fifo=86/86
+W (12812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (12812) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (13072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (13072) kx134: epoch: n=2048 mean_g x=0.982 y=0.078 z=-0.206 max_fifo=86/86
+W (13332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (13332) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.204 max_fifo=86/86
+W (13462) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=5
+W (13592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (13592) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.203 max_fifo=86/86
+W (13852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (13852) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.207 max_fifo=86/86
+W (14112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (14112) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.206 max_fifo=86/86
+W (14372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (14372) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.206 max_fifo=86/86
+W (14632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (14632) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.205 max_fifo=86/86
+W (14892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (14892) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.206 max_fifo=86/86
+W (15152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (15152) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.208 max_fifo=86/86
+W (15412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (15412) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.207 max_fifo=86/86
+W (15662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (15662) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.208 max_fifo=86/86
+W (15882) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=6
+W (15922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (15922) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.205 max_fifo=86/86
+W (16182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (16182) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.207 max_fifo=86/86
+W (16412) wifi_provision: no WiFi after 15 s boot attempt
+W (16412) ap_credentials: generated new provisioning AP password (first bring-up ever for this unit)
+I (16412) wifi:mode : sta (1c:db:d4:5a:b0:04) + softAP (1c:db:d4:5a:b0:05)
+I (16422) wifi:Total power save buffer number: 16
+I (16422) wifi:Init max length of beacon: 752/752
+I (16422) wifi:Init max length of beacon: 752/752
+I (16432) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: 192.168.4.1
+I (16742) wifi:Total power save buffer number: 16
+I (16742) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: 192.168.4.1
+I (16742) provisioning: provisioning AP up: ssid="EPM-SAT-5ab004" password="1ce9e71db0fcb15992c5ed02c54a917f" (WPA2-PSK, http://192.168.4.1)
+W (16762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (16762) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.206 max_fifo=86/86
+W (17022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (17022) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.204 max_fifo=86/86
+W (17282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (17282) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.205 max_fifo=86/86
+W (17542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (17542) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.207 max_fifo=86/86
+W (17802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (17802) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.206 max_fifo=86/86
+W (18062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (18062) kx134: epoch: n=2048 mean_g x=0.976 y=0.074 z=-0.206 max_fifo=86/86
+W (18322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (18322) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.205 max_fifo=86/86
+W (18582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (18582) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.208 max_fifo=86/86
+W (18842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (18842) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.209 max_fifo=86/86
+W (18852) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=7
+W (19102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (19102) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.202 max_fifo=86/86
+W (19362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (19362) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (19622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (19622) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (19882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (19882) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.208 max_fifo=86/86
+W (20142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (20142) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.209 max_fifo=86/86
+W (20402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (20402) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.207 max_fifo=86/86
+W (20662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (20662) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.207 max_fifo=86/86
+W (20922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (20922) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (21182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (21182) kx134: epoch: n=2048 mean_g x=0.977 y=0.072 z=-0.203 max_fifo=86/86
+W (21442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (21442) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.206 max_fifo=86/86
+W (21692) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=8
+W (21702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (21702) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.203 max_fifo=86/86
+W (21962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (21962) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.208 max_fifo=86/86
+W (22222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (22222) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
+W (22482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (22482) kx134: epoch: n=2048 mean_g x=0.975 y=0.081 z=-0.209 max_fifo=86/86
+W (22742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (22742) kx134: epoch: n=2048 mean_g x=0.978 y=0.071 z=-0.206 max_fifo=86/86
+W (23002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (23002) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.206 max_fifo=86/86
+W (23262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (23262) kx134: epoch: n=2048 mean_g x=0.981 y=0.077 z=-0.208 max_fifo=86/86
+W (23522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (23522) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.211 max_fifo=86/86
+W (23782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (23782) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.210 max_fifo=86/86
+W (24042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (24042) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.209 max_fifo=86/86
+W (24302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (24302) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.205 max_fifo=86/86
+W (24532) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=9
+W (24562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (24562) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.205 max_fifo=86/86
+W (24822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (24822) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.207 max_fifo=86/86
+W (25082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25082) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.207 max_fifo=86/86
+W (25342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25342) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
+W (25602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25602) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.206 max_fifo=86/86
+W (25862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (25862) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.205 max_fifo=86/86
+W (26122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (26122) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (26382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (26382) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.209 max_fifo=86/86
+W (26642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (26642) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.208 max_fifo=86/86
+W (26902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (26902) kx134: epoch: n=2048 mean_g x=0.976 y=0.072 z=-0.205 max_fifo=86/86
+W (27162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27162) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.208 max_fifo=86/86
+W (27372) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=10
+E (27372) wifi_task: WiFi: 10 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (27422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27422) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.208 max_fifo=86/86
+W (27672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27672) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.204 max_fifo=86/86
+W (27932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (27932) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.204 max_fifo=86/86
+W (28192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28192) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.206 max_fifo=86/86
+W (28452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28452) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.205 max_fifo=86/86
+W (28712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28712) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.204 max_fifo=86/86
+W (28972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (28972) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.204 max_fifo=86/86
+W (29232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (29232) kx134: epoch: n=2048 mean_g x=0.982 y=0.078 z=-0.204 max_fifo=86/86
+W (29492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (29492) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.203 max_fifo=86/86
+W (29752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (29752) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.207 max_fifo=86/86
+W (30012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (30012) kx134: epoch: n=2048 mean_g x=0.979 y=0.080 z=-0.204 max_fifo=86/86
+W (30222) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=11
+W (30272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (30272) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.207 max_fifo=86/86
+W (30532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (30532) kx134: epoch: n=2048 mean_g x=0.977 y=0.073 z=-0.204 max_fifo=86/86
+W (30792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (30792) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (31052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31052) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.208 max_fifo=86/86
+W (31312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31312) kx134: epoch: n=2048 mean_g x=0.975 y=0.074 z=-0.206 max_fifo=86/86
+I (31472) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2032 imu=1724 diag=2188
+I (31472) DIAG: CPU runtime:
+diag           	14		<1%
+IDLE0          	24599391		81%
+IDLE1          	29734167		98%
+mic_task       	238909		<1%
+tiT            	23297		<1%
+wifi_prov      	15385		<1%
+imu_task       	4513212		14%
+dsp_task       	370624		1%
+rgb_led        	128623		<1%
+main           	154491		<1%
+ipc0           	37903		<1%
+net            	18		<1%
+ipc1           	52450		<1%
+dns_captive    	49		<1%
+httpd          	584		<1%
+sys_evt        	24231		<1%
+wifi           	663264		2%
+esp_timer      	44047		<1%
+Tmr Svc        	17		<1%
+
+I (31512) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (31522) DIAG: wifi: connects=0 disconnects=11 retry_cnt=11
+I (31532) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (31532) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+I (31542) DIAG: mic: blocks_ok=466 capture_failures=0 rb_drops=0
+W (31552) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (31562) DIAG: dsp: fft_count=467 frames_emitted=116 rb_timeouts=0 last_fft_us=606
+I (31562) DIAG: imu: epochs=114 read_errors=0 reinit_attempts=0 reinit_successes=0
+W (31572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31582) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.205 max_fifo=86/86
+I (31612) DIAG: accel: reads_ok=345 read_errors=0 fifo_max_hits=115
+I (31612) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (31612) DIAG: led: state_changes=13 remote_updates=0 hw_errors=0
+W (31842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (31842) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.204 max_fifo=86/86
+W (32102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32102) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.204 max_fifo=86/86
+W (32362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32362) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.204 max_fifo=86/86
+W (32622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32622) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.203 max_fifo=86/86
+W (32882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (32882) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.205 max_fifo=86/86
+W (33062) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=12
+W (33142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (33142) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.203 max_fifo=86/86
+W (33402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (33402) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.205 max_fifo=86/86
+W (33662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (33662) kx134: epoch: n=2048 mean_g x=0.973 y=0.078 z=-0.206 max_fifo=86/86
+W (33922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (33922) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.209 max_fifo=86/86
+W (34182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34182) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.205 max_fifo=86/86
+W (34442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34442) kx134: epoch: n=2048 mean_g x=0.975 y=0.081 z=-0.208 max_fifo=86/86
+W (34702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34702) kx134: epoch: n=2048 mean_g x=0.980 y=0.072 z=-0.202 max_fifo=86/86
+W (34962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (34962) kx134: epoch: n=2048 mean_g x=0.982 y=0.075 z=-0.204 max_fifo=86/86
+W (35222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35222) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.208 max_fifo=86/86
+W (35482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35482) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.205 max_fifo=86/86
+W (35732) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35732) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.203 max_fifo=86/86
+W (35902) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=13
+W (35982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (35982) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.209 max_fifo=86/86
+W (36242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (36242) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.206 max_fifo=86/86
+W (36502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (36502) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.205 max_fifo=86/86
+W (36762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (36762) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.210 max_fifo=86/86
+W (37022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (37022) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.207 max_fifo=86/86
+W (37282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (37282) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (37542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (37542) kx134: epoch: n=2048 mean_g x=0.977 y=0.073 z=-0.204 max_fifo=86/86
+W (37802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (37802) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (38062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38062) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.208 max_fifo=86/86
+W (38322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38322) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.204 max_fifo=86/86
+W (38582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38582) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.208 max_fifo=86/86
+W (38742) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=14
+W (38842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (38842) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.207 max_fifo=86/86
+W (39102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39102) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.203 max_fifo=86/86
+W (39362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39362) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.203 max_fifo=86/86
+W (39622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39622) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.205 max_fifo=86/86
+W (39882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (39882) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (40142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40142) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.207 max_fifo=86/86
+W (40402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40402) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.209 max_fifo=86/86
+W (40662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40662) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (40922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (40922) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.209 max_fifo=86/86
+W (41182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (41182) kx134: epoch: n=2048 mean_g x=0.974 y=0.079 z=-0.208 max_fifo=86/86
+W (41442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (41442) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.206 max_fifo=86/86
+W (41582) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=15
+W (41702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (41702) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.208 max_fifo=86/86
+W (41962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (41962) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.204 max_fifo=86/86
+W (42222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (42222) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.209 max_fifo=86/86
+W (42482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (42482) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (42742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (42742) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.202 max_fifo=86/86
+W (43002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43002) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.205 max_fifo=86/86
+W (43262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43262) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.205 max_fifo=86/86
+W (43522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43522) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (43782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (43782) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.205 max_fifo=86/86
+W (44042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44042) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.205 max_fifo=86/86
+W (44302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44302) kx134: epoch: n=2048 mean_g x=0.982 y=0.078 z=-0.201 max_fifo=86/86
+W (44422) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=16
+W (44562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44562) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.204 max_fifo=86/86
+W (44822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (44822) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.205 max_fifo=86/86
+W (45082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (45082) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (45342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (45342) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.206 max_fifo=86/86
+W (45602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (45602) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.203 max_fifo=86/86
+W (45862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (45862) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.204 max_fifo=86/86
+W (46122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46122) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.204 max_fifo=86/86
+W (46382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46382) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.207 max_fifo=86/86
+W (46642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46642) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.207 max_fifo=86/86
+W (46902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (46902) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.205 max_fifo=86/86
+W (47162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47162) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.203 max_fifo=86/86
+W (47262) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=17
+W (47412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47412) kx134: epoch: n=2048 mean_g x=0.981 y=0.078 z=-0.204 max_fifo=86/86
+W (47672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47672) kx134: epoch: n=2048 mean_g x=0.980 y=0.073 z=-0.203 max_fifo=86/86
+W (47932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (47932) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (48192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48192) kx134: epoch: n=2048 mean_g x=0.974 y=0.079 z=-0.204 max_fifo=86/86
+W (48452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48452) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.206 max_fifo=86/86
+W (48712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48712) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.202 max_fifo=86/86
+W (48972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (48972) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.205 max_fifo=86/86
+W (49232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (49232) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.203 max_fifo=86/86
+W (49482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (49482) kx134: epoch: n=2048 mean_g x=0.982 y=0.075 z=-0.204 max_fifo=86/86
+W (49742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (49742) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.201 max_fifo=86/86
+W (50002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50002) kx134: epoch: n=2048 mean_g x=0.981 y=0.077 z=-0.203 max_fifo=86/86
+W (50102) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=18
+W (50262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50262) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.205 max_fifo=86/86
+W (50522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50522) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.204 max_fifo=86/86
+W (50782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (50782) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.204 max_fifo=86/86
+W (51042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51042) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (51302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51302) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.206 max_fifo=86/86
+W (51562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51562) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.203 max_fifo=86/86
+W (51822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (51822) kx134: epoch: n=2048 mean_g x=0.976 y=0.080 z=-0.207 max_fifo=86/86
+W (52082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52082) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.210 max_fifo=86/86
+W (52342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52342) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.204 max_fifo=86/86
+W (52602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52602) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.204 max_fifo=86/86
+W (52862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (52862) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.202 max_fifo=86/86
+W (52942) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=19
+W (53122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (53122) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.204 max_fifo=86/86
+W (53382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (53382) kx134: epoch: n=2048 mean_g x=0.976 y=0.080 z=-0.208 max_fifo=86/86
+W (53642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (53642) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.207 max_fifo=86/86
+W (53902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (53902) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.205 max_fifo=86/86
+W (54162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54162) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
+W (54422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54422) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.205 max_fifo=86/86
+W (54682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54682) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.203 max_fifo=86/86
+W (54942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (54942) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.210 max_fifo=86/86
+W (55202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55202) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.205 max_fifo=86/86
+W (55462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55462) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.205 max_fifo=86/86
+W (55722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55722) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.206 max_fifo=86/86
+W (55782) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=20
+E (55782) wifi_task: WiFi: 20 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (55982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (55982) kx134: epoch: n=2048 mean_g x=0.979 y=0.073 z=-0.207 max_fifo=86/86
+W (56242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (56242) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.210 max_fifo=86/86
+W (56502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (56502) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.208 max_fifo=86/86
+W (56762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (56762) kx134: epoch: n=2048 mean_g x=0.978 y=0.081 z=-0.208 max_fifo=86/86
+W (57022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (57022) kx134: epoch: n=2048 mean_g x=0.973 y=0.077 z=-0.208 max_fifo=86/86
+W (57282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (57282) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.204 max_fifo=86/86
+W (57542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (57542) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.208 max_fifo=86/86
+W (57802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (57802) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.208 max_fifo=86/86
+W (58062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58062) kx134: epoch: n=2048 mean_g x=0.974 y=0.076 z=-0.207 max_fifo=86/86
+W (58322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58322) kx134: epoch: n=2048 mean_g x=0.976 y=0.081 z=-0.209 max_fifo=86/86
+W (58582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58582) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.207 max_fifo=86/86
+W (58632) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=21
+W (58842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (58842) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.209 max_fifo=86/86
+W (59102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59102) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.206 max_fifo=86/86
+W (59362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59362) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.206 max_fifo=86/86
+W (59622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59622) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.209 max_fifo=86/86
+W (59882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (59882) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.207 max_fifo=86/86
+W (60142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (60142) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.206 max_fifo=86/86
+W (60402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (60402) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.207 max_fifo=86/86
+W (60662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (60662) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.205 max_fifo=86/86
+W (60922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (60922) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.203 max_fifo=86/86
+W (61182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61182) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.208 max_fifo=86/86
+W (61442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61442) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.207 max_fifo=86/86
+W (61472) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=22
+I (61622) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2016 imu=1724 diag=892
+I (61622) DIAG: CPU runtime:
+rgb_led        	262686		<1%
+diag           	105696		<1%
+IDLE0          	49451445		81%
+IDLE1          	59369254		98%
+tiT            	37064		<1%
+wifi_prov      	16201		<1%
+imu_task       	9118330		15%
+dsp_task       	749141		1%
+mic_task       	483186		<1%
+main           	154491		<1%
+net            	18		<1%
+ipc1           	52450		<1%
+dns_captive    	49		<1%
+httpd          	584		<1%
+sys_evt        	46526		<1%
+wifi           	914416		1%
+esp_timer      	101220		<1%
+Tmr Svc        	17		<1%
+ipc0           	37903		<1%
+
+I (61662) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (61672) DIAG: wifi: connects=0 disconnects=22 retry_cnt=22
+I (61682) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (61682) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+I (61692) DIAG: mic: blocks_ok=938 capture_failures=0 rb_drops=0
+W (61702) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+W (61702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61712) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.205 max_fifo=86/86
+I (61742) DIAG: dsp: fft_count=938 frames_emitted=234 rb_timeouts=0 last_fft_us=606
+I (61742) DIAG: imu: epochs=231 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (61752) DIAG: accel: reads_ok=693 read_errors=0 fifo_max_hits=231
+I (61752) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (61762) DIAG: led: state_changes=24 remote_updates=0 hw_errors=0
+W (61972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (61972) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.207 max_fifo=86/86
+W (62232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (62232) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.206 max_fifo=86/86
+W (62492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (62492) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (62752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (62752) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (63012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63012) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (63272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63272) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (63532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63532) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.208 max_fifo=86/86
+W (63792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (63792) kx134: epoch: n=2048 mean_g x=0.973 y=0.079 z=-0.209 max_fifo=86/86
+W (64052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (64052) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.205 max_fifo=86/86
+W (64312) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=23
+W (64312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (64312) kx134: epoch: n=2048 mean_g x=0.982 y=0.074 z=-0.207 max_fifo=86/86
+W (64572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (64572) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.208 max_fifo=86/86
+W (64832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (64832) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.204 max_fifo=86/86
+W (65092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65092) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.208 max_fifo=86/86
+W (65352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65352) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.206 max_fifo=86/86
+W (65612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65612) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.205 max_fifo=86/86
+I (65662) dsp_task: HST warmed up at frame 250
+W (65872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (65872) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.206 max_fifo=86/86
+W (66132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66132) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (66392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66392) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.205 max_fifo=86/86
+W (66652) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66652) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.205 max_fifo=86/86
+W (66902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (66902) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.205 max_fifo=86/86
+W (67152) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=24
+W (67162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67162) kx134: epoch: n=2048 mean_g x=0.982 y=0.073 z=-0.205 max_fifo=86/86
+W (67422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67422) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.201 max_fifo=86/86
+W (67682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67682) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (67942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (67942) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.207 max_fifo=86/86
+W (68202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (68202) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.207 max_fifo=86/86
+W (68462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (68462) kx134: epoch: n=2048 mean_g x=0.980 y=0.073 z=-0.205 max_fifo=86/86
+W (68722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (68722) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.209 max_fifo=86/86
+W (68982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (68982) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.209 max_fifo=86/86
+W (69242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (69242) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.210 max_fifo=86/86
+W (69502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (69502) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.209 max_fifo=86/86
+W (69752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (69752) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.206 max_fifo=86/86
+W (69992) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=25
+W (70012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70012) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.207 max_fifo=86/86
+W (70272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70272) kx134: epoch: n=2048 mean_g x=0.978 y=0.072 z=-0.206 max_fifo=86/86
+W (70532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70532) kx134: epoch: n=2048 mean_g x=0.977 y=0.082 z=-0.207 max_fifo=86/86
+W (70792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (70792) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.208 max_fifo=86/86
+W (71052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71052) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.207 max_fifo=86/86
+W (71312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71312) kx134: epoch: n=2048 mean_g x=0.981 y=0.074 z=-0.206 max_fifo=86/86
+W (71572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71572) kx134: epoch: n=2048 mean_g x=0.976 y=0.080 z=-0.207 max_fifo=86/86
+W (71832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (71832) kx134: epoch: n=2048 mean_g x=0.972 y=0.081 z=-0.215 max_fifo=86/86
+W (72092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (72092) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.210 max_fifo=86/86
+W (72352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (72352) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.204 max_fifo=86/86
+W (72612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (72612) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.204 max_fifo=86/86
+W (72832) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=26
+W (72872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (72872) kx134: epoch: n=2048 mean_g x=0.976 y=0.074 z=-0.206 max_fifo=86/86
+W (73132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73132) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (73392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73392) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.207 max_fifo=86/86
+W (73652) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73652) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.208 max_fifo=86/86
+W (73912) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (73912) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.207 max_fifo=86/86
+W (74172) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74172) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.204 max_fifo=86/86
+W (74432) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74432) kx134: epoch: n=2048 mean_g x=0.979 y=0.072 z=-0.205 max_fifo=86/86
+W (74692) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74692) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (74952) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (74952) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.206 max_fifo=86/86
+W (75212) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75212) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.207 max_fifo=86/86
+W (75472) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75472) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.202 max_fifo=86/86
+W (75672) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=27
+W (75732) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75732) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.207 max_fifo=86/86
+W (75992) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (75992) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.206 max_fifo=86/86
+W (76252) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (76252) kx134: epoch: n=2048 mean_g x=0.980 y=0.072 z=-0.205 max_fifo=86/86
+W (76512) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (76512) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (76772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (76772) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (77032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77032) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.208 max_fifo=86/86
+W (77292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77292) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.207 max_fifo=86/86
+W (77552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77552) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.209 max_fifo=86/86
+W (77812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (77812) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.209 max_fifo=86/86
+W (78072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78072) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.211 max_fifo=86/86
+W (78332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78332) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.205 max_fifo=86/86
+W (78512) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=28
+W (78592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78592) kx134: epoch: n=2048 mean_g x=0.983 y=0.076 z=-0.205 max_fifo=86/86
+W (78852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (78852) kx134: epoch: n=2048 mean_g x=0.975 y=0.071 z=-0.206 max_fifo=86/86
+W (79112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79112) kx134: epoch: n=2048 mean_g x=0.980 y=0.073 z=-0.206 max_fifo=86/86
+W (79372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79372) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.205 max_fifo=86/86
+W (79632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79632) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.209 max_fifo=86/86
+W (79892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (79892) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.206 max_fifo=86/86
+W (80152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (80152) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.205 max_fifo=86/86
+W (80412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (80412) kx134: epoch: n=2048 mean_g x=0.979 y=0.073 z=-0.205 max_fifo=86/86
+W (80672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (80672) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.203 max_fifo=86/86
+W (80932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (80932) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.205 max_fifo=86/86
+W (81192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81192) kx134: epoch: n=2048 mean_g x=0.973 y=0.077 z=-0.205 max_fifo=86/86
+W (81352) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=29
+W (81452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81452) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.202 max_fifo=86/86
+W (81712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81712) kx134: epoch: n=2048 mean_g x=0.973 y=0.078 z=-0.206 max_fifo=86/86
+W (81972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (81972) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (82232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (82232) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.206 max_fifo=86/86
+W (82482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (82482) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.209 max_fifo=86/86
+W (82742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (82742) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.209 max_fifo=86/86
+W (83002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (83002) kx134: epoch: n=2048 mean_g x=0.979 y=0.073 z=-0.208 max_fifo=86/86
+W (83262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (83262) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.209 max_fifo=86/86
+W (83522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (83522) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.209 max_fifo=86/86
+W (83782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (83782) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.208 max_fifo=86/86
+W (84042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84042) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (84192) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=30
+E (84192) wifi_task: WiFi: 30 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (84312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84312) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.204 max_fifo=86/86
+W (84562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84562) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.207 max_fifo=86/86
+W (84822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (84822) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.209 max_fifo=86/86
+W (85082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85082) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.207 max_fifo=86/86
+W (85342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85342) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.204 max_fifo=86/86
+W (85602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85602) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.208 max_fifo=86/86
+W (85862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (85862) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.206 max_fifo=86/86
+W (86122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86122) kx134: epoch: n=2048 mean_g x=0.982 y=0.075 z=-0.205 max_fifo=86/86
+W (86382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86382) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.206 max_fifo=86/86
+W (86642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86642) kx134: epoch: n=2048 mean_g x=0.974 y=0.075 z=-0.204 max_fifo=86/86
+W (86902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (86902) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.206 max_fifo=86/86
+W (87042) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=31
+W (87162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (87162) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.203 max_fifo=86/86
+W (87422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (87422) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.205 max_fifo=86/86
+W (87682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (87682) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.211 max_fifo=86/86
+W (87942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (87942) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (88202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88202) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
+W (88462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88462) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.208 max_fifo=86/86
+W (88722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88722) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (88982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (88982) kx134: epoch: n=2048 mean_g x=0.974 y=0.080 z=-0.210 max_fifo=86/86
+W (89242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (89242) kx134: epoch: n=2048 mean_g x=0.975 y=0.074 z=-0.209 max_fifo=86/86
+W (89502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (89502) kx134: epoch: n=2048 mean_g x=0.979 y=0.072 z=-0.201 max_fifo=86/86
+W (89762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (89762) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.209 max_fifo=86/86
+W (89882) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=32
+W (90022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90022) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.208 max_fifo=86/86
+W (90282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90282) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.209 max_fifo=86/86
+W (90542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90542) kx134: epoch: n=2048 mean_g x=0.982 y=0.070 z=-0.203 max_fifo=86/86
+W (90802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (90802) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.208 max_fifo=86/86
+W (91062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (91062) kx134: epoch: n=2048 mean_g x=0.973 y=0.077 z=-0.207 max_fifo=86/86
+W (91322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (91322) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.205 max_fifo=86/86
+W (91582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (91582) kx134: epoch: n=2048 mean_g x=0.974 y=0.080 z=-0.208 max_fifo=86/86
+I (91772) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2016 imu=1724 diag=892
+I (91772) DIAG: CPU runtime:
+rgb_led        	394171		<1%
+diag           	213740		<1%
+IDLE0          	74278657		81%
+IDLE1          	89007945		98%
+wifi_prov      	17009		<1%
+tiT            	50725		<1%
+imu_task       	13732829		15%
+dsp_task       	1126643		1%
+mic_task       	728091		<1%
+main           	154491		<1%
+ipc1           	52450		<1%
+dns_captive    	49		<1%
+httpd          	584		<1%
+Tmr Svc        	17		<1%
+sys_evt        	67655		<1%
+wifi           	1179459		1%
+esp_timer      	159763		<1%
+ipc0           	37903		<1%
+net            	18		<1%
+
+I (91812) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (91822) DIAG: wifi: connects=0 disconnects=32 retry_cnt=32
+I (91832) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (91832) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+W (91842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (91852) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.208 max_fifo=86/86
+I (91882) DIAG: mic: blocks_ok=1409 capture_failures=0 rb_drops=0
+W (91882) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (91882) DIAG: dsp: fft_count=1409 frames_emitted=352 rb_timeouts=0 last_fft_us=606
+I (91892) DIAG: imu: epochs=347 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (91902) DIAG: accel: reads_ok=1041 read_errors=0 fifo_max_hits=347
+I (91902) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (91912) DIAG: led: state_changes=35 remote_updates=0 hw_errors=0
+W (92112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92112) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.204 max_fifo=86/86
+W (92372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92372) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.205 max_fifo=86/86
+W (92632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92632) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.205 max_fifo=86/86
+W (92722) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=33
+W (92892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (92892) kx134: epoch: n=2048 mean_g x=0.983 y=0.074 z=-0.203 max_fifo=86/86
+W (93152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93152) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.205 max_fifo=86/86
+W (93412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93412) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.204 max_fifo=86/86
+W (93672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93672) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.205 max_fifo=86/86
+W (93932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (93932) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.204 max_fifo=86/86
+W (94192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94192) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.207 max_fifo=86/86
+W (94452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94452) kx134: epoch: n=2048 mean_g x=0.981 y=0.073 z=-0.206 max_fifo=86/86
+W (94712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94712) kx134: epoch: n=2048 mean_g x=0.982 y=0.072 z=-0.205 max_fifo=86/86
+W (94972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (94972) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.206 max_fifo=86/86
+W (95232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (95232) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.206 max_fifo=86/86
+W (95492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (95492) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.207 max_fifo=86/86
+W (95562) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=34
+W (95752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (95752) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.205 max_fifo=86/86
+W (96012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96012) kx134: epoch: n=2048 mean_g x=0.974 y=0.078 z=-0.212 max_fifo=86/86
+W (96272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96272) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.208 max_fifo=86/86
+W (96532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96532) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.209 max_fifo=86/86
+W (96792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (96792) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (97052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97052) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.207 max_fifo=86/86
+W (97312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97312) kx134: epoch: n=2048 mean_g x=0.977 y=0.081 z=-0.205 max_fifo=86/86
+W (97572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97572) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.209 max_fifo=86/86
+W (97832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (97832) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.207 max_fifo=86/86
+W (98092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98092) kx134: epoch: n=2048 mean_g x=0.976 y=0.081 z=-0.209 max_fifo=86/86
+W (98352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98352) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.206 max_fifo=86/86
+W (98402) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=35
+W (98612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98612) kx134: epoch: n=2048 mean_g x=0.976 y=0.081 z=-0.209 max_fifo=86/86
+W (98872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (98872) kx134: epoch: n=2048 mean_g x=0.980 y=0.073 z=-0.208 max_fifo=86/86
+W (99132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (99132) kx134: epoch: n=2048 mean_g x=0.974 y=0.076 z=-0.209 max_fifo=86/86
+W (99392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (99392) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (99652) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (99652) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.209 max_fifo=86/86
+W (99912) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (99912) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.209 max_fifo=86/86
+W (100172) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100172) kx134: epoch: n=2048 mean_g x=0.973 y=0.079 z=-0.208 max_fifo=86/86
+W (100432) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100432) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.208 max_fifo=86/86
+W (100692) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100692) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.207 max_fifo=86/86
+W (100952) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (100952) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.206 max_fifo=86/86
+W (101212) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101212) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.209 max_fifo=86/86
+W (101242) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=36
+W (101472) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101472) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.204 max_fifo=86/86
+W (101732) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101732) kx134: epoch: n=2048 mean_g x=0.981 y=0.074 z=-0.206 max_fifo=86/86
+W (101992) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (101992) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (102252) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (102252) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.208 max_fifo=86/86
+W (102512) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (102512) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.204 max_fifo=86/86
+W (102772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (102772) kx134: epoch: n=2048 mean_g x=0.982 y=0.078 z=-0.204 max_fifo=86/86
+W (103032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (103032) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (103292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (103292) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (103552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (103552) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.206 max_fifo=86/86
+W (103812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (103812) kx134: epoch: n=2048 mean_g x=0.982 y=0.075 z=-0.203 max_fifo=86/86
+W (104072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104072) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.207 max_fifo=86/86
+W (104082) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=37
+W (104332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104332) kx134: epoch: n=2048 mean_g x=0.982 y=0.073 z=-0.203 max_fifo=86/86
+W (104592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104592) kx134: epoch: n=2048 mean_g x=0.976 y=0.080 z=-0.206 max_fifo=86/86
+W (104852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (104852) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.209 max_fifo=86/86
+W (105112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105112) kx134: epoch: n=2048 mean_g x=0.974 y=0.074 z=-0.206 max_fifo=86/86
+W (105372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105372) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (105632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105632) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.206 max_fifo=86/86
+W (105892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (105892) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (106152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (106152) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.204 max_fifo=86/86
+W (106412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (106412) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (106672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (106672) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.204 max_fifo=86/86
+W (106922) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=38
+W (106932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (106932) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.207 max_fifo=86/86
+W (107192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107192) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.208 max_fifo=86/86
+W (107452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107452) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (107712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107712) kx134: epoch: n=2048 mean_g x=0.982 y=0.075 z=-0.205 max_fifo=86/86
+W (107972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (107972) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.207 max_fifo=86/86
+W (108232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (108232) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.207 max_fifo=86/86
+W (108492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (108492) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (108752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (108752) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.209 max_fifo=86/86
+W (109012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109012) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (109272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109272) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.204 max_fifo=86/86
+W (109532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109532) kx134: epoch: n=2048 mean_g x=0.974 y=0.075 z=-0.207 max_fifo=86/86
+W (109762) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=39
+W (109792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (109792) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.208 max_fifo=86/86
+W (110052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (110052) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.204 max_fifo=86/86
+W (110312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (110312) kx134: epoch: n=2048 mean_g x=0.974 y=0.080 z=-0.213 max_fifo=86/86
+W (110572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (110572) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.209 max_fifo=86/86
+W (110832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (110832) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.207 max_fifo=86/86
+W (111092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111092) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.206 max_fifo=86/86
+W (111352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111352) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.204 max_fifo=86/86
+W (111612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111612) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.207 max_fifo=86/86
+W (111872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (111872) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.207 max_fifo=86/86
+W (112132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112132) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.205 max_fifo=86/86
+W (112392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112392) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.206 max_fifo=86/86
+W (112602) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=40
+E (112602) wifi_task: WiFi: 40 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (112662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112662) kx134: epoch: n=2048 mean_g x=0.981 y=0.074 z=-0.204 max_fifo=86/86
+W (112922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (112922) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.210 max_fifo=86/86
+W (113182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113182) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.210 max_fifo=86/86
+W (113442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113442) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.210 max_fifo=86/86
+W (113702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113702) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.209 max_fifo=86/86
+W (113962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (113962) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
+W (114222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (114222) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.208 max_fifo=86/86
+W (114482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (114482) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.209 max_fifo=86/86
+W (114742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (114742) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.208 max_fifo=86/86
+W (115002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115002) kx134: epoch: n=2048 mean_g x=0.974 y=0.078 z=-0.210 max_fifo=86/86
+W (115262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115262) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (115452) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=41
+W (115522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115522) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (115782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (115782) kx134: epoch: n=2048 mean_g x=0.980 y=0.078 z=-0.208 max_fifo=86/86
+W (116042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116042) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (116302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116302) kx134: epoch: n=2048 mean_g x=0.981 y=0.071 z=-0.207 max_fifo=86/86
+W (116562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116562) kx134: epoch: n=2048 mean_g x=0.974 y=0.075 z=-0.211 max_fifo=86/86
+W (116822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (116822) kx134: epoch: n=2048 mean_g x=0.976 y=0.081 z=-0.207 max_fifo=86/86
+W (117082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117082) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.210 max_fifo=86/86
+W (117342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117342) kx134: epoch: n=2048 mean_g x=0.979 y=0.073 z=-0.207 max_fifo=86/86
+W (117602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117602) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.210 max_fifo=86/86
+W (117862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (117862) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.206 max_fifo=86/86
+W (118122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (118122) kx134: epoch: n=2048 mean_g x=0.974 y=0.081 z=-0.210 max_fifo=86/86
+W (118292) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=42
+W (118382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (118382) kx134: epoch: n=2048 mean_g x=0.981 y=0.078 z=-0.204 max_fifo=86/86
+W (118642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (118642) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.207 max_fifo=86/86
+W (118902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (118902) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (119162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119162) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.207 max_fifo=86/86
+W (119422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119422) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.203 max_fifo=86/86
+W (119682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119682) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.208 max_fifo=86/86
+W (119942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (119942) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.204 max_fifo=86/86
+W (120202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120202) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.208 max_fifo=86/86
+W (120462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120462) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.205 max_fifo=86/86
+W (120722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120722) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.200 max_fifo=86/86
+W (120982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (120982) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.205 max_fifo=86/86
+W (121132) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=43
+W (121242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (121242) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.209 max_fifo=86/86
+W (121502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (121502) kx134: epoch: n=2048 mean_g x=0.981 y=0.070 z=-0.203 max_fifo=86/86
+W (121762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (121762) kx134: epoch: n=2048 mean_g x=0.975 y=0.083 z=-0.209 max_fifo=86/86
+I (121922) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2016 imu=1724 diag=684
+I (121922) DIAG: CPU runtime:
+diag           	321236		<1%
+IDLE1          	118645260		98%
+IDLE0          	99106072		82%
+rgb_led        	529859		<1%
+mic_task       	972977		<1%
+tiT            	64560		<1%
+imu_task       	18351098		15%
+dsp_task       	1505086		1%
+wifi_prov      	17817		<1%
+main           	154491		<1%
+dns_captive    	49		<1%
+httpd          	584		<1%
+Tmr Svc        	17		<1%
+ipc0           	37903		<1%
+sys_evt        	92043		<1%
+wifi           	1435043		1%
+esp_timer      	217870		<1%
+net            	18		<1%
+ipc1           	52450		<1%
+
+I (121962) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (121972) DIAG: wifi: connects=0 disconnects=43 retry_cnt=43
+I (121982) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (121982) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+I (121992) DIAG: mic: blocks_ok=1880 capture_failures=0 rb_drops=0
+W (122002) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (122012) DIAG: dsp: fft_count=1880 frames_emitted=470 rb_timeouts=0 last_fft_us=606
+I (122022) DIAG: imu: epochs=462 read_errors=0 reinit_attempts=0 reinit_successes=0
+W (122022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (122032) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.208 max_fifo=86/86
+I (122062) DIAG: accel: reads_ok=1389 read_errors=0 fifo_max_hits=463
+I (122062) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (122072) DIAG: led: state_changes=46 remote_updates=0 hw_errors=0
+W (122292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (122292) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.207 max_fifo=86/86
+W (122552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (122552) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.206 max_fifo=86/86
+W (122812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (122812) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (123072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123072) kx134: epoch: n=2048 mean_g x=0.981 y=0.077 z=-0.206 max_fifo=86/86
+W (123332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123332) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (123592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123592) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.206 max_fifo=86/86
+W (123852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (123852) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.206 max_fifo=86/86
+W (123972) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=44
+W (124112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124112) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.207 max_fifo=86/86
+W (124372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124372) kx134: epoch: n=2048 mean_g x=0.975 y=0.081 z=-0.207 max_fifo=86/86
+W (124632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124632) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.207 max_fifo=86/86
+W (124892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (124892) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.204 max_fifo=86/86
+W (125152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125152) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.203 max_fifo=86/86
+W (125412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125412) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.208 max_fifo=86/86
+W (125672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125672) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.209 max_fifo=86/86
+W (125932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (125932) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.208 max_fifo=86/86
+W (126192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (126192) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.207 max_fifo=86/86
+W (126452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (126452) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.207 max_fifo=86/86
+W (126712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (126712) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
+W (126812) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=45
+W (126972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (126972) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.210 max_fifo=86/86
+W (127232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (127232) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.206 max_fifo=86/86
+W (127492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (127492) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (127752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (127752) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.207 max_fifo=86/86
+W (128012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128012) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.208 max_fifo=86/86
+W (128272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128272) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.208 max_fifo=86/86
+W (128532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128532) kx134: epoch: n=2048 mean_g x=0.979 y=0.073 z=-0.207 max_fifo=86/86
+W (128792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (128792) kx134: epoch: n=2048 mean_g x=0.983 y=0.074 z=-0.206 max_fifo=86/86
+W (129052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129052) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (129312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129312) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (129572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129572) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.208 max_fifo=86/86
+W (129652) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=46
+W (129832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (129832) kx134: epoch: n=2048 mean_g x=0.979 y=0.080 z=-0.208 max_fifo=86/86
+W (130092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (130092) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.208 max_fifo=86/86
+W (130352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (130352) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.208 max_fifo=86/86
+W (130612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (130612) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (130872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (130872) kx134: epoch: n=2048 mean_g x=0.978 y=0.080 z=-0.207 max_fifo=86/86
+W (131132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131132) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.211 max_fifo=86/86
+W (131392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131392) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.207 max_fifo=86/86
+W (131652) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131652) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.207 max_fifo=86/86
+W (131912) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (131912) kx134: epoch: n=2048 mean_g x=0.977 y=0.081 z=-0.208 max_fifo=86/86
+W (132172) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132172) kx134: epoch: n=2048 mean_g x=0.979 y=0.072 z=-0.204 max_fifo=86/86
+W (132432) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132432) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.208 max_fifo=86/86
+W (132492) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=47
+W (132692) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132692) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.204 max_fifo=86/86
+W (132952) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (132952) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.204 max_fifo=86/86
+W (133212) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133212) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (133472) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133472) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.206 max_fifo=86/86
+W (133732) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133732) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.204 max_fifo=86/86
+W (133992) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (133992) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (134252) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (134252) kx134: epoch: n=2048 mean_g x=0.978 y=0.072 z=-0.203 max_fifo=86/86
+W (134512) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (134512) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.207 max_fifo=86/86
+W (134772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (134772) kx134: epoch: n=2048 mean_g x=0.979 y=0.082 z=-0.206 max_fifo=86/86
+W (135032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135032) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.205 max_fifo=86/86
+W (135292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135292) kx134: epoch: n=2048 mean_g x=0.974 y=0.075 z=-0.208 max_fifo=86/86
+W (135332) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=48
+W (135552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135552) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.208 max_fifo=86/86
+W (135812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (135812) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.205 max_fifo=86/86
+W (136072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136072) kx134: epoch: n=2048 mean_g x=0.974 y=0.078 z=-0.210 max_fifo=86/86
+W (136332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136332) kx134: epoch: n=2048 mean_g x=0.979 y=0.072 z=-0.209 max_fifo=86/86
+W (136592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136592) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.204 max_fifo=86/86
+W (136852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (136852) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.203 max_fifo=86/86
+W (137112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137112) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.209 max_fifo=86/86
+W (137372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137372) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (137632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137632) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.206 max_fifo=86/86
+W (137892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (137892) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.205 max_fifo=86/86
+W (138152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (138152) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (138172) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=49
+W (138412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (138412) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.208 max_fifo=86/86
+W (138672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (138672) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (138932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (138932) kx134: epoch: n=2048 mean_g x=0.978 y=0.080 z=-0.211 max_fifo=86/86
+W (139192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139192) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.205 max_fifo=86/86
+W (139452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139452) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.208 max_fifo=86/86
+W (139712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139712) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (139972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (139972) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.208 max_fifo=86/86
+W (140232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (140232) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.205 max_fifo=86/86
+W (140492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (140492) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.207 max_fifo=86/86
+W (140752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (140752) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.206 max_fifo=86/86
+W (141012) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=50
+E (141012) wifi_task: WiFi: 50 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (141022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (141032) kx134: epoch: n=2048 mean_g x=0.975 y=0.074 z=-0.208 max_fifo=86/86
+W (141292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (141292) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.207 max_fifo=86/86
+W (141552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (141552) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.207 max_fifo=86/86
+W (141812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (141812) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.209 max_fifo=86/86
+W (142072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142072) kx134: epoch: n=2048 mean_g x=0.981 y=0.080 z=-0.206 max_fifo=86/86
+W (142332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142332) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.206 max_fifo=86/86
+W (142592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142592) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.207 max_fifo=86/86
+W (142852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (142852) kx134: epoch: n=2048 mean_g x=0.980 y=0.078 z=-0.210 max_fifo=86/86
+W (143112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143112) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (143372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143372) kx134: epoch: n=2048 mean_g x=0.973 y=0.077 z=-0.205 max_fifo=86/86
+W (143632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143632) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.209 max_fifo=86/86
+W (143862) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=51
+W (143892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (143892) kx134: epoch: n=2048 mean_g x=0.981 y=0.077 z=-0.208 max_fifo=86/86
+W (144152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144152) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.209 max_fifo=86/86
+W (144412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144412) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.211 max_fifo=86/86
+W (144672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144672) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.207 max_fifo=86/86
+W (144932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (144932) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (145192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (145192) kx134: epoch: n=2048 mean_g x=0.974 y=0.078 z=-0.206 max_fifo=86/86
+W (145452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (145452) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.206 max_fifo=86/86
+W (145712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (145712) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.206 max_fifo=86/86
+W (145972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (145972) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.206 max_fifo=86/86
+W (146232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (146232) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.206 max_fifo=86/86
+W (146492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (146492) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.205 max_fifo=86/86
+W (146702) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=52
+W (146742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (146742) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.206 max_fifo=86/86
+W (147002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147002) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.208 max_fifo=86/86
+W (147262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147262) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.206 max_fifo=86/86
+W (147522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147522) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.205 max_fifo=86/86
+W (147782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (147782) kx134: epoch: n=2048 mean_g x=0.977 y=0.073 z=-0.205 max_fifo=86/86
+W (148042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148042) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.210 max_fifo=86/86
+W (148302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148302) kx134: epoch: n=2048 mean_g x=0.976 y=0.073 z=-0.205 max_fifo=86/86
+W (148562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148562) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.205 max_fifo=86/86
+W (148822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (148822) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.204 max_fifo=86/86
+W (149082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (149082) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (149332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (149332) kx134: epoch: n=2048 mean_g x=0.975 y=0.082 z=-0.207 max_fifo=86/86
+W (149542) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=53
+W (149592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (149592) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.205 max_fifo=86/86
+W (149852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (149852) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.207 max_fifo=86/86
+W (150112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150112) kx134: epoch: n=2048 mean_g x=0.980 y=0.073 z=-0.206 max_fifo=86/86
+W (150372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150372) kx134: epoch: n=2048 mean_g x=0.975 y=0.073 z=-0.204 max_fifo=86/86
+W (150632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150632) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (150892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (150892) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (151152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151152) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.205 max_fifo=86/86
+W (151412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151412) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.208 max_fifo=86/86
+W (151672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151672) kx134: epoch: n=2048 mean_g x=0.982 y=0.076 z=-0.206 max_fifo=86/86
+W (151932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (151932) kx134: epoch: n=2048 mean_g x=0.976 y=0.074 z=-0.204 max_fifo=86/86
+I (152072) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2016 imu=1724 diag=684
+I (152072) DIAG: CPU runtime:
+diag           	430005		<1%
+IDLE0          	123914165		82%
+IDLE1          	148274244		98%
+mic_task       	1218672		<1%
+tiT            	78211		<1%
+wifi_prov      	18650		<1%
+imu_task       	22985170		15%
+dsp_task       	1882806		1%
+rgb_led        	667098		<1%
+main           	154491		<1%
+httpd          	584		<1%
+Tmr Svc        	17		<1%
+ipc0           	37903		<1%
+net            	18		<1%
+sys_evt        	113480		<1%
+wifi           	1696440		1%
+esp_timer      	276128		<1%
+ipc1           	52450		<1%
+dns_captive    	49		<1%
+
+I (152112) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (152122) DIAG: wifi: connects=0 disconnects=53 retry_cnt=53
+I (152132) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (152142) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+I (152142) DIAG: mic: blocks_ok=2351 capture_failures=0 rb_drops=0
+W (152152) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (152162) DIAG: dsp: fft_count=2351 frames_emitted=587 rb_timeouts=0 last_fft_us=606
+I (152172) DIAG: imu: epochs=578 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (152172) DIAG: accel: reads_ok=1734 read_errors=0 fifo_max_hits=578
+I (152182) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+W (152192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152202) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.208 max_fifo=86/86
+I (152232) DIAG: led: state_changes=56 remote_updates=0 hw_errors=0
+W (152382) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=54
+W (152462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152462) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.205 max_fifo=86/86
+W (152722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152722) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.205 max_fifo=86/86
+W (152982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (152982) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.209 max_fifo=86/86
+W (153242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (153242) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.209 max_fifo=86/86
+W (153502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (153502) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.210 max_fifo=86/86
+W (153762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (153762) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.209 max_fifo=86/86
+W (154022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154022) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.205 max_fifo=86/86
+W (154282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154282) kx134: epoch: n=2048 mean_g x=0.973 y=0.081 z=-0.211 max_fifo=86/86
+W (154542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154542) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.209 max_fifo=86/86
+W (154802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (154802) kx134: epoch: n=2048 mean_g x=0.980 y=0.071 z=-0.206 max_fifo=86/86
+W (155062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155062) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.207 max_fifo=86/86
+W (155222) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=55
+W (155322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155322) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.205 max_fifo=86/86
+W (155582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155582) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.205 max_fifo=86/86
+W (155842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (155842) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.207 max_fifo=86/86
+W (156102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156102) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.208 max_fifo=86/86
+W (156362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156362) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.207 max_fifo=86/86
+W (156622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156622) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.208 max_fifo=86/86
+W (156882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (156882) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (157142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (157142) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.208 max_fifo=86/86
+W (157402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (157402) kx134: epoch: n=2048 mean_g x=0.980 y=0.078 z=-0.207 max_fifo=86/86
+W (157662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (157662) kx134: epoch: n=2048 mean_g x=0.981 y=0.079 z=-0.206 max_fifo=86/86
+W (157922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (157922) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.207 max_fifo=86/86
+W (158062) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=56
+W (158182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158182) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.206 max_fifo=86/86
+W (158442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158442) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.206 max_fifo=86/86
+W (158702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158702) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.207 max_fifo=86/86
+W (158962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (158962) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.207 max_fifo=86/86
+W (159222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (159222) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.206 max_fifo=86/86
+W (159482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (159482) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.205 max_fifo=86/86
+W (159742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (159742) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.208 max_fifo=86/86
+W (160002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (160002) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.208 max_fifo=86/86
+W (160262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (160262) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.202 max_fifo=86/86
+W (160522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (160522) kx134: epoch: n=2048 mean_g x=0.973 y=0.077 z=-0.204 max_fifo=86/86
+W (160782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (160782) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.206 max_fifo=86/86
+W (160902) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=57
+W (161042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161042) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (161302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161302) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (161562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161562) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.209 max_fifo=86/86
+W (161822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (161822) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.208 max_fifo=86/86
+W (162082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162082) kx134: epoch: n=2048 mean_g x=0.982 y=0.073 z=-0.199 max_fifo=86/86
+W (162342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162342) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.209 max_fifo=86/86
+W (162602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162602) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.204 max_fifo=86/86
+W (162862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (162862) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.203 max_fifo=86/86
+W (163122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163122) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.204 max_fifo=86/86
+W (163382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163382) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.203 max_fifo=86/86
+W (163642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163642) kx134: epoch: n=2048 mean_g x=0.973 y=0.077 z=-0.205 max_fifo=86/86
+W (163742) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=58
+W (163902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (163902) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.204 max_fifo=86/86
+W (164162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (164162) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.205 max_fifo=86/86
+W (164422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (164422) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.204 max_fifo=86/86
+W (164682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (164682) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (164942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (164942) kx134: epoch: n=2048 mean_g x=0.977 y=0.072 z=-0.202 max_fifo=86/86
+W (165202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165202) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.205 max_fifo=86/86
+W (165462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165462) kx134: epoch: n=2048 mean_g x=0.979 y=0.073 z=-0.203 max_fifo=86/86
+W (165722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165722) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.208 max_fifo=86/86
+W (165982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (165982) kx134: epoch: n=2048 mean_g x=0.979 y=0.080 z=-0.206 max_fifo=86/86
+W (166242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (166242) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.206 max_fifo=86/86
+W (166502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (166502) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (166582) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=59
+W (166762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (166762) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.202 max_fifo=86/86
+W (167022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167022) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.204 max_fifo=86/86
+W (167282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167282) kx134: epoch: n=2048 mean_g x=0.973 y=0.078 z=-0.208 max_fifo=86/86
+W (167542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167542) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.204 max_fifo=86/86
+W (167802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (167802) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.208 max_fifo=86/86
+W (168062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (168062) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.208 max_fifo=86/86
+W (168322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (168322) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.205 max_fifo=86/86
+W (168582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (168582) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.207 max_fifo=86/86
+W (168842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (168842) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.205 max_fifo=86/86
+W (169102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169102) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.208 max_fifo=86/86
+W (169362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169362) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (169422) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=60
+E (169422) wifi_task: WiFi: 60 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (169622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169622) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.207 max_fifo=86/86
+W (169882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (169882) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.207 max_fifo=86/86
+W (170142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170142) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.204 max_fifo=86/86
+W (170402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170402) kx134: epoch: n=2048 mean_g x=0.977 y=0.081 z=-0.208 max_fifo=86/86
+W (170662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170662) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (170922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (170922) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.209 max_fifo=86/86
+W (171182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171182) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (171442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171442) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.209 max_fifo=86/86
+W (171702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171702) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.206 max_fifo=86/86
+W (171962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (171962) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.209 max_fifo=86/86
+W (172222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (172222) kx134: epoch: n=2048 mean_g x=0.979 y=0.072 z=-0.206 max_fifo=86/86
+W (172272) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=61
+W (172482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (172482) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.203 max_fifo=86/86
+W (172742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (172742) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (173002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173002) kx134: epoch: n=2048 mean_g x=0.978 y=0.080 z=-0.210 max_fifo=86/86
+W (173262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173262) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.210 max_fifo=86/86
+W (173522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173522) kx134: epoch: n=2048 mean_g x=0.981 y=0.074 z=-0.207 max_fifo=86/86
+W (173782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (173782) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.206 max_fifo=86/86
+W (174042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174042) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.208 max_fifo=86/86
+W (174302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174302) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.208 max_fifo=86/86
+W (174562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174562) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.209 max_fifo=86/86
+W (174822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (174822) kx134: epoch: n=2048 mean_g x=0.981 y=0.074 z=-0.207 max_fifo=86/86
+W (175082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175082) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.211 max_fifo=86/86
+W (175112) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=62
+W (175342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175342) kx134: epoch: n=2048 mean_g x=0.978 y=0.080 z=-0.210 max_fifo=86/86
+W (175602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175602) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.207 max_fifo=86/86
+W (175862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (175862) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.209 max_fifo=86/86
+W (176122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (176122) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.206 max_fifo=86/86
+W (176382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (176382) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.208 max_fifo=86/86
+W (176642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (176642) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (176902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (176902) kx134: epoch: n=2048 mean_g x=0.974 y=0.079 z=-0.208 max_fifo=86/86
+W (177162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177162) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.206 max_fifo=86/86
+W (177422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177422) kx134: epoch: n=2048 mean_g x=0.980 y=0.071 z=-0.209 max_fifo=86/86
+W (177682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177682) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.207 max_fifo=86/86
+W (177942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (177942) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (177952) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=63
+W (178202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178202) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.208 max_fifo=86/86
+W (178462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178462) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.208 max_fifo=86/86
+W (178722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178722) kx134: epoch: n=2048 mean_g x=0.974 y=0.079 z=-0.211 max_fifo=86/86
+W (178982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (178982) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.207 max_fifo=86/86
+W (179242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (179242) kx134: epoch: n=2048 mean_g x=0.977 y=0.081 z=-0.210 max_fifo=86/86
+W (179502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (179502) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.205 max_fifo=86/86
+W (179762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (179762) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.209 max_fifo=86/86
+W (180022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (180022) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.208 max_fifo=86/86
+W (180282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (180282) kx134: epoch: n=2048 mean_g x=0.981 y=0.074 z=-0.205 max_fifo=86/86
+W (180542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (180542) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.205 max_fifo=86/86
+W (180792) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=64
+W (180802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (180802) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.209 max_fifo=86/86
+W (181062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181062) kx134: epoch: n=2048 mean_g x=0.978 y=0.072 z=-0.206 max_fifo=86/86
+W (181322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181322) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.210 max_fifo=86/86
+W (181582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181582) kx134: epoch: n=2048 mean_g x=0.980 y=0.073 z=-0.203 max_fifo=86/86
+W (181842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (181842) kx134: epoch: n=2048 mean_g x=0.976 y=0.074 z=-0.207 max_fifo=86/86
+W (182102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182102) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.210 max_fifo=86/86
+I (182232) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2016 imu=1580 diag=684
+I (182232) DIAG: CPU runtime:
+rgb_led        	802907		<1%
+diag           	542670		<1%
+IDLE1          	177918529		98%
+IDLE0          	148737732		82%
+tiT            	92353		<1%
+wifi_prov      	19454		<1%
+imu_task       	27610343		15%
+dsp_task       	2260353		1%
+mic_task       	1463604		<1%
+main           	154491		<1%
+Tmr Svc        	17		<1%
+ipc0           	37903		<1%
+net            	18		<1%
+ipc1           	52450		<1%
+sys_evt        	140796		<1%
+wifi           	1952740		1%
+esp_timer      	334518		<1%
+dns_captive    	49		<1%
+httpd          	584		<1%
+
+I (182272) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (182282) DIAG: wifi: connects=0 disconnects=64 retry_cnt=64
+I (182292) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (182302) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+I (182302) DIAG: mic: blocks_ok=2822 capture_failures=0 rb_drops=0
+W (182312) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (182322) DIAG: dsp: fft_count=2822 frames_emitted=705 rb_timeouts=0 last_fft_us=606
+I (182332) DIAG: imu: epochs=694 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (182332) DIAG: accel: reads_ok=2082 read_errors=0 fifo_max_hits=694
+I (182342) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (182352) DIAG: led: state_changes=67 remote_updates=0 hw_errors=0
+W (182362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182362) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.207 max_fifo=86/86
+W (182622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182622) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.208 max_fifo=86/86
+W (182882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (182882) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.206 max_fifo=86/86
+W (183142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183142) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.206 max_fifo=86/86
+W (183402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183402) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.206 max_fifo=86/86
+W (183632) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=65
+W (183662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183662) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.205 max_fifo=86/86
+W (183922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (183922) kx134: epoch: n=2048 mean_g x=0.981 y=0.075 z=-0.207 max_fifo=86/86
+W (184182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (184182) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.209 max_fifo=86/86
+W (184442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (184442) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.208 max_fifo=86/86
+W (184702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (184702) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.207 max_fifo=86/86
+W (184962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (184962) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.207 max_fifo=86/86
+W (185222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (185222) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (185482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (185482) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.206 max_fifo=86/86
+W (185742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (185742) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.205 max_fifo=86/86
+W (186002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186002) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.203 max_fifo=86/86
+W (186262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186262) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.206 max_fifo=86/86
+W (186472) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=66
+W (186522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186522) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (186782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (186782) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (187042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (187042) kx134: epoch: n=2048 mean_g x=0.982 y=0.075 z=-0.207 max_fifo=86/86
+W (187302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (187302) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.209 max_fifo=86/86
+W (187562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (187562) kx134: epoch: n=2048 mean_g x=0.975 y=0.075 z=-0.211 max_fifo=86/86
+W (187822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (187822) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.205 max_fifo=86/86
+W (188082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188082) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.210 max_fifo=86/86
+W (188342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188342) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.207 max_fifo=86/86
+W (188602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188602) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.208 max_fifo=86/86
+W (188862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (188862) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.206 max_fifo=86/86
+W (189122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189122) kx134: epoch: n=2048 mean_g x=0.976 y=0.074 z=-0.204 max_fifo=86/86
+W (189312) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=67
+W (189382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189382) kx134: epoch: n=2048 mean_g x=0.977 y=0.072 z=-0.209 max_fifo=86/86
+W (189642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189642) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.206 max_fifo=86/86
+W (189902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (189902) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.204 max_fifo=86/86
+W (190162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190162) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.207 max_fifo=86/86
+W (190422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190422) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.205 max_fifo=86/86
+W (190682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190682) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.206 max_fifo=86/86
+W (190942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (190942) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.210 max_fifo=86/86
+W (191202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (191202) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.208 max_fifo=86/86
+W (191462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (191462) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.208 max_fifo=86/86
+W (191722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (191722) kx134: epoch: n=2048 mean_g x=0.974 y=0.078 z=-0.209 max_fifo=86/86
+W (191982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (191982) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.202 max_fifo=86/86
+W (192152) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=68
+W (192242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (192242) kx134: epoch: n=2048 mean_g x=0.983 y=0.075 z=-0.209 max_fifo=86/86
+W (192502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (192502) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (192762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (192762) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.208 max_fifo=86/86
+W (193022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193022) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.209 max_fifo=86/86
+W (193282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193282) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.208 max_fifo=86/86
+W (193542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193542) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (193802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (193802) kx134: epoch: n=2048 mean_g x=0.972 y=0.077 z=-0.205 max_fifo=86/86
+W (194062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194062) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.207 max_fifo=86/86
+W (194322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194322) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.207 max_fifo=86/86
+W (194582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194582) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.208 max_fifo=86/86
+W (194842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (194842) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.205 max_fifo=86/86
+W (194992) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=69
+W (195102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (195102) kx134: epoch: n=2048 mean_g x=0.979 y=0.084 z=-0.207 max_fifo=86/86
+W (195362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (195362) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.208 max_fifo=86/86
+W (195622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (195622) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.209 max_fifo=86/86
+W (195882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (195882) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.209 max_fifo=86/86
+W (196142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196142) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.208 max_fifo=86/86
+W (196402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196402) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.207 max_fifo=86/86
+W (196662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196662) kx134: epoch: n=2048 mean_g x=0.978 y=0.080 z=-0.205 max_fifo=86/86
+W (196922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (196922) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.211 max_fifo=86/86
+W (197182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197182) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.207 max_fifo=86/86
+W (197442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197442) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.207 max_fifo=86/86
+W (197702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197702) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.205 max_fifo=86/86
+W (197832) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=70
+E (197832) wifi_task: WiFi: 70 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (197972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (197972) kx134: epoch: n=2048 mean_g x=0.974 y=0.076 z=-0.210 max_fifo=86/86
+W (198232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (198232) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.204 max_fifo=86/86
+W (198492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (198492) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.208 max_fifo=86/86
+W (198752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (198752) kx134: epoch: n=2048 mean_g x=0.981 y=0.078 z=-0.208 max_fifo=86/86
+W (199012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (199012) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.204 max_fifo=86/86
+W (199272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (199272) kx134: epoch: n=2048 mean_g x=0.974 y=0.074 z=-0.203 max_fifo=86/86
+W (199532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (199532) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.208 max_fifo=86/86
+W (199792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (199792) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.208 max_fifo=86/86
+W (200052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200052) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.203 max_fifo=86/86
+W (200312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200312) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.210 max_fifo=86/86
+W (200572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200572) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.203 max_fifo=86/86
+W (200682) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=71
+W (200832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (200832) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.206 max_fifo=86/86
+W (201092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201092) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.205 max_fifo=86/86
+W (201352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201352) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.206 max_fifo=86/86
+W (201612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201612) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.205 max_fifo=86/86
+W (201872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (201872) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.206 max_fifo=86/86
+W (202132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202132) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.204 max_fifo=86/86
+W (202392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202392) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.202 max_fifo=86/86
+W (202652) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202652) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.204 max_fifo=86/86
+W (202912) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (202912) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.205 max_fifo=86/86
+W (203172) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (203172) kx134: epoch: n=2048 mean_g x=0.977 y=0.073 z=-0.205 max_fifo=86/86
+W (203432) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (203432) kx134: epoch: n=2048 mean_g x=0.976 y=0.074 z=-0.205 max_fifo=86/86
+W (203522) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=72
+W (203692) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (203692) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.205 max_fifo=86/86
+W (203952) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (203952) kx134: epoch: n=2048 mean_g x=0.974 y=0.081 z=-0.206 max_fifo=86/86
+W (204212) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204212) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.205 max_fifo=86/86
+W (204472) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204472) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.205 max_fifo=86/86
+W (204732) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204732) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.207 max_fifo=86/86
+W (204992) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (204992) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.206 max_fifo=86/86
+W (205252) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (205252) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.205 max_fifo=86/86
+W (205512) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (205512) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.209 max_fifo=86/86
+W (205772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (205772) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.209 max_fifo=86/86
+W (206032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206032) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (206292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206292) kx134: epoch: n=2048 mean_g x=0.979 y=0.080 z=-0.205 max_fifo=86/86
+W (206362) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=73
+W (206542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206542) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.209 max_fifo=86/86
+W (206802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (206802) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.205 max_fifo=86/86
+W (207062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (207062) kx134: epoch: n=2048 mean_g x=0.979 y=0.080 z=-0.208 max_fifo=86/86
+W (207322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (207322) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.204 max_fifo=86/86
+W (207582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (207582) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
+W (207842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (207842) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.202 max_fifo=86/86
+W (208102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208102) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.208 max_fifo=86/86
+W (208362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208362) kx134: epoch: n=2048 mean_g x=0.981 y=0.073 z=-0.203 max_fifo=86/86
+W (208622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208622) kx134: epoch: n=2048 mean_g x=0.982 y=0.080 z=-0.205 max_fifo=86/86
+W (208882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (208882) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.206 max_fifo=86/86
+W (209142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209142) kx134: epoch: n=2048 mean_g x=0.978 y=0.082 z=-0.210 max_fifo=86/86
+W (209202) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=74
+W (209402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209402) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.211 max_fifo=86/86
+W (209662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209662) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (209922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (209922) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.210 max_fifo=86/86
+W (210182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210182) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.209 max_fifo=86/86
+W (210442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210442) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (210702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210702) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.207 max_fifo=86/86
+W (210962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (210962) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.209 max_fifo=86/86
+W (211222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (211222) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.210 max_fifo=86/86
+W (211482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (211482) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.208 max_fifo=86/86
+W (211742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (211742) kx134: epoch: n=2048 mean_g x=0.977 y=0.081 z=-0.210 max_fifo=86/86
+W (212002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212002) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.207 max_fifo=86/86
+W (212042) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=75
+W (212262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212262) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.202 max_fifo=86/86
+I (212362) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2016 imu=1580 diag=684
+I (212362) DIAG: CPU runtime:
+diag           	658238		<1%
+IDLE1          	207532339		98%
+IDLE0          	173533103		82%
+rgb_led        	938508		<1%
+mic_task       	1708149		<1%
+tiT            	106061		<1%
+wifi_prov      	20276		<1%
+dsp_task       	2638561		1%
+imu_task       	32232489		15%
+main           	154491		<1%
+ipc0           	37903		<1%
+net            	18		<1%
+ipc1           	52450		<1%
+dns_captive    	49		<1%
+sys_evt        	163239		<1%
+wifi           	2211796		1%
+esp_timer      	392405		<1%
+httpd          	584		<1%
+Tmr Svc        	17		<1%
+
+I (212402) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (212412) DIAG: wifi: connects=0 disconnects=75 retry_cnt=75
+I (212422) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (212432) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+I (212432) DIAG: mic: blocks_ok=3293 capture_failures=0 rb_drops=0
+W (212442) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (212452) DIAG: dsp: fft_count=3293 frames_emitted=823 rb_timeouts=0 last_fft_us=606
+I (212462) DIAG: imu: epochs=810 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (212462) DIAG: accel: reads_ok=2430 read_errors=0 fifo_max_hits=810
+I (212472) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (212482) DIAG: led: state_changes=78 remote_updates=0 hw_errors=0
+W (212522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212522) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.205 max_fifo=86/86
+W (212772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (212772) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.210 max_fifo=86/86
+W (213032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213032) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (213292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213292) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.207 max_fifo=86/86
+W (213552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213552) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (213812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (213812) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.208 max_fifo=86/86
+W (214072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214072) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.207 max_fifo=86/86
+W (214332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214332) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.208 max_fifo=86/86
+W (214592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214592) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.208 max_fifo=86/86
+W (214852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (214852) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.211 max_fifo=86/86
+W (214882) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=76
+W (215112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (215112) kx134: epoch: n=2048 mean_g x=0.975 y=0.074 z=-0.208 max_fifo=86/86
+W (215372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (215372) kx134: epoch: n=2048 mean_g x=0.977 y=0.081 z=-0.208 max_fifo=86/86
+W (215632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (215632) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.206 max_fifo=86/86
+W (215892) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (215892) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.211 max_fifo=86/86
+W (216152) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216152) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.205 max_fifo=86/86
+W (216412) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216412) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.206 max_fifo=86/86
+W (216672) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216672) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.209 max_fifo=86/86
+W (216932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (216932) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.208 max_fifo=86/86
+W (217192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217192) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.206 max_fifo=86/86
+W (217452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217452) kx134: epoch: n=2048 mean_g x=0.982 y=0.073 z=-0.206 max_fifo=86/86
+W (217712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217712) kx134: epoch: n=2048 mean_g x=0.979 y=0.085 z=-0.213 max_fifo=86/86
+W (217722) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=77
+W (217972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (217972) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.206 max_fifo=86/86
+W (218232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (218232) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (218492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (218492) kx134: epoch: n=2048 mean_g x=0.981 y=0.073 z=-0.206 max_fifo=86/86
+W (218752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (218752) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.208 max_fifo=86/86
+W (219012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (219012) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.207 max_fifo=86/86
+W (219272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (219272) kx134: epoch: n=2048 mean_g x=0.976 y=0.073 z=-0.207 max_fifo=86/86
+W (219532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (219532) kx134: epoch: n=2048 mean_g x=0.975 y=0.081 z=-0.213 max_fifo=86/86
+W (219792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (219792) kx134: epoch: n=2048 mean_g x=0.982 y=0.076 z=-0.209 max_fifo=86/86
+W (220052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220052) kx134: epoch: n=2048 mean_g x=0.980 y=0.072 z=-0.206 max_fifo=86/86
+W (220312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220312) kx134: epoch: n=2048 mean_g x=0.981 y=0.073 z=-0.206 max_fifo=86/86
+W (220562) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=78
+W (220572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220572) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.213 max_fifo=86/86
+W (220832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (220832) kx134: epoch: n=2048 mean_g x=0.980 y=0.080 z=-0.207 max_fifo=86/86
+W (221092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221092) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.206 max_fifo=86/86
+W (221352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221352) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.209 max_fifo=86/86
+W (221612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221612) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.205 max_fifo=86/86
+W (221872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (221872) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (222132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222132) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.205 max_fifo=86/86
+W (222392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222392) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.211 max_fifo=86/86
+W (222652) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222652) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.210 max_fifo=86/86
+W (222912) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (222912) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.208 max_fifo=86/86
+W (223172) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (223172) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.209 max_fifo=86/86
+W (223402) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=79
+W (223432) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (223432) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.205 max_fifo=86/86
+W (223692) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (223692) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.207 max_fifo=86/86
+W (223952) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (223952) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.206 max_fifo=86/86
+W (224212) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224212) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.208 max_fifo=86/86
+W (224472) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224472) kx134: epoch: n=2048 mean_g x=0.979 y=0.072 z=-0.205 max_fifo=86/86
+W (224732) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224732) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (224992) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (224992) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.206 max_fifo=86/86
+W (225252) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (225252) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.206 max_fifo=86/86
+W (225512) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (225512) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.207 max_fifo=86/86
+W (225772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (225772) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.207 max_fifo=86/86
+W (226032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226032) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.210 max_fifo=86/86
+W (226242) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=80
+E (226242) wifi_task: WiFi: 80 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (226302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226302) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (226562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226562) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.208 max_fifo=86/86
+W (226822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (226822) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (227082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (227082) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.211 max_fifo=86/86
+W (227342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (227342) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.207 max_fifo=86/86
+W (227602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (227602) kx134: epoch: n=2048 mean_g x=0.973 y=0.082 z=-0.210 max_fifo=86/86
+W (227862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (227862) kx134: epoch: n=2048 mean_g x=0.973 y=0.078 z=-0.207 max_fifo=86/86
+W (228122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228122) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.206 max_fifo=86/86
+W (228382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228382) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.207 max_fifo=86/86
+W (228642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228642) kx134: epoch: n=2048 mean_g x=0.979 y=0.074 z=-0.204 max_fifo=86/86
+W (228902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (228902) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.207 max_fifo=86/86
+W (229092) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=81
+W (229162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229162) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.210 max_fifo=86/86
+W (229422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229422) kx134: epoch: n=2048 mean_g x=0.975 y=0.080 z=-0.209 max_fifo=86/86
+W (229682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229682) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.207 max_fifo=86/86
+W (229942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (229942) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.208 max_fifo=86/86
+W (230202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (230202) kx134: epoch: n=2048 mean_g x=0.980 y=0.078 z=-0.208 max_fifo=86/86
+W (230462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (230462) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.204 max_fifo=86/86
+W (230722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (230722) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.203 max_fifo=86/86
+W (230982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (230982) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.208 max_fifo=86/86
+W (231242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (231242) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.209 max_fifo=86/86
+W (231502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (231502) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (231762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (231762) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.210 max_fifo=86/86
+W (231932) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=82
+W (232022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232022) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (232282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232282) kx134: epoch: n=2048 mean_g x=0.979 y=0.081 z=-0.205 max_fifo=86/86
+W (232542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232542) kx134: epoch: n=2048 mean_g x=0.981 y=0.079 z=-0.207 max_fifo=86/86
+W (232802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (232802) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.208 max_fifo=86/86
+W (233062) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233062) kx134: epoch: n=2048 mean_g x=0.979 y=0.073 z=-0.202 max_fifo=86/86
+W (233322) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233322) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.206 max_fifo=86/86
+W (233582) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233582) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.205 max_fifo=86/86
+W (233842) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (233842) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (234102) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (234102) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.208 max_fifo=86/86
+W (234362) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (234362) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.207 max_fifo=86/86
+W (234622) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (234622) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.202 max_fifo=86/86
+W (234772) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=83
+W (234882) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (234882) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.200 max_fifo=86/86
+W (235142) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235142) kx134: epoch: n=2048 mean_g x=0.980 y=0.078 z=-0.204 max_fifo=86/86
+W (235402) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235402) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.207 max_fifo=86/86
+W (235662) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235662) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.209 max_fifo=86/86
+W (235922) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (235922) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.209 max_fifo=86/86
+W (236182) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236182) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.204 max_fifo=86/86
+W (236442) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236442) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.210 max_fifo=86/86
+W (236702) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236702) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.211 max_fifo=86/86
+W (236962) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (236962) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.207 max_fifo=86/86
+W (237222) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (237222) kx134: epoch: n=2048 mean_g x=0.981 y=0.076 z=-0.204 max_fifo=86/86
+W (237482) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (237482) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.204 max_fifo=86/86
+W (237612) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=84
+W (237742) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (237742) kx134: epoch: n=2048 mean_g x=0.977 y=0.074 z=-0.208 max_fifo=86/86
+W (238002) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (238002) kx134: epoch: n=2048 mean_g x=0.974 y=0.079 z=-0.208 max_fifo=86/86
+W (238262) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (238262) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.205 max_fifo=86/86
+W (238522) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (238522) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.207 max_fifo=86/86
+W (238782) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (238782) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.205 max_fifo=86/86
+W (239042) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239042) kx134: epoch: n=2048 mean_g x=0.977 y=0.081 z=-0.207 max_fifo=86/86
+W (239302) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239302) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.204 max_fifo=86/86
+W (239562) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239562) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.206 max_fifo=86/86
+W (239822) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (239822) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.207 max_fifo=86/86
+W (240082) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240082) kx134: epoch: n=2048 mean_g x=0.975 y=0.079 z=-0.205 max_fifo=86/86
+W (240342) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240342) kx134: epoch: n=2048 mean_g x=0.980 y=0.079 z=-0.208 max_fifo=86/86
+W (240452) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=85
+W (240602) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240602) kx134: epoch: n=2048 mean_g x=0.977 y=0.079 z=-0.206 max_fifo=86/86
+W (240862) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (240862) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.208 max_fifo=86/86
+W (241122) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241122) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (241382) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241382) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.207 max_fifo=86/86
+W (241642) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241642) kx134: epoch: n=2048 mean_g x=0.980 y=0.077 z=-0.204 max_fifo=86/86
+W (241902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (241902) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.206 max_fifo=86/86
+W (242162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (242162) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.206 max_fifo=86/86
+W (242422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (242422) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.203 max_fifo=86/86
+I (242492) DIAG: Stack HWM (bytes free): mic=7204 dsp=4120 rgb=2016 imu=1580 diag=684
+I (242492) DIAG: CPU runtime:
+rgb_led        	1074199		<1%
+diag           	775581		<1%
+IDLE1          	237147441		98%
+IDLE0          	198333515		82%
+imu_task       	36848624		15%
+tiT            	119676		<1%
+wifi_prov      	21086		<1%
+dsp_task       	3015598		1%
+mic_task       	1952383		<1%
+main           	154491		<1%
+net            	18		<1%
+ipc1           	52450		<1%
+dns_captive    	49		<1%
+httpd          	584		<1%
+sys_evt        	185497		<1%
+wifi           	2470664		1%
+esp_timer      	450901		<1%
+Tmr Svc        	17		<1%
+ipc0           	37903		<1%
+
+I (242532) DIAG: Heap free: internal=27936 largest_free=19456 PSRAM=8210232 IRAM=0
+I (242542) DIAG: wifi: connects=0 disconnects=85 retry_cnt=85
+I (242552) DIAG: mqtt: connects=0 disconnects=0 publishes=0 publish_failures=0 cmds_received=0
+I (242562) DIAG: wifi_prov: state=2 provisioning_entries=1 recovery_entries=0 recovery_successes=0
+I (242562) DIAG: mic: blocks_ok=3764 capture_failures=0 rb_drops=0
+W (242572) DIAG: mic i2s: overflow_count=7 (cumulative) read_errors=0 short_reads=0 — check CPU load
+I (242582) DIAG: dsp: fft_count=3764 frames_emitted=941 rb_timeouts=0 last_fft_us=606
+I (242592) DIAG: imu: epochs=926 read_errors=0 reinit_attempts=0 reinit_successes=0
+I (242592) DIAG: accel: reads_ok=2778 read_errors=0 fifo_max_hits=926
+I (242602) DIAG: net: frames_built=0 build_failures=0 publish_failures=0 cmd_malformed=0 disconnect_reverts=0
+I (242612) DIAG: led: state_changes=88 remote_updates=0 hw_errors=0
+W (242682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (242682) kx134: epoch: n=2048 mean_g x=0.974 y=0.077 z=-0.204 max_fifo=86/86
+W (242932) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (242932) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.203 max_fifo=86/86
+W (243192) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243192) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.204 max_fifo=86/86
+W (243292) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=86
+W (243452) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243452) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.208 max_fifo=86/86
+W (243712) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243712) kx134: epoch: n=2048 mean_g x=0.976 y=0.077 z=-0.206 max_fifo=86/86
+W (243972) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (243972) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.208 max_fifo=86/86
+W (244232) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (244232) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.202 max_fifo=86/86
+W (244492) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (244492) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (244752) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (244752) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.205 max_fifo=86/86
+W (245012) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (245012) kx134: epoch: n=2048 mean_g x=0.980 y=0.075 z=-0.206 max_fifo=86/86
+W (245272) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (245272) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (245532) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (245532) kx134: epoch: n=2048 mean_g x=0.973 y=0.076 z=-0.206 max_fifo=86/86
+W (245792) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (245792) kx134: epoch: n=2048 mean_g x=0.973 y=0.081 z=-0.205 max_fifo=86/86
+W (246052) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246052) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.203 max_fifo=86/86
+W (246132) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=87
+W (246312) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246312) kx134: epoch: n=2048 mean_g x=0.979 y=0.080 z=-0.203 max_fifo=86/86
+W (246572) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246572) kx134: epoch: n=2048 mean_g x=0.978 y=0.074 z=-0.203 max_fifo=86/86
+W (246832) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (246832) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (247092) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247092) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.204 max_fifo=86/86
+W (247352) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247352) kx134: epoch: n=2048 mean_g x=0.980 y=0.072 z=-0.202 max_fifo=86/86
+W (247612) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247612) kx134: epoch: n=2048 mean_g x=0.976 y=0.080 z=-0.204 max_fifo=86/86
+W (247872) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (247872) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.210 max_fifo=86/86
+W (248132) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248132) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.206 max_fifo=86/86
+W (248392) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248392) kx134: epoch: n=2048 mean_g x=0.979 y=0.078 z=-0.204 max_fifo=86/86
+W (248652) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248652) kx134: epoch: n=2048 mean_g x=0.976 y=0.079 z=-0.205 max_fifo=86/86
+W (248912) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (248912) kx134: epoch: n=2048 mean_g x=0.981 y=0.077 z=-0.203 max_fifo=86/86
+W (248972) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=88
+W (249172) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (249172) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.204 max_fifo=86/86
+W (249432) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (249432) kx134: epoch: n=2048 mean_g x=0.978 y=0.073 z=-0.207 max_fifo=86/86
+W (249692) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (249692) kx134: epoch: n=2048 mean_g x=0.977 y=0.078 z=-0.207 max_fifo=86/86
+W (249952) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (249952) kx134: epoch: n=2048 mean_g x=0.977 y=0.075 z=-0.207 max_fifo=86/86
+W (250212) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250212) kx134: epoch: n=2048 mean_g x=0.983 y=0.075 z=-0.203 max_fifo=86/86
+W (250472) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250472) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.207 max_fifo=86/86
+W (250732) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250732) kx134: epoch: n=2048 mean_g x=0.979 y=0.075 z=-0.209 max_fifo=86/86
+W (250992) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (250992) kx134: epoch: n=2048 mean_g x=0.976 y=0.076 z=-0.208 max_fifo=86/86
+W (251252) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (251252) kx134: epoch: n=2048 mean_g x=0.979 y=0.079 z=-0.207 max_fifo=86/86
+W (251512) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (251512) kx134: epoch: n=2048 mean_g x=0.976 y=0.078 z=-0.205 max_fifo=86/86
+W (251772) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (251772) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.207 max_fifo=86/86
+W (251812) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=89
+W (252032) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252032) kx134: epoch: n=2048 mean_g x=0.979 y=0.076 z=-0.208 max_fifo=86/86
+W (252292) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252292) kx134: epoch: n=2048 mean_g x=0.975 y=0.076 z=-0.206 max_fifo=86/86
+W (252552) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252552) kx134: epoch: n=2048 mean_g x=0.978 y=0.079 z=-0.211 max_fifo=86/86
+W (252812) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (252812) kx134: epoch: n=2048 mean_g x=0.976 y=0.080 z=-0.207 max_fifo=86/86
+W (253072) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (253072) kx134: epoch: n=2048 mean_g x=0.984 y=0.071 z=-0.204 max_fifo=86/86
+W (253332) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (253332) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.207 max_fifo=86/86
+W (253592) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (253592) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.210 max_fifo=86/86
+W (253852) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (253852) kx134: epoch: n=2048 mean_g x=0.978 y=0.075 z=-0.206 max_fifo=86/86
+W (254112) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254112) kx134: epoch: n=2048 mean_g x=0.977 y=0.077 z=-0.206 max_fifo=86/86
+W (254372) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254372) kx134: epoch: n=2048 mean_g x=0.975 y=0.078 z=-0.210 max_fifo=86/86
+W (254632) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254632) kx134: epoch: n=2048 mean_g x=0.976 y=0.075 z=-0.209 max_fifo=86/86
+W (254652) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=90
+E (254652) wifi_task: WiFi: 90 consecutive failures [NO_AP_FOUND] on "bogus-ssid-test-9f3" — verify saved credentials (NVS epm_net namespace, seeded from wifi_creds.h on first boot)
+W (254902) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (254902) kx134: epoch: n=2048 mean_g x=0.975 y=0.077 z=-0.207 max_fifo=86/86
+W (255162) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255162) kx134: epoch: n=2048 mean_g x=0.977 y=0.080 z=-0.209 max_fifo=86/86
+W (255422) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255422) kx134: epoch: n=2048 mean_g x=0.980 y=0.073 z=-0.209 max_fifo=86/86
+W (255682) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255682) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.207 max_fifo=86/86
+W (255942) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (255942) kx134: epoch: n=2048 mean_g x=0.974 y=0.078 z=-0.210 max_fifo=86/86
+W (256202) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256202) kx134: epoch: n=2048 mean_g x=0.978 y=0.076 z=-0.206 max_fifo=86/86
+W (256462) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256462) kx134: epoch: n=2048 mean_g x=0.978 y=0.078 z=-0.205 max_fifo=86/86
+W (256722) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256722) kx134: epoch: n=2048 mean_g x=0.980 y=0.074 z=-0.204 max_fifo=86/86
+W (256982) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (256982) kx134: epoch: n=2048 mean_g x=0.974 y=0.079 z=-0.206 max_fifo=86/86
+W (257242) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (257242) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.204 max_fifo=86/86
+W (257502) wifi_task: Disconnect reason: NO_AP_FOUND (201) attempt=91
+W (257502) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (257502) kx134: epoch: n=2048 mean_g x=0.980 y=0.076 z=-0.204 max_fifo=86/86
+W (257762) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (257762) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.205 max_fifo=86/86
+W (258022) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258022) kx134: epoch: n=2048 mean_g x=0.978 y=0.077 z=-0.208 max_fifo=86/86
+W (258282) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258282) kx134: epoch: n=2048 mean_g x=0.979 y=0.077 z=-0.206 max_fifo=86/86
+W (258542) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258542) kx134: epoch: n=2048 mean_g x=0.980 y=0.078 z=-0.206 max_fifo=86/86
+W (258802) kx134: FIFO seen at max capacity (86/86 frames) -- possible dropped samples
+I (258802) kx134: epoch: n=2048 mean_g x=0.977 y=0.076 z=-0.206 max_fifo=86/86
