@@ -38,8 +38,8 @@ from gateway.pipeline.bayesian_fusion import BayesianFusion
 
 # ─── Test helpers ─────────────────────────────────────────────────────────────
 
-MIC_FS   = 16000
-MIC_BINS = 512   # MIC_FS / 2 per bin = 31.25 Hz → 16000/512/2 = 15.625 Hz/bin
+MIC_FS   = 48000
+MIC_BINS = 512   # bin width = fs/2/bins → 48000/512/2 = 46.875 Hz/bin
 
 
 def _hz_to_bin(freq_hz: float, n_bins: int = MIC_BINS, fs: float = MIC_FS) -> int:

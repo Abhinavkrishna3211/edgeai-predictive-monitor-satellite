@@ -42,7 +42,7 @@ from gateway.common.telemetry_schema import (
 
 # Matches src/epm_config.h defaults.
 SPECTRUM_BINS = 128
-MIC_FS_HZ = 16000
+MIC_FS_HZ = 48000
 IMU_FS_HZ = 25600
 PUBLISH_INTERVAL_MS = 200
 

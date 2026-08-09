@@ -33,7 +33,7 @@ from gateway.pipeline.rul_estimator import ExponentialRUL
 from gateway.pipeline.adaptive_baseline import AdaptiveBaseline
 
 # ── Constants (mirror recv_verify.py) ─────────────────────────────────────────
-MIC_FS_HZ           = 16000
+MIC_FS_HZ           = 48000
 MIC_BINS            = 512
 CAL_FRAMES          = 30
 K_WARN              = 6.0

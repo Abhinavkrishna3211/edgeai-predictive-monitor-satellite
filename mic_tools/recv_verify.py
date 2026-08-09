@@ -216,7 +216,7 @@ FAULT_CLEAR_PERSIST = 8   # consecutive OK frames to clear a FAULT (longer hold 
 # factory noise is mostly <500Hz. Only alert if high-band carries enough energy.
 HIGH_BAND_MIN  = 0.12   # 12% of total mic energy must be in 2-8kHz band
 
-MIC_FS_HZ = 16000
+MIC_FS_HZ = 48000
 IMU_FS_HZ = 25600   # KX134 ODR — must match FFT_IMU_N and epm_config.h
 
 _SERVER_START_T  = time.time()   # used by dashboard uptime counter
