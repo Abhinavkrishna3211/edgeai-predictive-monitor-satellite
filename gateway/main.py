@@ -367,7 +367,9 @@ def main():
             print("\nExiting.")
     else:
         try:
-            run_plot(args.fft_mic_n, args.fft_imu_n, shaft_hz=shaft_hz,
+            run_plot(args.fft_mic_n, args.fft_imu_n,
+                     mic_fs=rv.MIC_FS_HZ, imu_fs=rv.IMU_FS_HZ,
+                     shaft_hz=shaft_hz,
                      bearing_freqs_mic=bearing_freqs_mic,
                      bearing_freqs_imu=bearing_freqs_imu,
                      bf=bf)
