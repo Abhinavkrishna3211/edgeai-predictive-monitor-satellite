@@ -30,6 +30,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "esp_system.h"
 #include "nvs_flash.h"
 #include "esp_netif.h"
 #include "esp_event.h"
@@ -124,6 +125,29 @@ static void diagnostics_task_fn(void *arg)
             (unsigned long)mqtt_st.connects, (unsigned long)mqtt_st.disconnects,
             (unsigned long)mqtt_st.publishes, (unsigned long)mqtt_st.publish_failures,
             (unsigned long)mqtt_st.cmds_received);
+
+        /* Self-heal watchdog: esp-mqtt/esp-tls's own internal reconnect
+         * loop (network.reconnect_timeout_ms in link_mqtt.c) leaks a small
+         * amount of heap per failed attempt against a dead/unreachable
+         * broker. Given enough uninterrupted retries this leak runs the
+         * board into ADR-024's heap guard, which then blocks
+         * link_mqtt_start() from ever being able to re-init - a permanent,
+         * non-recovering failure observed on real hardware after ~7.6h
+         * unattended (see docs/decisions/ADR-036-mqtt-reconnect-watchdog.md).
+         * esp_restart() doesn't depend on heap availability, unlike
+         * re-running link_mqtt_start(), so it's the only self-heal that
+         * still works once heap is this far gone. Threshold of 30 is
+         * calibrated off the observed ~13s real retry cadence (~6.5 min of
+         * continuous failure) - long enough not to fire on an ordinary
+         * transient blip, which resets this counter to 0 on its very next
+         * successful reconnect. */
+#define MQTT_WATCHDOG_RESTART_THRESHOLD 30
+        if (mqtt_st.consecutive_disconnects >= MQTT_WATCHDOG_RESTART_THRESHOLD) {
+            ESP_LOGE("DIAG", "mqtt stuck: %lu consecutive disconnects with no "
+                     "successful reconnect - restarting to recover (ADR-036)",
+                (unsigned long)mqtt_st.consecutive_disconnects);
+            esp_restart();
+        }
 
         struct wifi_provision_stats prov_st;
         wifi_provision_task_get_stats(&prov_st);

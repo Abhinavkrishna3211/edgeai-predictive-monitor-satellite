@@ -21,6 +21,12 @@ struct link_mqtt_stats {
 	uint32_t publishes;
 	uint32_t publish_failures;
 	uint32_t cmds_received;
+	/* Disconnects since the last successful MQTT_EVENT_CONNECTED, reset to
+	 * 0 on every reconnect. Distinct from the cumulative `disconnects`
+	 * above - lets a caller detect "stuck retrying, never reconnecting"
+	 * (this climbs unbounded) vs. ordinary churn (this stays near 0). See
+	 * docs/decisions/ADR-036-mqtt-reconnect-watchdog.md. */
+	uint32_t consecutive_disconnects;
 };
 
 /* Starts the MQTT link: derives node_id from the STA MAC (must be called

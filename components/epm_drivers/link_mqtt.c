@@ -87,6 +87,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_CONNECTED:
 		s_connected = true;
 		s_stats.connects++;
+		s_stats.consecutive_disconnects = 0;
 		esp_mqtt_client_subscribe(s_client, s_cmd_topic, 1);
 		ESP_LOGI(TAG, "connected, subscribed to %s", s_cmd_topic);
 		break;
@@ -94,6 +95,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	case MQTT_EVENT_DISCONNECTED:
 		s_connected = false;
 		s_stats.disconnects++;
+		s_stats.consecutive_disconnects++;
 		ESP_LOGW(TAG, "disconnected");
 		break;
 
