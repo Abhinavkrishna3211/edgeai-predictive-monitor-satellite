@@ -6,9 +6,12 @@
  * INC1/INC4/BUF_CNTL1/BUF_CNTL2 init sequence are carried over verbatim —
  * same chip, same datasheet (KX134-1211 TRM Rev 5.0) — only the SPI
  * transaction mechanics and the ISR/semaphore glue are re-expressed in
- * ESP-IDF terms. ODR=12800Hz is hardware-validated on the reference boards
- * (docs/KX134_Interface_Appendix.md, docs/SATELLITE_BRINGUP_GUIDE.md) and
- * adopted as-is — do not re-derive.
+ * ESP-IDF terms. The reference boards were hardware-validated at ODR=
+ * 12800Hz (docs/KX134_Interface_Appendix.md, docs/SATELLITE_BRINGUP_GUIDE.md);
+ * this driver instead runs the chip at 25600Hz (OSA=0x0F) to match
+ * src/epm_config.h's IMU_FS_HZ and clear the reference project's reported
+ * 8kHz accel ceiling with margin — see KX134_ODCNTL_OSA_25600HZ below for
+ * why, and its own validation status.
  *
  * SPI mode: Mode 0 (CPOL=0, CPHA=0), MSB-first, <=10MHz, per the datasheet's
  * 4-wire timing diagram.
@@ -88,9 +91,17 @@ static const char *TAG = "kx134";
 #define KX134_CNTL1_GSEL_8G 0x00
 #define KX134_CNTL1_CONFIG_BITS (KX134_CNTL1_RES | KX134_CNTL1_GSEL_8G)
 
-/* ODR = 12800Hz (OSA<3:0> = 1110, TRM Table 13, High-Performance mode) */
-#define KX134_ODCNTL_OSA_12800HZ 0x0E
-#define KX134_ODR_HZ             12800
+/* ODR = 25600Hz (OSA<3:0> = 1111, TRM Table 13, High-Performance mode).
+ * Raised from 12800Hz (0x0E) to match src/epm_config.h's IMU_FS_HZ=25600 --
+ * see docs/decisions/ADR-017's "ODR mismatch, out of scope to fix here".
+ * IMU_FS_HZ was always meant to give a 12800Hz Nyquist (exceeding the
+ * reference project's reported 8kHz accel ceiling); the chip was silently
+ * running at half that rate since ADR-017 landed. Needs real-hardware
+ * validation at this new rate (FIFO/SPI headroom, zero dropped frames)
+ * before this is trusted -- doubling the ODR halves the time between BFI
+ * bursts, which was not exercised by ADR-017's 12800Hz sustained run. */
+#define KX134_ODCNTL_OSA_25600HZ 0x0F
+#define KX134_ODR_HZ             25600
 
 /* +/-8g range, 16-bit output -> 4096 counts/g (32768 / 8). TRM sensitivity
  * table for GSEL=00/BRES=1. Flagged for bring-up confirmation: at-rest Z
@@ -246,7 +257,7 @@ static int kx134_program_registers(void)
     /* Standby (PC1=0) before touching any other register — required by the
      * TRM for CNTL1/ODCNTL/INC1/INC4 writes. */
     if (kx134_write_reg(KX134_REG_CNTL1, 0x00) != ESP_OK) return -EIO;
-    if (kx134_write_reg(KX134_REG_ODCNTL, KX134_ODCNTL_OSA_12800HZ) != ESP_OK) return -EIO;
+    if (kx134_write_reg(KX134_REG_ODCNTL, KX134_ODCNTL_OSA_25600HZ) != ESP_OK) return -EIO;
     if (kx134_write_reg(KX134_REG_INC1, KX134_INC1_CONFIG) != ESP_OK) return -EIO;
     if (kx134_write_reg(KX134_REG_INC4, KX134_INC4_CONFIG) != ESP_OK) return -EIO;
     if (kx134_write_reg(KX134_REG_CNTL1, KX134_CNTL1_CONFIG_BITS) != ESP_OK) return -EIO;
