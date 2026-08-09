@@ -26,9 +26,11 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_pm.h"
+#include "esp_timer.h"
 
 #include "epm_config.h"
 #include "hal/hal_display.h"
+#include "hal/hal_provisioning.h"
 #include "threads/wifi_task.h"
 #include "drivers/net_credentials.h"
 
@@ -36,6 +38,20 @@ static const char *TAG = "wifi_task";
 
 #define WIFI_CONNECTED_BIT  BIT0
 #define WIFI_MAX_RETRY      10
+
+/* docs/performance/SATELLITE_STRESS_STABILITY_TEST.md's "captive-portal HTTP
+ * server starves under extended STA retry churn" finding: with the AP up
+ * under WIFI_MODE_APSTA during PROVISIONING, the immediate esp_wifi_connect()
+ * retry below cycles roughly every ~3s against an unreachable saved SSID
+ * (each attempt needs its own scan to find it) -- confirmed at ~700+ cycles
+ * over 39 minutes to fragment internal heap badly enough (largest_free down
+ * to 7168 bytes while total free stayed flat) that the portal's HTTP server
+ * can't reliably allocate a response buffer. Backing off to this interval
+ * *only* while hal_provisioning_active() is true cuts that churn roughly
+ * 6x without touching the already-validated immediate-retry behavior used
+ * everywhere else (normal operation, and the RECOVERING state's own 60s
+ * silent-reconnect window, which both still want the fast path). */
+#define PROVISIONING_RETRY_BACKOFF_MS 20000
 
 /* Mirrors link_mqtt.c's own MQTT broker defaults, not shared via a header:
  * epm_drivers must not depend back on the main component's config (see
@@ -66,6 +82,10 @@ static uint32_t           s_disconnects       = 0;
  * below for logging only (not used for any connection decision). */
 static char s_current_ssid[NET_CRED_SSID_MAX_LEN + 1] = {0};
 
+/* Lazily created on first use inside PROVISIONING -- see
+ * PROVISIONING_RETRY_BACKOFF_MS above. */
+static esp_timer_handle_t s_reconnect_backoff_timer;
+
 /* JTAG-readable: 0=init 1=rf_init_done 2=sta_start 3=connecting 4=got_ip */
 volatile uint32_t         g_wifi_debug_state  = 0;
 
@@ -77,6 +97,12 @@ static void on_wifi_sta_start(void)
     rgb_led_set_state(RGB_WIFI_CONN);
     ESP_LOGI(TAG, "STA started — connecting to \"%s\"...", s_current_ssid);
     g_wifi_debug_state = 3;  /* esp_wifi_connect() about to be called */
+    esp_wifi_connect();
+}
+
+static void reconnect_backoff_cb(void *arg)
+{
+    (void)arg;
     esp_wifi_connect();
 }
 
@@ -105,7 +131,27 @@ static void on_wifi_disconnected(wifi_event_sta_disconnected_t *d)
                  "wifi_creds.h on first boot)", s_retry_cnt, reason_str, s_current_ssid);
     }
     /* Do NOT vTaskDelay here — this runs in the system event loop.
-     * Blocking triggers the interrupt watchdog. */
+     * Blocking triggers the interrupt watchdog. During PROVISIONING, defer
+     * the retry to a timer instead of calling esp_wifi_connect() straight
+     * away — see PROVISIONING_RETRY_BACKOFF_MS. Everywhere else (including
+     * the RECOVERING state that precedes PROVISIONING), retry immediately,
+     * unchanged from before. */
+    if (hal_provisioning_active()) {
+        if (s_reconnect_backoff_timer == NULL) {
+            const esp_timer_create_args_t args = {
+                .callback = reconnect_backoff_cb,
+                .name     = "wifi_prov_backoff",
+            };
+            if (esp_timer_create(&args, &s_reconnect_backoff_timer) != ESP_OK) {
+                esp_wifi_connect(); /* fall back to immediate retry */
+                return;
+            }
+        }
+        esp_timer_stop(s_reconnect_backoff_timer); /* no-op if not running */
+        esp_timer_start_once(s_reconnect_backoff_timer,
+                              (uint64_t)PROVISIONING_RETRY_BACKOFF_MS * 1000ULL);
+        return;
+    }
     esp_wifi_connect();
 }
 
@@ -191,6 +237,22 @@ void wifi_rf_init(void)
         strncpy(creds.wifi_ssid, WIFI_SSID, sizeof(creds.wifi_ssid) - 1);
         strncpy(creds.wifi_password, WIFI_PASS, sizeof(creds.wifi_password) - 1);
     }
+
+#if CONFIG_EPM_PROVISIONING_STARVATION_TEST
+    /* TEMPORARY, test-only. Deterministic repro/verify aid for the
+     * captive-portal HTTP server starvation documented in
+     * docs/performance/SATELLITE_STRESS_STABILITY_TEST.md. Substitutes an
+     * in-RAM bogus SSID/password so the very first join attempt fails and
+     * wifi_provision_task.c's own state machine carries the board into
+     * PROVISIONING, without ever touching NVS or the real saved
+     * credentials loaded above. */
+    strncpy(creds.wifi_ssid, "EPM_STARVATION_TEST_NONEXISTENT", sizeof(creds.wifi_ssid) - 1);
+    creds.wifi_ssid[sizeof(creds.wifi_ssid) - 1] = '\0';
+    strncpy(creds.wifi_password, "wrongpassword123", sizeof(creds.wifi_password) - 1);
+    creds.wifi_password[sizeof(creds.wifi_password) - 1] = '\0';
+    ESP_LOGW(TAG, "EPM_PROVISIONING_STARVATION_TEST: forcing bad SSID \"%s\"",
+             creds.wifi_ssid);
+#endif
 
     wifi_config_t wifi_cfg = {
         .sta = {

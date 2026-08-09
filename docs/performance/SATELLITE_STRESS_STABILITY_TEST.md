@@ -330,3 +330,91 @@ All captures in `docs/performance/raw/` (~16MB total):
 | `closed_port_trial_20260809.log` | §3 | Related disconnect/recovery capture |
 | `provisioning_spotcheck_20260809.log` | §4 | PROVISIONING entry via bad credentials |
 | `provisioning_rapidreset_20260809.log` | §4 | Rapid reset, bad resubmission, successful real-credential resubmission |
+| `gap2_before_provisioning_starvation_20260809.log` | Addendum | Serial capture, unfixed firmware, STA retry cadence ~2.8-3s |
+| `gap2_before_portal_poll_v2_20260809.log` | Addendum | Portal HTTP poll, unfixed firmware, sustained failure cluster after ~2.5 min |
+| `gap2_after_provisioning_starvation_20260809.log` | Addendum | Serial capture, fixed firmware, confirmed ~20-23s backoff cadence |
+| `gap2_after_portal_poll_20260809.log` | Addendum | Portal HTTP poll, fixed firmware, 88/89 successful over 20 min |
+
+---
+
+## Addendum: 2026-08-09 — captive-portal starvation fix, verified on hardware
+
+The §4 finding above documented captive-portal HTTP server unreliability
+after ~39 minutes of `PROVISIONING`-mode STA retry churn, attributed to
+internal heap fragmentation (`largest_free` down to 7168 bytes). This pass
+implemented and verified a fix, and along the way found a second,
+faster-manifesting contributor to the same failure class.
+
+**Repro tooling.** A new Kconfig option
+(`CONFIG_EPM_PROVISIONING_STARVATION_TEST`, `components/epm_drivers/Kconfig`)
+substitutes an in-RAM bogus SSID/password at the point
+`src/threads/wifi_task.c`'s `wifi_rf_init()` would otherwise hand loaded
+credentials to `esp_wifi_set_config()`, so the first join attempt fails and
+the existing `wifi_provision_task.c` state machine carries the board into
+`PROVISIONING` on its own — reaching the original finding's precondition on
+demand instead of waiting for a genuine bad-AP/bad-credential event. It
+never touches NVS or real saved credentials by construction
+(`net_credentials_save()` only runs on a successful join, which this
+prevents).
+
+**Before evidence.** With the unfixed immediate-retry behavior active
+(`esp_wifi_connect()` called straight from `on_wifi_disconnected()` on
+every STA disconnect while provisioning), a Windows client repeatedly
+polling the portal's `/` endpoint every ~15-20s
+(`gap2_before_portal_poll_v2_20260809.log`) got 10 clean
+`OK status=200` responses over the first ~2.5 minutes, then hit a sustained
+cluster of `FAIL: The operation has timed out.` once STA churn had run
+long enough. Concurrently, `gap2_before_provisioning_starvation_20260809.log`
+confirms the churn cadence (`Disconnect reason: ... attempt=N` roughly
+every 2.8-3s) but shows `largest_free` still healthy (9728-19456 bytes)
+across the observation window — i.e. the client-visible failures arrived
+well before heap fragmentation reached the original finding's 7168-byte
+threshold. This points to a second, faster-acting mechanism alongside heap
+fragmentation: under `WIFI_MODE_APSTA` the STA and AP share one radio, and
+each retry's scan pulls the radio off the AP's channel long enough to risk
+missing a beacon window, which can knock an already-associated client
+loose. Both mechanisms share the same root cause (STA retry frequency
+during `PROVISIONING`) and the same fix.
+
+**Fix.** `src/threads/wifi_task.c`'s `on_wifi_disconnected()` now checks
+`hal_provisioning_active()` and, only while true, defers the reconnect via
+a one-shot `esp_timer` (`PROVISIONING_RETRY_BACKOFF_MS` = 20000) instead of
+calling `esp_wifi_connect()` immediately — cutting retry frequency roughly
+6x. Normal-operation and `RECOVERING`-state (60s silent-reconnect window)
+behavior is untouched; both still want the fast immediate-retry path.
+
+**Methodology note.** An early attempt at before-evidence was invalidated
+mid-capture: Windows silently abandoned the manually-connected,
+no-internet `EPM-SAT-*` AP in favor of a known network with internet
+(`MUTHIYATTIRI 2.4GHz`), so some recorded `FAIL` results were "wrong
+network" rather than genuine starvation. Fixed by setting that profile to
+`connectionmode=manual` and rewriting the poll script to check
+`netsh wlan show interfaces` and force a reconnect immediately before every
+poll, logging a distinct `RECONNECT_NEEDED` marker whenever a reconnect was
+needed — so a plain `FAIL:` is now known to have occurred while genuinely
+connected to the satellite's AP. Reverted (`connectionmode=auto`,
+reconnected to the home network) after both captures.
+
+**After evidence.** Same starvation-test hook, fixed firmware. Serial log
+(`gap2_after_provisioning_starvation_20260809.log`) confirms the backoff is
+structurally active: `attempt=7` at t=18844ms, `attempt=8` at t=41684ms —
+a ~22.8s gap, matching `PROVISIONING_RETRY_BACKOFF_MS`. The portal poll
+(`gap2_after_portal_poll_20260809.log`, same reconnect-before-poll
+methodology, 20 minutes) recorded 88 `OK status=200` out of 89 total poll
+attempts (98.9%), with 3 `RECONNECT_NEEDED` events. The single `FAIL` and
+all three reconnects clustered at t=17:03:16-17:03:38, several minutes
+after a ~4-minute home router outage (16:57-17:01) recovered — consistent
+with Windows opportunistically reassociating with the now-back-up
+`MUTHIYATTIRI 2.4GHz` despite its manual-connect setting, not with portal
+starvation (the ESP32 is USB-powered from the test laptop and was
+unaffected by the router outage: no `rst:0x` in the serial log across that
+window). This is a marked improvement over the before-test's sustained
+failure cluster after only ~2.5 minutes of churn.
+
+**AP credentials.** `components/epm_drivers/ap_credentials.c` persists the
+provisioning AP's randomly-generated WPA2 password in NVS
+(get-or-create), so it stayed identical across the reset between before-
+and after-capture, confirming both captures targeted the same AP.
+
+Test Kconfig flag disabled after verification, per the same convention
+used for the §1/ADR-036 low-heap test hook.
