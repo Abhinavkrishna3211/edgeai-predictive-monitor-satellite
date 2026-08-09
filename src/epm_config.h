@@ -37,7 +37,7 @@
 /* ─── Sample rates ───────────────────────────────────────────────────────── */
 
 #ifndef MIC_FS_HZ
-#define MIC_FS_HZ   16000   /* I2S mic ODR (Hz)                               */
+#define MIC_FS_HZ   48000   /* I2S mic ODR (Hz)                               */
 #endif
 
 #ifndef IMU_FS_HZ
@@ -125,7 +125,7 @@
 /* ─── Fault thresholds ───────────────────────────────────────────────────── */
 
 /* Consecutive mic_capture_read_block failures before escalating to LOGE.
- * At ~64 ms/block (FFT_MIC_N=1024, Fs=16 kHz) this gives ~3.2 s before alarm. */
+ * At ~21.3 ms/block (FFT_MIC_N=1024, Fs=48 kHz) this gives ~1.07 s before alarm. */
 #ifndef MIC_FAIL_MAX
 #define MIC_FAIL_MAX  50
 #endif
