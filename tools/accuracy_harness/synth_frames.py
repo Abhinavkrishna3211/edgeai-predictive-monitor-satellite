@@ -30,6 +30,8 @@ the three ratios and derives the third as the remainder.
 import os
 import sys
 
+import numpy as np
+
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _REPO_ROOT)
 sys.path.insert(0, os.path.join(_REPO_ROOT, 'mic_tools'))
@@ -333,6 +335,113 @@ def deep_inside_base(label):
     if not candidates:
         raise ValueError(f"no deep-inside tuple generated for label {label!r}")
     return candidates[0]
+
+
+# ─── Part 2 extensions: synthetic FFT + frame dicts + severity jitter ──────
+
+def _synthetic_mic_fft_db(hi_r, lo_r, mid_r, fs_hz=None, n_bins=4096,
+                           total_power_db=-10.0, floor_db=-120.0):
+    """Build a dBFS mic-FFT array whose _band_ratios() recovers (hi_r, lo_r,
+    mid_r) exactly (up to floor-power rounding), so the autoencoder's 32
+    spectral bands, HST's spectral centroid, and hi_r/lo_r/mid_r all see one
+    consistent underlying signal instead of independent scalar stubs.
+
+    Power is spread uniformly across each band's bins (a synthesized tone
+    would concentrate it in one bin instead, but band *ratios* — what every
+    downstream consumer here reads — only depend on per-band totals).
+    """
+    if fs_hz is None:
+        fs_hz = rv.MIC_FS_HZ
+    hz_per  = fs_hz / 2.0 / n_bins
+    lo_end  = max(1, int(500 / hz_per))
+    mid_end = max(lo_end + 1, int(2000 / hz_per))
+
+    floor_lin = 10.0 ** (floor_db / 10.0)
+    power = np.full(n_bins, floor_lin, dtype=np.float64)
+    total_lin = 10.0 ** (total_power_db / 10.0)
+
+    lo_bins  = np.arange(1, lo_end)
+    mid_bins = np.arange(lo_end, mid_end)
+    hi_bins  = np.arange(mid_end, n_bins)
+    if len(lo_bins):
+        power[lo_bins] = lo_r * total_lin / len(lo_bins)
+    if len(mid_bins):
+        power[mid_bins] = mid_r * total_lin / len(mid_bins)
+    if len(hi_bins):
+        power[hi_bins] = hi_r * total_lin / len(hi_bins)
+
+    db = 10.0 * np.log10(np.clip(power, 1e-14, None))
+    return np.clip(db, floor_db, 0.0).astype(np.float32)
+
+
+def tuple_to_frame(t):
+    """Expand a 6-tuple dict into a full frame dict consumable by
+    make_feature_vector() (autoencoder) and _extract_hst_features() (HST) —
+    both need mic_rms/imu_rms/mic_fft that the bare classifier tuple doesn't
+    carry. RMS values are a plausible monotonic proxy of crest factor
+    (crest = peak/rms; without a real waveform we can't recover rms exactly,
+    so this is a documented approximation, not measured data)."""
+    hi_r, lo_r, mid_r = t['hi_r'], t['lo_r'], t['mid_r']
+    mic_fft = _synthetic_mic_fft_db(hi_r, lo_r, mid_r)
+    return dict(
+        mic_kurtosis=t['mic_kurtosis'],
+        mic_crest=t['mic_crest'],
+        mic_rms=0.05 * t['mic_crest'],
+        imu_crest=t['imu_crest'],
+        imu_rms=0.05 * t['imu_crest'],
+        high_band_ratio=hi_r,
+        z_score=0.0,
+        mic_fft=mic_fft,
+    )
+
+
+def generate_healthy_samples(n, rng, noise_scale=0.05):
+    """n jittered Normal-zone tuples, clipped to stay strictly below
+    K_WARN/CREST_WARN so every sample is genuinely healthy by the same
+    thresholds the classifier itself uses (not just close to the deep-inside
+    seed point)."""
+    K_WARN, CREST_WARN = rv.K_WARN, rv.CREST_WARN
+    k_ceiling = K_WARN - _mag_delta(K_WARN)
+    c_ceiling = CREST_WARN - _mag_delta(CREST_WARN)
+    base = deep_inside_base("Normal")
+    out = []
+    for _ in range(n):
+        k  = min(max(base['mic_kurtosis'] * (1.0 + noise_scale * rng.standard_normal()), 0.1), k_ceiling)
+        c  = min(max(base['mic_crest']    * (1.0 + noise_scale * rng.standard_normal()), 0.1), c_ceiling)
+        ic = min(max(1.0                  * (1.0 + noise_scale * rng.standard_normal()), 0.1), c_ceiling)
+        hi = float(np.clip(0.34 + 0.03 * rng.standard_normal(), 0.05, 0.35))
+        lo = float(np.clip(0.33 + 0.03 * rng.standard_normal(), 0.05, 1.0 - hi - 0.05))
+        mid = max(1.0 - hi - lo, 0.01)
+        out.append(_tuple("Normal", 'healthy-jitter', None, k, c, ic, hi, lo, mid))
+    return out
+
+
+def generate_severity_variants(label, n, rng, severity_range=(1.0, 3.0), noise_scale=0.05):
+    """n jittered variants of `label`'s deep-inside base tuple, scaled by a
+    random severity factor in severity_range (kurtosis/crest scale up
+    directly; hi/lo/mid ratios get multiplicative jitter then renormalize).
+    All deep-inside base tuples sit 20*delta past their defining threshold(s)
+    (see _zone_value), so a >=1.0x severity scale with noise_scale=0.05 stays
+    on the satisfying side with overwhelming margin (order of 10 sigma) —
+    the intended label stays true for every variant."""
+    base = deep_inside_base(label)
+    out = []
+    for _ in range(n):
+        sev = rng.uniform(*severity_range)
+
+        def _n(scale=noise_scale):
+            return 1.0 + scale * rng.standard_normal()
+
+        k  = max(base['mic_kurtosis'] * sev * _n(), 0.0)
+        c  = max(base['mic_crest']    * sev * _n(), 0.1)
+        ic = max(base['imu_crest']    * sev * _n(), 0.1)
+        hi = float(np.clip(base['hi_r'] * _n(), 0.001, 0.998))
+        lo = float(np.clip(base['lo_r'] * _n(), 0.001, 0.998 - hi))
+        mid = max(1.0 - hi - lo, 0.001)
+        t = _tuple(label, 'severity-jitter', None, k, c, ic, hi, lo, mid)
+        t['severity'] = sev
+        out.append(t)
+    return out
 
 
 if __name__ == '__main__':
