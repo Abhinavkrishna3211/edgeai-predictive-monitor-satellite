@@ -33,7 +33,12 @@ from generate_and_play import (
     band_ratios_from_samples,
     _IMBALANCE_PRESETS,
 )
-from capture_and_compare import is_locked, compute_noise_floor_db
+from capture_and_compare import (
+    is_locked,
+    compute_noise_floor_db,
+    band_ratios_from_wire_bins,
+    expected_freq_hz,
+)
 from gateway.pipeline.bearing_math import BearingFreqs, COMMON_BEARINGS
 
 BEARING_6205 = COMMON_BEARINGS["6205"]
@@ -387,6 +392,84 @@ class TestBandRatiosFromSamples(unittest.TestCase):
         stats = ringdown_burst_stats(0.8, 3500.0, tau_s, burst_dur_s, period_s)
         self.assertGreater(bands["hi_r"], 0.40)
         self.assertGreaterEqual(stats["kurtosis_excess"], 6.0)
+
+
+def _samples_to_wire_bins_db(x, sample_rate=48000, n_bins=128):
+    """Builds a device-shaped dB bin array (n_bins final buckets, one dB
+    value each) the same way band_ratios_from_samples() pools a raw FFT
+    internally, so its output can feed band_ratios_from_wire_bins() as a
+    stand-in for a real captured ChannelSpectrum.bins tuple."""
+    power_full = np.abs(np.fft.rfft(x)) ** 2
+    nyquist = sample_rate / 2.0
+    freqs = np.fft.rfftfreq(len(x), d=1.0 / sample_rate)
+    bucket_edges = np.linspace(0, nyquist, n_bins + 1)
+    bucket_idx = np.clip(np.digitize(freqs, bucket_edges) - 1, 0, n_bins - 1)
+    bucket_power = np.zeros(n_bins)
+    for i in range(n_bins):
+        bucket_power[i] = power_full[bucket_idx == i].sum()
+    bucket_power = np.maximum(bucket_power, 1e-12)
+    db = 10.0 * np.log10(bucket_power / bucket_power.max())
+    return np.clip(db, -140.0, 0.0)
+
+
+class TestBandRatiosFromWireBins(unittest.TestCase):
+    def test_matches_band_ratios_from_samples_on_same_signal(self):
+        # Same physical signal, two representations: raw-sample ground truth
+        # (band_ratios_from_samples) vs. a device-shaped pre-pooled dB bin
+        # array (band_ratios_from_wire_bins) -- must agree, since a captured
+        # ChannelSpectrum's bins are exactly this pre-pooled representation.
+        x = synthesize_ringdown_burst_train(150.0, 0.018, 0.04, 0.04, duration_s=0.04 * 500,
+                                             amplitude=0.8, sample_rate=48000)
+        expected = band_ratios_from_samples(x, sample_rate=48000)
+        wire_bins = _samples_to_wire_bins_db(x, sample_rate=48000)
+        actual = band_ratios_from_wire_bins(wire_bins, fs_hz=48000.0)
+        for key in ("hi_r", "lo_r", "mid_r"):
+            self.assertAlmostEqual(actual[key], expected[key], places=3)
+
+    def test_all_energy_in_low_bin_gives_lo_r_near_one(self):
+        bins_db = np.full(128, -140.0)
+        bins_db[1] = 0.0  # bin 1: (1*Nyquist/128, 2*Nyquist/128] = (187.5, 375]Hz -- inside lo band
+        bands = band_ratios_from_wire_bins(bins_db, fs_hz=48000.0)
+        self.assertGreater(bands["lo_r"], 0.99)
+        self.assertLess(bands["hi_r"], 0.01)
+        self.assertLess(bands["mid_r"], 0.01)
+
+    def test_all_energy_in_high_bin_gives_hi_r_near_one(self):
+        bins_db = np.full(128, -140.0)
+        bins_db[100] = 0.0  # 100*187.5Hz = 18750Hz -- inside hi band
+        bands = band_ratios_from_wire_bins(bins_db, fs_hz=48000.0)
+        self.assertGreater(bands["hi_r"], 0.99)
+
+    def test_dc_bin_excluded_from_total(self):
+        bins_db = np.full(128, -140.0)
+        bins_db[0] = 0.0  # DC bin -- must not dominate the normalization
+        bins_db[1] = 0.0  # tie it with a real low-band bin
+        bands = band_ratios_from_wire_bins(bins_db, fs_hz=48000.0)
+        # If DC were included in the total, lo_r would be ~0.5 (split with bin 0).
+        self.assertGreater(bands["lo_r"], 0.99)
+
+    def test_ratios_sum_to_one(self):
+        rng = np.random.default_rng(1234)
+        bins_db = rng.uniform(-140.0, 0.0, size=128)
+        bands = band_ratios_from_wire_bins(bins_db, fs_hz=48000.0)
+        self.assertAlmostEqual(bands["hi_r"] + bands["lo_r"] + bands["mid_r"], 1.0, places=6)
+
+
+class TestExpectedFreqHz(unittest.TestCase):
+    def test_tone_mode(self):
+        self.assertEqual(expected_freq_hz({"mode": "tone", "freq_hz": 1000.0}), 1000.0)
+
+    def test_fault_mode(self):
+        self.assertEqual(expected_freq_hz({"mode": "fault", "sideband_hz": 82.4}), 82.4)
+
+    def test_bearing_mode_uses_resonance_hz(self):
+        self.assertEqual(expected_freq_hz({"mode": "bearing", "resonance_hz": 3500.0}), 3500.0)
+
+    def test_imbalance_mode_uses_resonance_hz(self):
+        self.assertEqual(expected_freq_hz({"mode": "imbalance", "resonance_hz": 150.0}), 150.0)
+
+    def test_looseness_mode_has_no_single_expected_freq(self):
+        self.assertIsNone(expected_freq_hz({"mode": "looseness", "carriers_hz": [300.0, 800.0, 1500.0]}))
 
 
 if __name__ == "__main__":

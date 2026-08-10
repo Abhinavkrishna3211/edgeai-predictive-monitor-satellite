@@ -37,6 +37,8 @@ import threading
 import time
 from pathlib import Path
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import gateway.common.telemetry_frame as telemetry_frame
@@ -65,6 +67,37 @@ _METRIC_TO_SCALAR_BASE = {
     "crest_factor": "crest_factor",
     "skewness": "skewness",
 }
+
+# Modes that carry closed-form/numeric scalar ground truth (tone always did;
+# bearing/imbalance/looseness gained it in the fault-shaped synthesis work).
+_SCALAR_GROUND_TRUTH_MODES = {"tone", "bearing", "imbalance", "looseness"}
+# Modes whose manifest["expected"] also carries hi_r/lo_r/mid_r band-ratio
+# ground truth, comparable against the captured spectrum's own bins.
+_BAND_RATIO_MODES = {"bearing", "imbalance", "looseness"}
+
+
+def band_ratios_from_wire_bins(bins_db, fs_hz=48000.0):
+    """hi_r/lo_r/mid_r from a captured ChannelSpectrum's dB bins, mirroring
+    gateway.pipeline.alerting._band_ratios()'s exact bucketing (lo=0-500Hz,
+    mid=500-2000Hz, hi=2000Hz-Nyquist bin fractions of total power excluding
+    the DC bin) so it's directly comparable to generate_and_play.py's
+    band_ratios_from_samples() ground truth. Deliberately duplicated (not
+    imported from alerting.py, which needs a live recv_verify module for its
+    MIC_FS_HZ global) -- re-sync if alerting._band_ratios() ever changes.
+
+    Unlike band_ratios_from_samples() (which FFTs raw audio samples), the
+    wire already delivers pre-binned dB power -- this just re-buckets those
+    bins the same way alerting.py does, at the fixed device MIC_FS_HZ."""
+    power = 10.0 ** (np.clip(np.asarray(bins_db, dtype=np.float64), -140.0, 0.0) / 10.0)
+    n = len(power)
+    hz_per = fs_hz / 2.0 / n
+    lo_end = max(1, int(500 / hz_per))
+    mid_end = max(lo_end + 1, int(2000 / hz_per))
+    total = power[1:].sum() + 1e-10
+    lo_r = float(power[1:lo_end].sum() / total)
+    mid_r = float(power[lo_end:mid_end].sum() / total)
+    hi_r = float(power[mid_end:].sum() / total)
+    return {"hi_r": hi_r, "lo_r": lo_r, "mid_r": mid_r}
 
 
 def bin_index_to_freq_hz(bin_index, fs, fft_size):
@@ -203,28 +236,44 @@ def read_actual_scalars(decoded, channel):
 
 
 def expected_freq_hz(manifest):
-    if manifest["mode"] == "tone":
+    """Single dominant-frequency ground truth, where one exists. Bearing and
+    imbalance modes are single-carrier ringdown bursts, so the resonance
+    carrier is still the right thing to lock against. Looseness spreads
+    energy across multiple independently-phased carriers by design (that's
+    the point of the mode) -- there is no single expected peak bin, so
+    callers must skip the frequency-lock check for it (see print_report)."""
+    mode = manifest["mode"]
+    if mode == "tone":
         return manifest["freq_hz"]
-    return manifest["sideband_hz"]
+    if mode == "fault":
+        return manifest["sideband_hz"]
+    if mode in ("bearing", "imbalance"):
+        return manifest["resonance_hz"]
+    return None  # looseness: multi-carrier, no single expected peak
 
 
-def print_report(manifest, actual_scalars, actual_freq_hz, actual_peak_db, n_frames_captured):
+def print_report(manifest, actual_scalars, actual_freq_hz, actual_peak_db,
+                  actual_band_ratios, n_frames_captured):
+    mode = manifest["mode"]
     exp_freq = expected_freq_hz(manifest)
-    freq_delta = pct_delta(actual_freq_hz, exp_freq)
     print(f"\nCapture: {n_frames_captured} frame(s) received in window")
     print(f"{'metric':<18} {'expected':>14} {'actual':>14} {'% delta':>12}")
     print("-" * 60)
-    delta_str = f"{freq_delta:+.3f}%" if freq_delta is not None else "n/a"
-    print(f"{'peak_bin_freq_hz':<18} {exp_freq:>14.3f} {actual_freq_hz:>14.3f} {delta_str:>12}")
+    if exp_freq is None:
+        print(f"{'peak_bin_freq_hz':<18} {'n/a (multi-carrier)':>14} {actual_freq_hz:>14.3f} {'n/a':>12}")
+    else:
+        freq_delta = pct_delta(actual_freq_hz, exp_freq)
+        delta_str = f"{freq_delta:+.3f}%" if freq_delta is not None else "n/a"
+        print(f"{'peak_bin_freq_hz':<18} {exp_freq:>14.3f} {actual_freq_hz:>14.3f} {delta_str:>12}")
     print(f"{'peak_bin_db':<18} {'--':>14} {actual_peak_db:>14.3f} {'--':>12}")
 
-    if manifest["mode"] != "tone":
+    if mode == "fault":
         print("\n(fault mode has no closed-form scalar ground truth -- frequency only)")
         return
 
     for metric, expected in manifest["expected"].items():
-        if metric == "peak":
-            continue  # not read from the wire -- see module docstring
+        if metric in ("peak", "mean", "hi_r", "lo_r", "mid_r"):
+            continue  # peak/mean not read from the wire; band ratios printed separately below
         actual = actual_scalars.get(metric)
         if actual is None:
             print(f"{metric:<18} {expected:>14.6f} {'MISSING':>14} {'n/a':>12}")
@@ -232,6 +281,18 @@ def print_report(manifest, actual_scalars, actual_freq_hz, actual_peak_db, n_fra
         d = pct_delta(actual, expected)
         d_str = f"{d:+.3f}%" if d is not None else f"(abs delta {actual - expected:+.6f})"
         print(f"{metric:<18} {expected:>14.6f} {actual:>14.6f} {d_str:>12}")
+
+    if mode in _BAND_RATIO_MODES:
+        print()
+        for metric in ("hi_r", "lo_r", "mid_r"):
+            expected = manifest["expected"][metric]
+            actual = actual_band_ratios.get(metric) if actual_band_ratios else None
+            if actual is None:
+                print(f"{metric:<18} {expected:>14.6f} {'MISSING':>14} {'n/a':>12}")
+                continue
+            d = pct_delta(actual, expected)
+            d_str = f"{d:+.3f}%" if d is not None else f"(abs delta {actual - expected:+.6f})"
+            print(f"{metric:<18} {expected:>14.6f} {actual:>14.6f} {d_str:>12}")
 
 
 def play_tone_background(freq_hz, amplitude, duration_s):
@@ -346,10 +407,15 @@ def cmd_compare(args):
     node_id, decoded = result
 
     freq_hz, peak_db = find_peak_bin(decoded.spectra[args.channel])
-    actual_scalars = read_actual_scalars(decoded, args.channel) if manifest["mode"] == "tone" else {}
+    mode = manifest["mode"]
+    actual_scalars = read_actual_scalars(decoded, args.channel) if mode in _SCALAR_GROUND_TRUTH_MODES else {}
+    actual_band_ratios = (
+        band_ratios_from_wire_bins(decoded.spectra[args.channel].bins)
+        if mode in _BAND_RATIO_MODES else None
+    )
 
     print(f"using last matching frame from node {node_id!r}")
-    print_report(manifest, actual_scalars, freq_hz, peak_db, len(frames))
+    print_report(manifest, actual_scalars, freq_hz, peak_db, actual_band_ratios, len(frames))
     return 0
 
 
