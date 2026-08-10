@@ -88,4 +88,4 @@
 [250 Hz / amp 0.9] attempt 3/3: locked=True snr_db=12.89072036743164 peak=150.0
   -> 1/3 locks, reliable=False
 
-wrote 54 row(s) to C:\Users\abhin\AppData\Local\Temp\claude\c--Users-abhin-Documents-edgeai-predictive-monitor-satellite\e42228c0-6d71-47a8-b441-e1b84cacdd88\scratchpad\accel_rig_sweep_results.csv
+wrote 54 row(s) to accel_rig_sweep_results.csv
