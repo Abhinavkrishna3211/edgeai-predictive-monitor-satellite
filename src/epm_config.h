@@ -61,7 +61,10 @@
  * depend back on it — src already depends on epm_drivers). */
 
 #ifndef EPM_MODEL_SPECTRUM_BINS
-#define EPM_MODEL_SPECTRUM_BINS 128 /* bins per channel epm_dsp_reduce_bins() reduces to (ADR-020) */
+#define EPM_MODEL_SPECTRUM_BINS 256 /* bins per channel epm_dsp_reduce_bins() reduces to
+                                     * (ADR-020, raised 128->256 by ADR-040 to close the
+                                     * near-bin-edge spectral-leakage gap that blocked
+                                     * Looseness detection) */
 #endif
 
 /* Wire-reported fft_size for the 4 pooled spectrum channels (mic, accel x/y/z
@@ -89,21 +92,38 @@
 #endif
 
 #ifndef EPM_NET_FRAME_BUF_BYTES
-#define EPM_NET_FRAME_BUF_BYTES 4096 /* 8-section frame (7 SPECTRUM + 1 SCALAR_SET) at
-                                      * EPM_MODEL_SPECTRUM_BINS is 1 + 7*(13+128*4) + (6+24*6)
-                                      * = 3826 B (Phase 11a added 3 envelope SPECTRUM sections,
-                                      * 525 B each); 270 B headroom under the 4096 buffer,
-                                      * re-checked in ADR-032 rather than assumed */
+#define EPM_NET_FRAME_BUF_BYTES 8192 /* 8-section frame (7 SPECTRUM + 1 SCALAR_SET) at
+                                      * EPM_MODEL_SPECTRUM_BINS=256 is
+                                      * 1 + 7*(13+256*4) + (6+24*6) = 1 + 7*1037 + 150
+                                      * = 7410 B minimum (ADR-040 raised BINS 128->256,
+                                      * which raised this from the prior 3826 B minimum /
+                                      * 4096 B buffer -- that no longer fits, so both grew).
+                                      * 782 B (~10.6%) headroom under the 8192 buffer, a
+                                      * wider margin than the 4096 buffer's prior 270 B
+                                      * (~7%). This exceeds link_mqtt.c's 4096 B
+                                      * buffer.out_size, but esp-mqtt's publish path
+                                      * fragments payloads larger than its own buffer
+                                      * across multiple transport writes (verified against
+                                      * esp_mqtt_client_publish()'s fragmented_msg_total_length
+                                      * handling in mqtt_client.c) rather than rejecting
+                                      * them, so no esp-mqtt buffer change is needed here. */
 #endif
 
 /* ─── Envelope analysis (HFRT: band-pass -> rectify -> low-pass -> decimate ->
  * FFT) for bearing-defect detection, Part G Phase 11a / ADR-032. Band matches
  * mic_tools/fault_models.py's 2-8 kHz structural-resonance convention -- the
  * KX134 driver work (docs/decisions/ADR-017) documents no sensor-specific
- * resonance frequency to derive an alternative from. Decimate-by-8 of a
- * FFT_IMU_N=2048 block lands the decimated block at exactly 256 samples, so
- * its FFT half (128 bins) matches EPM_MODEL_SPECTRUM_BINS directly -- no
- * epm_dsp_reduce_bins() needed for these channels, unlike the raw spectra. */
+ * resonance frequency to derive an alternative from. Decimate-by-4 (ADR-040
+ * lowered this from 8 to keep pace with EPM_MODEL_SPECTRUM_BINS 128->256) of a
+ * FFT_IMU_N=2048 block lands the decimated block at exactly 512 samples, so
+ * its FFT half (256 bins) matches EPM_MODEL_SPECTRUM_BINS directly -- no
+ * epm_dsp_reduce_bins() needed for these channels, unlike the raw spectra.
+ * Aliasing check for the smaller decimation factor: the decimated rate is
+ * IMU_FS_HZ/4 = 25600/4 = 6400 Hz, Nyquist 3200 Hz -- still far above the
+ * IMU_ENVELOPE_LP_HZ=1000 Hz lowpass that runs *before* decimation in the
+ * pipeline (band-pass -> rectify -> low-pass -> decimate), so nothing above
+ * ~1000 Hz reaches the decimator and no new aliasing is introduced by
+ * halving the decimation factor. */
 #ifndef IMU_ENVELOPE_BAND_LO_HZ
 #define IMU_ENVELOPE_BAND_LO_HZ 2000.0f
 #endif
@@ -114,10 +134,10 @@
 #define IMU_ENVELOPE_LP_HZ 1000.0f
 #endif
 #ifndef IMU_ENVELOPE_DECIM
-#define IMU_ENVELOPE_DECIM 8
+#define IMU_ENVELOPE_DECIM 4
 #endif
-#define IMU_ENVELOPE_N    (FFT_IMU_N / IMU_ENVELOPE_DECIM) /* 256 */
-#define IMU_ENVELOPE_HALF (IMU_ENVELOPE_N / 2)              /* 128 */
+#define IMU_ENVELOPE_N    (FFT_IMU_N / IMU_ENVELOPE_DECIM) /* 512 */
+#define IMU_ENVELOPE_HALF (IMU_ENVELOPE_N / 2)              /* 256 */
 #if IMU_ENVELOPE_HALF != EPM_MODEL_SPECTRUM_BINS
 #error "IMU_ENVELOPE_HALF must equal EPM_MODEL_SPECTRUM_BINS -- envelope channels are wire-encoded directly without epm_dsp_reduce_bins()"
 #endif
