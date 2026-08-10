@@ -1,44 +1,44 @@
 {
   "method": "real-rig",
-  "csv_path": "C:\\Users\\abhin\\Documents\\edgeai-predictive-monitor-satellite\\mic_tools\\logs\\csv\\2026\\08\\epm_sat-5ab004_20260810_fresh_postfix.csv",
-  "total_frames": 4298,
-  "wall_span_seconds": 903.305999994278,
+  "csv_path": "C:\\Users\\abhin\\Documents\\edgeai-predictive-monitor-satellite\\mic_tools\\logs\\csv\\2026\\08\\epm_sat-5ab004_20260810_postfix_bin0.csv",
+  "total_frames": 2977,
+  "wall_span_seconds": 624.9860000610352,
   "alert_counts": {
-    "OK": 3438,
-    "WARN": 285,
-    "FAULT": 575
+    "FAULT": 2259,
+    "WARN": 215,
+    "OK": 503
   },
-  "fpr": 0.20009306654257797,
-  "recall_normal": 0.799906933457422,
+  "fpr": 0.8310379576755123,
+  "recall_normal": 0.16896204232448775,
   "precision": "n/a \u2014 no fault frames exist in this Normal-only baseline capture",
   "f1": "n/a \u2014 no fault frames exist in this Normal-only baseline capture",
   "frac_frames_imu_crest_over_default_imu_crest_warn": 0.0,
   "imu_crest": {
-    "p5": 3.723,
-    "p50": 4.339,
-    "p95": 4.878,
-    "max": 5.463,
-    "min": 3.218
+    "p5": 4.124,
+    "p50": 4.584,
+    "p95": 5.17,
+    "max": 5.484,
+    "min": 3.46
   },
   "mic_crest": {
-    "p5": 2.695,
-    "p50": 3.185,
-    "p95": 3.9091499999999995,
-    "max": 4.989,
-    "min": 2.223
+    "p5": 2.4458,
+    "p50": 3.12,
+    "p95": 16.47179999999992,
+    "max": 31.911,
+    "min": 1.753
   },
   "mic_kurtosis": {
-    "p5": -0.6033,
-    "p50": -0.117,
-    "p95": 0.5431499999999997,
-    "max": 3.126,
-    "min": -1.25
+    "p5": -0.9202,
+    "p50": -0.068,
+    "p95": 104.33899999999944,
+    "max": 1009.602,
+    "min": -1.669
   },
   "p_fault": {
     "p5": 0.0,
     "p50": 0.0,
-    "p95": 0.0006,
-    "max": 0.4622,
+    "p95": 1.0,
+    "max": 1.0,
     "min": 0.0
   }
 }
