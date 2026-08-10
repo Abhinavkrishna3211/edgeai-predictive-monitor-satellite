@@ -256,9 +256,10 @@ def broadband_stats_numeric(carriers_hz, tau_s, burst_dur_s, period_s, amplitude
 def band_ratios_from_samples(x, sample_rate=48000, n_bins=128):
     """Numerically-computed hi_r/lo_r/mid_r ground truth, mirroring the exact
     bucketing scheme gateway.pipeline.alerting._band_ratios() uses on the real
-    wire spectrum (gateway/pipeline/alerting.py:34-57): lo=0-500Hz,
+    wire spectrum (gateway/pipeline/alerting.py:34-61): lo=0-500Hz,
     mid=500-2000Hz, hi=2000Hz-Nyquist, hz_per=Nyquist/n_bins, power in each of
-    n_bins buckets summed and normalized by total power excluding DC.
+    n_bins buckets summed and normalized by total power, bin 0 included
+    (ADR-039).
 
     Deliberately duplicated here (rather than imported) to avoid coupling this
     standalone bench tool to recv_verify.py's module-level state; re-sync this
@@ -281,8 +282,8 @@ def band_ratios_from_samples(x, sample_rate=48000, n_bins=128):
     hz_per = nyquist / n_bins
     lo_end = max(1, int(500 / hz_per))
     mid_end = max(lo_end + 1, int(2000 / hz_per))
-    total = bucket_power[1:].sum() + 1e-10
-    lo_r = float(bucket_power[1:lo_end].sum() / total)
+    total = bucket_power.sum() + 1e-10
+    lo_r = float(bucket_power[0:lo_end].sum() / total)
     mid_r = float(bucket_power[lo_end:mid_end].sum() / total)
     hi_r = float(bucket_power[mid_end:].sum() / total)
     return {"hi_r": hi_r, "lo_r": lo_r, "mid_r": mid_r}

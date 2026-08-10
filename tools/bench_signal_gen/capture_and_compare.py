@@ -79,11 +79,12 @@ _BAND_RATIO_MODES = {"bearing", "imbalance", "looseness"}
 def band_ratios_from_wire_bins(bins_db, fs_hz=48000.0):
     """hi_r/lo_r/mid_r from a captured ChannelSpectrum's dB bins, mirroring
     gateway.pipeline.alerting._band_ratios()'s exact bucketing (lo=0-500Hz,
-    mid=500-2000Hz, hi=2000Hz-Nyquist bin fractions of total power excluding
-    the DC bin) so it's directly comparable to generate_and_play.py's
-    band_ratios_from_samples() ground truth. Deliberately duplicated (not
-    imported from alerting.py, which needs a live recv_verify module for its
-    MIC_FS_HZ global) -- re-sync if alerting._band_ratios() ever changes.
+    mid=500-2000Hz, hi=2000Hz-Nyquist bin fractions of total power, bin 0
+    included per ADR-039) so it's directly comparable to
+    generate_and_play.py's band_ratios_from_samples() ground truth.
+    Deliberately duplicated (not imported from alerting.py, which needs a
+    live recv_verify module for its MIC_FS_HZ global) -- re-sync if
+    alerting._band_ratios() ever changes.
 
     Unlike band_ratios_from_samples() (which FFTs raw audio samples), the
     wire already delivers pre-binned dB power -- this just re-buckets those
@@ -93,8 +94,8 @@ def band_ratios_from_wire_bins(bins_db, fs_hz=48000.0):
     hz_per = fs_hz / 2.0 / n
     lo_end = max(1, int(500 / hz_per))
     mid_end = max(lo_end + 1, int(2000 / hz_per))
-    total = power[1:].sum() + 1e-10
-    lo_r = float(power[1:lo_end].sum() / total)
+    total = power.sum() + 1e-10
+    lo_r = float(power[0:lo_end].sum() / total)
     mid_r = float(power[lo_end:mid_end].sum() / total)
     hi_r = float(power[mid_end:].sum() / total)
     return {"hi_r": hi_r, "lo_r": lo_r, "mid_r": mid_r}

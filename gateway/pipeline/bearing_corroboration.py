@@ -38,9 +38,9 @@ def corroborate_bearing_fault(fault_type: str, mic_fft_db, fs_hz: float,
         {'corroborated': bool, 'matched_marker': str | None,
          'peak_hz': float, 'peak_db': float,
          'nearest_marker_hz': float | None, 'delta_hz': float | None}
-    'corroborated' is True iff the FFT's dominant spectral peak (excluding
-    the DC bin) falls within tolerance_hz of some BPFO/BPFI/BSF/FTF marker
-    (including 2nd harmonics — see bearing_math.BearingFreqs.markers()).
+    'corroborated' is True iff the FFT's dominant spectral peak (bin 0
+    included, per ADR-039) falls within tolerance_hz of some BPFO/BPFI/BSF/FTF
+    marker (including 2nd harmonics — see bearing_math.BearingFreqs.markers()).
     """
     if not fault_type.startswith(_BEARING_LABEL_PREFIX):
         return None
@@ -53,7 +53,7 @@ def corroborate_bearing_fault(fault_type: str, mic_fft_db, fs_hz: float,
     n = len(mic_fft_db)
     hz_per_bin = fs_hz / 2.0 / n
 
-    peak_bin = 1 + int(np.argmax(mic_fft_db[1:]))   # exclude DC bin
+    peak_bin = int(np.argmax(mic_fft_db))   # bin 0 included (ADR-039)
     peak_hz = peak_bin * hz_per_bin
     peak_db = float(mic_fft_db[peak_bin])
 

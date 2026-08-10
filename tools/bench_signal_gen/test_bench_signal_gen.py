@@ -440,12 +440,13 @@ class TestBandRatiosFromWireBins(unittest.TestCase):
         bands = band_ratios_from_wire_bins(bins_db, fs_hz=48000.0)
         self.assertGreater(bands["hi_r"], 0.99)
 
-    def test_dc_bin_excluded_from_total(self):
+    def test_bin0_included_in_total_since_adr_039(self):
         bins_db = np.full(128, -140.0)
-        bins_db[0] = 0.0  # DC bin -- must not dominate the normalization
-        bins_db[1] = 0.0  # tie it with a real low-band bin
+        bins_db[0] = 0.0  # bin 0 -- now part of both total and lo_r (ADR-039)
         bands = band_ratios_from_wire_bins(bins_db, fs_hz=48000.0)
-        # If DC were included in the total, lo_r would be ~0.5 (split with bin 0).
+        # Before ADR-039, bin 0 was excluded from the total entirely, so
+        # loud-only-in-bin-0 energy would have produced lo_r == 0.0 (0/0 ->
+        # the +1e-10 floor). Post-fix it dominates lo_r near 1.0.
         self.assertGreater(bands["lo_r"], 0.99)
 
     def test_ratios_sum_to_one(self):

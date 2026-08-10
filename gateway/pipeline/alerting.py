@@ -34,10 +34,17 @@ except ImportError:
 def _band_ratios(mic_fft_db):
     """Compute spectral band energy fractions from a dBFS FFT array.
 
-    Returns (hi_r, lo_r, mid_r) — fractions of total power (DC bin excluded):
+    Returns (hi_r, lo_r, mid_r) — fractions of total power, bin 0 included:
       lo  — 0–500 Hz    (mechanical/imbalance/floor noise)
       mid — 500–2000 Hz (resonance, shaft harmonics, misalignment)
       hi  — 2000 Hz–Nyquist (bearing fault resonance region)
+
+    Bin 0 (0 Hz–hz_per, currently 0-187.5 Hz at MIC_FS_HZ=48000/128 bins) was
+    excluded through ADR-039 as leftover "skip DC" hygiene from when this
+    array had 512 bins (15.625 Hz/bin, negligible loss). At the current 128-
+    bin resolution that exclusion silently discarded the entire low-shaft-
+    speed range this device's bench rig targets. See ADR-039 for the accepted
+    tradeoff (mains hum at 50/60 Hz now contributes to lo_r) this reverses.
 
     Computed once per frame and shared across _classify_fault_type and
     the alert engine to avoid duplicate 10**() conversions.
@@ -50,8 +57,8 @@ def _band_ratios(mic_fft_db):
     hz_per  = _rv.MIC_FS_HZ / 2.0 / n
     lo_end  = max(1, int(500  / hz_per))
     mid_end = max(lo_end + 1, int(2000 / hz_per))
-    total   = power[1:].sum() + 1e-10
-    lo_r    = power[1:lo_end].sum()       / total
+    total   = power.sum() + 1e-10
+    lo_r    = power[0:lo_end].sum()       / total
     mid_r   = power[lo_end:mid_end].sum() / total
     hi_r    = power[mid_end:].sum()       / total
     return hi_r, lo_r, mid_r
