@@ -340,6 +340,36 @@ on any frame. Very likely untestable via mic on this specific rig regardless of
 carrier choice — a rig/acoustic-path property, not a tuning failure. Remains
 injected-data-only.**
 
+**Follow-up note — 2026-08-10 (same day, post-Task-3): `safe`-preset disambiguation
+(real-rig).** The paragraph above rests entirely on the `threshold` preset
+(`tau_ms=5.9`, not `4` — `4.0` is `looseness`'s default tau, a different mode/
+paragraph; confirmed against `_IMBALANCE_PRESETS` in `generate_and_play.py` before
+running anything). A short-tau burst and the `safe` preset's much longer, gentler
+decay (`tau_ms=18.0`) put different mechanical demands on the rig's speaker, so this
+was checked directly: same `--resonance-hz 300 --shaft-hz 25`, `safe` preset,
+6s duration, real-rig capture. `capture_and_compare.py compare` only reports the
+last matching frame, so a small scratch script reused its `FrameCapture`/
+`band_ratios_from_wire_bins` to record every mic-channel frame in a wider window
+(106 frames total). The ~27 frames coinciding with audible playback (identified by
+the same signature used to spot the burst in the `threshold` capture: `mid_r`
+overtaking `lo_r`) gave real result: `lo_r` **0.1064-0.3570**, `mid_r`
+**0.4357-0.6665**, `hi_r` **0.1154-0.2864**, `mic_crest` up to 10.09, `mic_kurtosis`
+up to 22.03 (frames outside that window are ambient: `lo_r` 0.30-0.70, `mid_r`
+0.15-0.38, consistent with pre/post-burst quiet, and excluded from the range above).
+
+Compared against the `threshold` capture (`lo_r` 0.02-0.14, `mid_r` 0.73-0.85):
+`safe`'s longer decay measurably recovers low-band energy — `lo_r`'s ceiling is
+~2.5x higher (0.36 vs 0.14) and `mid_r` is correspondingly less dominant (0.44-0.67
+vs 0.73-0.85) — while still falling well short of the gate's `lo_r > 0.45` and still
+`mid_r`-dominant throughout. This is real evidence that burst-transient response is
+a genuine contributing factor alongside the acoustic path itself, not purely an
+intrinsic property of any low-frequency signal on this rig. **The "confirmed
+structurally unreachable via mic on this rig" framing above overstates it — revised:
+unreachable via mic on this rig at both presets tested (short- and long-tau bursts
+alike), with burst decay time a real, measurable contributing factor rather than the
+acoustic path being the sole explanation.** Gate: not satisfied on any frame at
+either preset. Remains injected-data-only.
+
 ### Updated fault-category status
 
 Mechanical Imbalance and Mechanical Looseness do **not** graduate to real-hardware-
