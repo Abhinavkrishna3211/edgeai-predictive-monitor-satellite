@@ -214,3 +214,140 @@ injected-data-only; this rig's demonstrated acoustic ceiling (~150 Hz) means a f
 real-hardware attempt at those labels needs either a higher-frequency signal design
 or a non-acoustic stimulus (direct rig excitation), not just a re-run of the same
 LF-tuned probes.
+
+## Addendum — 2026-08-10 (part 2): FAULT-heavy mechanism correction, real mic clean-band characterization, real Looseness/Imbalance captures
+
+Follow-on to the addendum above. Three pieces of work, each `method`-labeled per this
+report's convention. `bench_signal_gen`'s Windows pagefile blocker noted above is
+resolved as of this session (tone/burst synthesis ran directly against the live rig
+throughout).
+
+### Task 1 — ADR-039 FAULT-heavy pattern, mechanism correction (method: injected leakage check + real-rig, diagnosis only)
+
+The previous addendum flagged an open question: post-bin0-fix, the Normal-baseline
+capture is FAULT-heavy rather than WARN-heavy, and ADR-039 speculated this ran through
+`_fault_candidate_scores()`. Real code tracing plus a re-analysis of both the
+pre-fix and post-fix CSVs (`epm_sat-5ab004_20260810_fresh_postfix.csv`,
+`..._postfix_bin0.csv`) found that speculation wrong: `_fault_candidate_scores()` /
+`_classify_fault_type()` never feed `compute_alert()` — fault-type labeling and the
+OK/WARN/FAULT alert byte are architecturally separate. The real mechanism, and full
+reconstructed numbers (raw non-OK rates, per-channel crossing breakdowns, the ~8x vs.
+~4.5x persistence-amplification finding, and the ambient-session-confound hypothesis),
+are documented as a dated addendum directly in **ADR-039** rather than duplicated here.
+No code changed in this task — diagnosis only, as scoped. A clean isolation of the
+ambient-confound hypothesis would need same-code back-to-back captures; not done this
+pass, flagged there as a future follow-up.
+
+### Task 2 — real mic clean-frequency-band characterization (method: real-rig)
+
+Nine real single-tone captures via `capture_and_compare.py`'s tone-ground-truth path
+(closed-form ideal-sine comparison), each confirmed audible by the operator before
+capture: 300, 800, 1500 (x2, see below), 1600, 1700, 1800 (x2), 2000, 2500 Hz.
+Cleanliness judged by `crest_factor`/`kurtosis_excess` delta from the ideal-sine
+closed form (`crest_factor=1.414`, `kurtosis_excess=-1.5`) — the scale-invariant
+discriminator; raw `rms` is not usable for this since it is dominated by
+speaker-to-mic acoustic coupling loss (consistently ~99% below the electrical closed
+form at every frequency, clean or not) rather than signal cleanliness.
+
+| Freq (Hz) | crest delta | kurtosis delta | verdict |
+| --- | --- | --- | --- |
+| 300 | clean (small deltas, operator-confirmed audible) | n/a | clean |
+| 800 | large positive delta | large positive delta | dirty |
+| 1500 (1st) | +608% | +22.4 (excess) | dirty (severe) — retried after operator reported room fan turned on mid-session, flagged as a possible confound |
+| 1500 (2nd, fan running) | improved but still elevated (kurtosis excess +3.86) | n/a | dirty |
+| 1600 | +31.3% | -9.7% | borderline/degraded, ~15 dB quieter peak |
+| 1700 | +18.6% | -2.3% | borderline/degraded, ~10 dB quieter peak, peak bin off by a full bin |
+| 1800 (1st) | +6.9% | -0.2% | clean |
+| 1800 (2nd, post power-cycle) | bimodal — see caveat below | n/a | mixed |
+| 2000 | +5.8% | -0.6% | clean |
+| 2500 | clean (prior session) | n/a | clean |
+
+**Confounds, reported honestly rather than smoothed over**: (1) a room fan was turned
+on by the operator partway through the 1500 Hz test, coincident with the worst single
+result of the sweep — cannot be separated from the frequency itself with this data.
+(2) The satellite's WiFi dropped and was power-cycled multiple times during this
+session (consistent with the recurring instability documented in the 2026-08-09
+stress/stability test); the second 1800 Hz capture, taken immediately after one such
+power-cycle, showed a bimodal split between a clean cluster matching the first 1800 Hz
+result and a cluster of severe kurtosis spikes (63-215) with `hi_r>0.88` — very likely
+handling/setup disturbance from the power-cycle itself, not a property of 1800 Hz.
+Neither confound was controlled for; both are flagged rather than fixed, per this
+report's standing practice of reporting real numbers as found.
+
+**Real bin-edge finding, corrected in code (method: real-rig, commit `0cbc21a`)**: the
+2000 Hz capture's clean tone landed in FFT bin 10, which `_band_ratios()` assigns to
+`hi_r`, not `mid_r` — revealing that `_band_ratios()`'s docstring-stated 500/2000 Hz
+band edges are nominal only. At the real 128-bin/48kHz resolution, `int()` truncation
+puts the true edges at 375 Hz (lo/mid) and 1875 Hz (mid/hi), 125 Hz below each nominal
+value in both cases. `_band_ratios()`'s logic is unchanged (out of scope); only its
+docstring was corrected, as an unrelated pre-existing documentation bug surfaced by
+this testing, not a Task 3 deliverable.
+
+**Characterized clean band**: reliably clean is ~1800-2500 Hz plus the isolated 300 Hz
+point; 800-1700 Hz is a resonant/degraded zone on this specific rig (likely a
+speaker/enclosure/mount resonance), worst around 1500 Hz and tapering at both edges.
+This clean band sits almost entirely inside the real *hi* band (>1875 Hz), which
+directly shaped the Task 3 carrier-placement decisions below.
+
+### Task 3 — real Looseness and Imbalance captures (method: real-rig)
+
+Both real-hardware attempts below produced **real negative results with a
+characterized mechanism**, not classifier bugs — reported as such per this report's
+instruction that a clean miss is as valuable as a hit. Shaft Misalignment was out of
+scope for this pass (no synthesis function exists yet; its gate is IMU-driven, not
+mic-driven, and belongs with the separate accelerometer frequency-ceiling work in the
+2026-08-09 characterization) — flagged here as a clearly-scoped future task, not built.
+
+**Mechanical Looseness — gate not reached, real hi_r leakage exceeds closed-form
+prediction.** Looseness's gate (`gateway/pipeline/alerting.py`) requires
+`mic_kurtosis >= K_WARN(6.0) and hi_r < 0.30 and lo_r < 0.55 and mid_r > 0.20`. The
+real mid band (375-1875 Hz) overlaps almost entirely with the confirmed-dirty
+800-1700 Hz zone, leaving only a narrow ~100-175 Hz clean pocket just under the
+1875 Hz hi-band edge. A `looseness` burst-train manifest with carriers at
+1650/1750/1850 Hz was chosen for the best closed-form margin available
+(closed-form-predicted `hi_r=0.29`, just under the 0.30 gate) and captured live
+(21 frames, mic channel, real `_band_ratios()`/`mic_kurtosis` computed from the
+actual decoded frames, not the synthetic manifest). Real result: `hi_r` measured
+**0.45-0.48** during the burst — nearly 2x the closed-form prediction and well over
+the 0.30 gate on every single frame. `mic_kurtosis` did clear `K_WARN` in several
+frames (up to 23.1), confirming the burst structure can produce real impulsiveness —
+`hi_r` alone blocked the gate every time. Mechanism: real acoustic spectral leakage
+near a burst carrier's spectral width (short `tau_ms=4` ringdowns have a broad
+Lorentzian linewidth) crosses the nearby 1875 Hz bin edge far more than the
+closed-form ideal-signal calculation accounts for — the tighter a carrier sits to
+that edge, the worse the real leakage, and this rig's only clean acoustic pocket
+sits right against that edge. **Gate: not satisfied on any frame. Remains
+injected-data-only.**
+
+**Mechanical Imbalance — gate not reached, confirmed structurally unreachable via mic
+on this rig.** Imbalance's gate requires `mic_crest >= CREST_WARN(5.0) and
+mic_kurtosis < K_WARN*1.4(8.4) and lo_r > 0.45`. The real lo band is 0-375 Hz; this
+rig's mic acoustic path has no confirmed-clean response below ~1800 Hz (300 Hz being
+the one isolated clean exception, sitting inside the real lo band). One real capture
+was taken at `--resonance-hz 300` with the `threshold` preset (chosen to target
+`mic_crest~5.1`/`mic_kurtosis~8.0`, narrowly inside the gate by design) to get a real
+number rather than only the architectural argument. Real result (21 frames, live
+decode): `lo_r` stayed at **0.02-0.14** throughout the burst (one pre-burst ambient
+frame at 0.56 is excluded as not representative of the signal), while `mid_r` was
+**dominant at 0.73-0.85** — the opposite of what the gate needs. `mic_crest` (up to
+9.07) and `mic_kurtosis` did clear their respective thresholds in multiple frames, so
+the blocker is specifically `lo_r`, consistently and by a wide margin. This is
+stronger evidence than the architectural band-mismatch argument alone predicted: even
+a carrier whose fundamental sits inside the real lo band gets acoustically reshaped by
+this rig's speaker/mic path into mid-band-dominant energy (plausibly via the same
+800-1700 Hz resonance found in Task 2), not merely attenuated. **Gate: not satisfied
+on any frame. Very likely untestable via mic on this specific rig regardless of
+carrier choice — a rig/acoustic-path property, not a tuning failure. Remains
+injected-data-only.**
+
+### Updated fault-category status
+
+Mechanical Imbalance and Mechanical Looseness do **not** graduate to real-hardware-
+confirmed status from this addendum — both now carry a genuine, characterized
+real-rig negative result instead of being simply untested. Status after this session:
+**Bearing Fault** — real-hardware confirmed (prior addendum). **Normal** —
+real-hardware confirmed (Part 3). **Mechanical Imbalance, Mechanical Looseness** —
+real-hardware attempted, real negative result with mechanism identified, gate not yet
+satisfied on this rig. **Shaft Misalignment** and the remaining classifier-only
+labels (Severe Anomaly — Inspect, Elevated Vibration, Anomalous Vibration) — still
+fully injected-data-only, untouched by this session's real-rig work.
