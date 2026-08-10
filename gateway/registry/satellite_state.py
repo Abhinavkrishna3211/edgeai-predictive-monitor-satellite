@@ -68,6 +68,7 @@ class SatelliteState:
         self.last_z       = 0.0
         self.last_hb      = 0.0           # most recent high-band energy ratio
         self.fault_type   = "Normal"   # spectral fault classification label
+        self.bearing_corroboration = None  # corroborate_bearing_fault() result dict, or None
         self.history_alerts   = collections.deque([0]   * _rv.HISTORY_LEN, maxlen=_rv.HISTORY_LEN)
         self.history_kurtosis = collections.deque([3.0] * _rv.HISTORY_LEN, maxlen=_rv.HISTORY_LEN)
         self.history_crest    = collections.deque([3.0] * _rv.HISTORY_LEN, maxlen=_rv.HISTORY_LEN)

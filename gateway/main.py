@@ -235,6 +235,11 @@ def main():
                 bf.print_table()
                 bearing_freqs_mic = bf.markers(rv.MIC_FS_HZ)
                 bearing_freqs_imu = bf.markers(rv.IMU_FS_HZ)
+                # ADR-038: feed shaft speed + geometry into recv_verify's live
+                # classification path so Bearing Fault labels get a physics
+                # corroboration check, not just FFT-panel annotation.
+                rv._SHAFT_HZ = shaft_hz
+                rv._BEARING_GEOM = geom
 
     # Load ML model if requested
     if args.model:

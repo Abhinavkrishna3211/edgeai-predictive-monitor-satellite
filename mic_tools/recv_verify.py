@@ -132,6 +132,13 @@ from gateway.api.reports import _generate_report_html
 from gateway.pipeline.alerting import (
     _band_ratios, _extract_hst_features, _classify_fault_type, compute_alert,
 )
+from gateway.pipeline.bearing_corroboration import corroborate_bearing_fault
+
+# Optional live shaft speed / bearing geometry for bearing-fault corroboration
+# (ADR-038). None unless main.py wires them in from --shaft-hz/--shaft-rpm
+# --bearing; corroborate_bearing_fault() itself no-ops when either is None.
+_SHAFT_HZ: float | None = None
+_BEARING_GEOM = None
 from gateway.pipeline.ml_scoring import (
     _load_ml_model, _ml_score, _ml_score_with, _ml_score_tflite,
     _try_load_sat_model, _try_load_hst_state, _save_hst_state,
@@ -513,6 +520,13 @@ def _process_satellite_frame(sat, frame, mac_hex, csv_w, csv_f,
     )
     frame['high_band_ratio'] = hb   # carry into display state / plot loop
 
+    # Additive physics cross-check (ADR-038) — never influences fault_type itself.
+    bearing_corrob = None
+    if fault_type.startswith("Bearing Fault") and _SHAFT_HZ is not None and _BEARING_GEOM is not None:
+        bearing_corrob = corroborate_bearing_fault(
+            fault_type, frame.get('mic_fft'), MIC_FS_HZ, _SHAFT_HZ, _BEARING_GEOM,
+        )
+
     with _sat_lock:
         sat.frame_count  += 1
         sat.fps           = fps
@@ -523,6 +537,7 @@ def _process_satellite_frame(sat, frame, mac_hex, csv_w, csv_f,
         sat.ok_streak     = ok_streak
         sat.sent_alert    = sent_alert
         sat.fault_type    = fault_type
+        sat.bearing_corroboration = bearing_corrob
         # Dashboard history
         sat.last_z  = z_score
         sat.last_hb = hb
