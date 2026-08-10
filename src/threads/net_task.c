@@ -83,7 +83,15 @@ static float s_accel_x_bins[EPM_MODEL_SPECTRUM_BINS];
 static float s_accel_y_bins[EPM_MODEL_SPECTRUM_BINS];
 static float s_accel_z_bins[EPM_MODEL_SPECTRUM_BINS];
 
-static uint8_t frame_buf[EPM_NET_FRAME_BUF_BYTES];
+/* ADR-040 raised EPM_NET_FRAME_BUF_BYTES 4096->8192 (BINS 128->256), which no
+ * longer fits comfortably in the tight internal-DRAM budget this file's own
+ * s_last_mic/s_last_imu comment above documents. EXT_RAM_BSS_ATTR moves it to
+ * PSRAM, same precedent and same "no DMA constraint on this path" reasoning
+ * as those two statics (ADR-021 addendum) -- frame_buf is filled by
+ * build_real_frame() (plain memory writes, no DMA) and handed to
+ * transport_publish_spectrum() -> esp_mqtt_client_publish(), which is a TCP
+ * payload copy, not a DMA-constrained peripheral transfer. */
+static EXT_RAM_BSS_ATTR uint8_t frame_buf[EPM_NET_FRAME_BUF_BYTES];
 
 static uint32_t s_frames_built = 0;
 static uint32_t s_build_failures = 0;
