@@ -148,3 +148,68 @@ low, ~40-150 Hz; accel fails high, above ~150 Hz).
   real-rig numbers above reflect the fix in isolation.
 - This bench rig's acoustic (<150 Hz) and mechanical (>150 Hz) frequency
   ceilings -- physical rig limitations, not software.
+
+## Addendum -- 2026-08-10: mechanism correction for the FAULT-heavy pattern (method: code trace + real-rig data, diagnosis only)
+
+The "Not addressed" bullet above and Part 3's writeup both describe the FAULT-
+heavy persistence pattern as bin 0 "injecting real ambient low-frequency
+content ... into `lo_r` ... which combines with these already-present
+crest/kurtosis transients to satisfy the Mechanical Imbalance/Looseness gates
+in `_fault_candidate_scores()` far more often." That attribution is wrong.
+Traced end-to-end against `compute_alert()` (`gateway/pipeline/alerting.py:193-346`):
+
+- **`_fault_candidate_scores()` / `_classify_fault_type()` never reach the
+  alert byte.** They compute the separate fault-*type* label
+  (`classify_confusion.json`/dashboard field) from `hi_r`/`lo_r`/`mid_r`
+  directly, but `compute_alert()`'s `raw` level (the OK/WARN/FAULT byte the
+  FPR metric is scored against) never calls either function. Band ratios
+  reach `raw` through exactly two paths: `_extract_hst_features()`
+  (`alerting.py:85-102`, `lo_r`/`mid_r`/`hb` as 3 of HST's 7 features) feeding
+  Bayesian `p_fusion`, and the `HIGH_BAND_MIN` noise filter
+  (`alerting.py:296-305`, uses `hb`=`hi_r` only to *suppress toward OK*,
+  never to escalate).
+
+- **`z_score`, the dominant raw-trigger channel, is architecturally
+  independent of `_band_ratios()`.** It's computed from `mic_rms`/
+  `mic_kurtosis` against each capture's own fresh per-satellite EMA baseline
+  (`_sat_update_baseline`, `CAL_FRAMES=30`) -- no spectral ratio involved.
+
+- **Reconstructed `raw` level from the actual logged features, both real-rig
+  captures** (`mic_tools/logs/csv/2026/08/epm_sat-5ab004_20260810_fresh_postfix.csv`,
+  4,298 frames, pre-bin0-fix; `..._postfix_bin0.csv`, 2,977 frames, post-fix):
+  - Pre-fix: raw non-OK on only **2.5%** of frames, and **only via `z_score`**
+    -- kurtosis/crest/imu_crest/fusion never cross their WARN threshold once
+    in 4,298 frames.
+  - Post-fix: raw non-OK on **18.3%** of frames: `z_score` 18.27%, `fusion`
+    6.38%, `crest` 6.25%, `kurtosis` 6.05% (frames can trip more than one
+    channel, so these don't sum to 18.3%).
+  - The only channel demonstrably tied to this ADR's code change is
+    `fusion` (via HST's `lo_r`/`mid_r`/`hb` features) -- present on 6.38% of
+    post-fix frames vs. 0% pre-fix. That accounts for at most ~6.4 of the
+    ~15.8-percentage-point jump in raw-trigger rate: a real but minority
+    contributor, not "far more often" as originally claimed.
+
+- **The persistence logic is not buggy -- it amplifies whatever the raw rate
+  is, symmetrically in both captures.** `WARN_PERSIST=2`/`FAULT_CLEAR_PERSIST=8`
+  (`mic_tools/recv_verify.py:228-230`) count consecutive frames exactly as
+  coded. Pre-fix: 2.5% raw-non-OK -> 20.0% final FPR (~8x amplification).
+  Post-fix: 18.3% raw-non-OK -> 83.1% final FPR (~4.5x, saturating -- only
+  24% of raw-OK runs reach the 8-consecutive-frame clear bar at this density).
+  Same unchanged code, both times.
+
+- **Most likely explanation for the bulk of the jump: an ambient-session
+  confound, not this fix.** `z_score`/kurtosis/crest are driven by real
+  microphone amplitude/impulsiveness, not spectral ratios, yet they went from
+  never crossing threshold to crossing on ~6-18% of frames between two
+  different ~15-20 minute recording sessions. The simplest explanation
+  consistent with the leakage-check note above (ambient baseline drifting
+  ~6 dB between captures taken 15 seconds apart) is that the two sessions
+  simply had different real room/fan/HVAC conditions, independent of any
+  code change -- not fully separable from this ADR's fix with the data on
+  hand, since code and session both changed at once.
+
+**Not done in this pass**: no fix, threshold change, or hysteresis retune.
+This addendum is diagnosis only, per instruction. A clean isolation of the
+ambient-session-confound question would need two back-to-back real-rig
+captures on identical code (no restart/code change between them) --
+flagged here as a future follow-up, not attempted now.
