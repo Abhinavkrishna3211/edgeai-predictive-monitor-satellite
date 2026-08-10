@@ -40,8 +40,10 @@ from gateway.common.telemetry_schema import (
     SOURCE_ID, DATA_KIND, CHANNEL_ID_BY_NAME, SCALAR_ID_BY_NAME,
 )
 
-# Matches src/epm_config.h defaults.
-SPECTRUM_BINS = 128
+# Matches src/epm_config.h defaults (EPM_MODEL_SPECTRUM_BINS, raised 128->256
+# by ADR-040 -- keep this in sync with that macro, it's a duplicated literal
+# with no build-time link to the firmware).
+SPECTRUM_BINS = 256
 MIC_FS_HZ = 48000
 IMU_FS_HZ = 25600
 PUBLISH_INTERVAL_MS = 200
