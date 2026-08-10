@@ -35,9 +35,20 @@ def _band_ratios(mic_fft_db):
     """Compute spectral band energy fractions from a dBFS FFT array.
 
     Returns (hi_r, lo_r, mid_r) — fractions of total power, bin 0 included:
-      lo  — 0–500 Hz    (mechanical/imbalance/floor noise)
-      mid — 500–2000 Hz (resonance, shaft harmonics, misalignment)
-      hi  — 2000 Hz–Nyquist (bearing fault resonance region)
+      lo  — 0–500 Hz nominal    (mechanical/imbalance/floor noise)
+      mid — 500–2000 Hz nominal (resonance, shaft harmonics, misalignment)
+      hi  — 2000 Hz–Nyquist nominal (bearing fault resonance region)
+
+    The 500/2000 Hz split points above are nominal, not exact: lo_end/mid_end
+    are computed as int(hz / hz_per) and truncate to whole bins. At the
+    current 128-bin resolution (hz_per = MIC_FS_HZ/2/n = 187.5 Hz at
+    MIC_FS_HZ=48000), that truncation lands the real edges at 375 Hz
+    (lo/mid) and 1875 Hz (mid/hi) — 125 Hz below each nominal value.
+    Verified 2026-08-10 against a real-rig 2000 Hz tone capture: the tone
+    landed in bin 10 (hi_r), confirming the mid/hi edge is 1875 Hz, not
+    2000 Hz, at this bin count. If MIC_FS_HZ or n changes, hz_per changes
+    and so do the real edges — recompute rather than trusting the 500/2000
+    labels literally.
 
     Bin 0 (0 Hz–hz_per, currently 0-187.5 Hz at MIC_FS_HZ=48000/128 bins) was
     excluded through ADR-039 as leftover "skip DC" hygiene from when this
