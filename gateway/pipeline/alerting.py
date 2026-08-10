@@ -95,11 +95,70 @@ def _extract_hst_features(frame: dict, lo_r: float, mid_r: float,
     ], dtype=np.float64)
 
 
+# Tie-break order when two fault categories score exactly equal (rare with
+# continuous inputs, but must be deterministic) -- this is the *only* place
+# branch order still matters, and only as a last resort after evidence
+# strength has already been compared. See _fault_candidate_scores().
+_FAULT_PRIORITY = ['Bearing Fault', 'Mechanical Imbalance',
+                    'Shaft Misalignment', 'Mechanical Looseness']
+
+
+def _rel_margin(value, threshold):
+    """Fraction `value` sits past `threshold`, relative to the threshold
+    itself (0.20 == 20% past). The common currency _fault_candidate_scores
+    uses to compare evidence strength across differently-scaled channels
+    (kurtosis vs. crest factor vs. band-power fraction)."""
+    return (value - threshold) / threshold if threshold else 0.0
+
+
+def _fault_candidate_scores(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
+    """Score every fault category whose defining gate is satisfied, by the
+    average relative margin of its numeric evidence past that gate. A
+    category absent from the returned dict didn't satisfy its own gate at
+    all -- that's "not a candidate", not "scored zero".
+
+    Root-cause this replaces: the old classifier checked categories in a
+    fixed if/elif order (Bearing, Imbalance, Misalignment, Looseness) and
+    returned on the first match. When a frame's numbers happened to satisfy
+    two categories' gates at once (confirmed reachable by Phase B's
+    accuracy-harness dual-satisfaction probes -- see
+    tools/accuracy_harness/classify_eval.py), Bearing Fault always won
+    purely because it was checked first, even when the competing label's
+    own evidence was quantitatively far stronger. Scoring by relative
+    margin makes the winner depend on which pattern the data actually
+    matches best, not on source-code line order.
+    """
+    import recv_verify as _rv
+    scores = {}
+    # --- Bearing impact fault: impulsive + high-frequency resonance ---
+    if hi_r > 0.40 and mic_kurtosis >= _rv.K_WARN:
+        scores['Bearing Fault'] = (_rel_margin(hi_r, 0.40)
+                                    + _rel_margin(mic_kurtosis, _rv.K_WARN)) / 2.0
+    # --- Imbalance: sinusoidal, low-frequency dominant, moderate crest ---
+    if mic_crest >= _rv.CREST_WARN and mic_kurtosis < _rv.K_WARN * 1.4 and lo_r > 0.45:
+        scores['Mechanical Imbalance'] = (_rel_margin(mic_crest, _rv.CREST_WARN)
+                                           + _rel_margin(lo_r, 0.45)) / 2.0
+    # --- Misalignment: 2× shaft tone in mid band, elevated IMU crest ---
+    if imu_crest >= _rv.IMU_CREST_WARN and mid_r > 0.35 and mic_kurtosis < _rv.K_FAULT:
+        scores['Shaft Misalignment'] = (_rel_margin(imu_crest, _rv.IMU_CREST_WARN)
+                                         + _rel_margin(mid_r, 0.35)) / 2.0
+    # --- Looseness: broadband harmonics spread across all bands ---
+    if mic_kurtosis >= _rv.K_WARN and hi_r < 0.30 and lo_r < 0.55 and mid_r > 0.20:
+        scores['Mechanical Looseness'] = (_rel_margin(mic_kurtosis, _rv.K_WARN)
+                                           + _rel_margin(mid_r, 0.20)) / 2.0
+    return scores
+
+
 def _classify_fault_type(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
     """Spectral pattern analysis — classify the likely fault mechanism.
 
     Accepts pre-computed band energy fractions from _band_ratios() so the
     dBFS→power conversion is not repeated for every frame.
+
+    Among the four pattern-matched categories (Bearing/Imbalance/
+    Misalignment/Looseness), the one whose own evidence is relatively
+    strongest wins -- see _fault_candidate_scores(). Falls through to the
+    kurtosis-only labels only when none of the four gates are satisfied.
 
     Returns a short label string suitable for display in dashboards and reports.
     """
@@ -108,23 +167,13 @@ def _classify_fault_type(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
             and imu_crest < _rv.IMU_CREST_WARN):
         return "Normal"
 
-    # --- Bearing impact fault: impulsive + high-frequency resonance ---
-    if hi_r > 0.40 and mic_kurtosis >= _rv.K_WARN:
-        if mic_kurtosis >= _rv.K_FAULT:
-            return "Bearing Fault — Advanced"
-        return "Bearing Fault — Early"
-
-    # --- Imbalance: sinusoidal, low-frequency dominant, moderate crest ---
-    if mic_crest >= _rv.CREST_WARN and mic_kurtosis < _rv.K_WARN * 1.4 and lo_r > 0.45:
-        return "Mechanical Imbalance"
-
-    # --- Misalignment: 2× shaft tone in mid band, elevated IMU crest ---
-    if imu_crest >= _rv.IMU_CREST_WARN and mid_r > 0.35 and mic_kurtosis < _rv.K_FAULT:
-        return "Shaft Misalignment"
-
-    # --- Looseness: broadband harmonics spread across all bands ---
-    if mic_kurtosis >= _rv.K_WARN and hi_r < 0.30 and lo_r < 0.55 and mid_r > 0.20:
-        return "Mechanical Looseness"
+    scores = _fault_candidate_scores(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r)
+    if scores:
+        best = max(scores, key=lambda label: (scores[label], -_FAULT_PRIORITY.index(label)))
+        if best == 'Bearing Fault':
+            return ("Bearing Fault — Advanced" if mic_kurtosis >= _rv.K_FAULT
+                    else "Bearing Fault — Early")
+        return best
 
     if mic_kurtosis >= _rv.K_FAULT:
         return "Severe Anomaly — Inspect"

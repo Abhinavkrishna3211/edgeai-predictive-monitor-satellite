@@ -124,6 +124,15 @@ _LOW_KURTOSIS  = 1.0   # well below K_WARN for any plausible K_WARN >= 2
 _LOW_CREST     = 1.0   # well below CREST_WARN for any plausible CREST_WARN >= 2
 _LOW_HI_R      = 0.10  # well below the 0.40 bearing-fault band cut
 
+# Misalignment's own gate (mid_r>0.35, deep-inside pushes mid_r towards ~0.55)
+# forces lo_r low when hi_r=_LOW_HI_R (lo_r = 1-hi_r-mid_r ~= 0.35), which
+# accidentally also satisfies Looseness's hi_r<0.30 AND lo_r<0.55 AND
+# mid_r>0.20 gate all at once -- invisible under the old if/elif branch
+# order (Misalignment, checked first, always won) but a real double-
+# satisfaction the scoring redesign exposes. 0.35 sits strictly between
+# Looseness's hi_r<0.30 and Bearing's hi_r>0.40 cuts, clearing both.
+_MISALIGN_HI_R = 0.35
+
 
 def _gen_normal(K_WARN, K_FAULT, CREST_WARN, IMU_CREST_WARN):
     dk, dc, dic = _mag_delta(K_WARN), _mag_delta(CREST_WARN), _mag_delta(IMU_CREST_WARN)
@@ -189,17 +198,17 @@ def _gen_misalignment(K_FAULT, IMU_CREST_WARN):
     k_deep  = _zone_value(K_FAULT, '<', 'deep-inside', dk)
     for zone in ('deep-inside', 'on-boundary', 'just-outside'):
         ic = _zone_value(IMU_CREST_WARN, '>=', zone, dc)
-        hi, lo, mid = _ratios(hi=_LOW_HI_R, lo=None, mid=0.55)
+        hi, lo, mid = _ratios(hi=_MISALIGN_HI_R, lo=None, mid=0.55)
         out.append(_tuple("Shaft Misalignment", zone, 'imu_crest',
                            k_deep, _LOW_CREST, ic, hi, lo, mid))
     for zone in ('deep-inside', 'on-boundary', 'just-outside'):
         mr = _zone_value(0.35, '>', zone, dr)
-        hi, lo, mid = _ratios(hi=_LOW_HI_R, lo=None, mid=mr)
+        hi, lo, mid = _ratios(hi=_MISALIGN_HI_R, lo=None, mid=mr)
         out.append(_tuple("Shaft Misalignment", zone, 'mid_r',
                            k_deep, _LOW_CREST, ic_deep, hi, lo, mid))
     for zone in ('deep-inside', 'on-boundary', 'just-outside'):
         k = _zone_value(K_FAULT, '<', zone, dk)
-        hi, lo, mid = _ratios(hi=_LOW_HI_R, lo=None, mid=0.55)
+        hi, lo, mid = _ratios(hi=_MISALIGN_HI_R, lo=None, mid=0.55)
         out.append(_tuple("Shaft Misalignment", zone, 'mic_kurtosis',
                            k, _LOW_CREST, ic_deep, hi, lo, mid))
     return out
@@ -273,9 +282,11 @@ def _gen_anomalous_vibration(K_WARN, CREST_WARN):
 
 def _gen_dual_satisfaction_probes(K_WARN, CREST_WARN, IMU_CREST_WARN):
     """Three tuples deep-inside Bearing Fault AND simultaneously deep-inside
-    one of {Imbalance, Misalignment, Looseness} -- forces the branch-2
-    short-circuit to confirm it's real and reachable (see classify_eval.py's
-    priority_collision classification)."""
+    one of {Imbalance, Misalignment, Looseness} -- forces simultaneous gate
+    satisfaction so classify_eval.py can confirm _classify_fault_type()
+    resolves the tie by relative evidence strength (_fault_candidate_scores())
+    rather than by which category was checked first in source order (the
+    priority-collision bug this harness originally found)."""
     out = []
     dk_warn, dc, dic = _mag_delta(K_WARN), _mag_delta(CREST_WARN), _mag_delta(IMU_CREST_WARN)
     k_bearing = K_WARN + 20 * dk_warn  # deep-inside Bearing kurtosis gate

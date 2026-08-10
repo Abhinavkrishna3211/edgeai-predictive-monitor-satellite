@@ -22,9 +22,12 @@ each tuple was deliberately constructed to represent, and reports:
                               (the kurtosis-only fallback labels) are
                               reachable and intentional, not a mismatch
   - the 2 dual-satisfaction probe tuples (deep-inside Bearing Fault AND
-    deep-inside Imbalance/Misalignment simultaneously), which force and
-    confirm the branch-2-short-circuits-3/4/5 collision that static reading
-    of alerting.py suggests
+    deep-inside Imbalance/Misalignment simultaneously), which confirm that
+    when two fault categories' gates are satisfied at once,
+    _classify_fault_type() now picks the one with the strongest relative
+    evidence (via _fault_candidate_scores()) rather than whichever was
+    checked first in source order -- the priority-collision bug this
+    harness originally found and that alerting.py's scoring redesign fixed
 
 No hardware/MQTT/recv_verify server state is touched -- only the pure
 _classify_fault_type() function and rv's module-level threshold constants.
@@ -45,7 +48,7 @@ sys.path.insert(0, os.path.join(_REPO_ROOT, 'mic_tools'))
 import matplotlib
 matplotlib.use('Agg')
 
-from gateway.pipeline.alerting import _classify_fault_type  # noqa: E402
+from gateway.pipeline.alerting import _classify_fault_type, _fault_candidate_scores  # noqa: E402
 import synth_frames  # noqa: E402
 
 _OUT_DIR = os.path.join(_HERE, 'out')
@@ -77,17 +80,29 @@ def run():
     probe_findings = []
     for p in probes:
         predicted = _predict(p)
+        scores = _fault_candidate_scores(
+            p['mic_kurtosis'], p['mic_crest'], p['imu_crest'],
+            p['hi_r'], p['lo_r'], p['mid_r'])
+        best_by_score = max(scores, key=lambda label: scores[label]) if scores else None
+        scoring_matches = (
+            predicted.startswith('Bearing Fault') if best_by_score == 'Bearing Fault'
+            else predicted == best_by_score)
+        rounded_scores = {k: round(v, 4) for k, v in scores.items()}
         probe_findings.append(dict(
             probe=p['intended_label'], predicted_label=predicted,
+            candidate_scores=rounded_scores,
             tuple={k: p[k] for k in
                    ('mic_kurtosis', 'mic_crest', 'imu_crest', 'hi_r', 'lo_r', 'mid_r')},
             verdict=(
-                f"CONFIRMED priority collision: branch-2 (Bearing Fault) wins over "
-                f"the competing label even though both condition sets are deep-inside "
-                f"satisfied -- classifier returned {predicted!r}."
-                if predicted.startswith('Bearing Fault')
-                else f"UNEXPECTED: probe did not resolve to a Bearing Fault label "
-                     f"(got {predicted!r}) -- needs manual review."
+                f"RESOLVED: {len(scores)} categories simultaneously satisfied their gate "
+                f"(relative-margin scores={rounded_scores}); classifier returned "
+                f"{predicted!r}, matching the strongest-evidence category "
+                f"({best_by_score!r}) -- score-based, not branch-order."
+                if scoring_matches else
+                f"BUG: classifier returned {predicted!r} but the strongest-evidence "
+                f"category by relative margin was {best_by_score!r} "
+                f"(scores={rounded_scores}) -- _classify_fault_type() has diverged "
+                f"from _fault_candidate_scores()."
             ),
         ))
 

@@ -188,6 +188,32 @@ class TestClassifyFaultType(unittest.TestCase):
         self.assertEqual(label, "Anomalous Vibration")
 
 
+class TestClassifyFaultTypePriorityScoring(unittest.TestCase):
+    """Regression tests for the priority-collision fix: when a frame's
+    numbers satisfy two fault categories' gates at once, the one with the
+    stronger relative evidence must win -- not whichever was checked first
+    in the old if/elif chain (Bearing Fault unconditionally, since it was
+    branch 1). See _fault_candidate_scores() in alerting.py.
+
+    Both cases below satisfy Bearing's gate (hi_r>0.40, kurtosis>=K_WARN)
+    AND Mechanical Imbalance's gate (mic_crest>=CREST_WARN,
+    kurtosis<K_WARN*1.4, lo_r>0.45) simultaneously -- only the relative
+    margins differ, and the winner flips accordingly. Under the old
+    branch-order code both cases would have returned a Bearing Fault label."""
+
+    def test_overwhelming_imbalance_evidence_beats_barely_qualifying_bearing(self):
+        label = _classify_fault_type(
+            mic_kurtosis=rv.K_WARN + 0.01, mic_crest=rv.CREST_WARN * 5,
+            imu_crest=1.0, hi_r=0.41, lo_r=0.90, mid_r=0.0)
+        self.assertEqual(label, "Mechanical Imbalance")
+
+    def test_overwhelming_bearing_evidence_beats_barely_qualifying_imbalance(self):
+        label = _classify_fault_type(
+            mic_kurtosis=rv.K_WARN + 0.1, mic_crest=rv.CREST_WARN + 0.01,
+            imu_crest=1.0, hi_r=0.95, lo_r=0.46, mid_r=0.0)
+        self.assertEqual(label, "Bearing Fault — Early")
+
+
 class ComputeAlertTestBase(unittest.TestCase):
     """Registers/unregisters a fresh SatelliteState per test via the same
     rv._sat_register() path satellite_thread() uses, so ab_kurtosis/bl_mean/

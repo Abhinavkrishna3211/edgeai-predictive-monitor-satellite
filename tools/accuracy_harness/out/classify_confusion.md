@@ -38,11 +38,11 @@
 
 **Dual-satisfaction probes** (2 constructed):
 
-- **__PROBE__ Bearing-vs-Imbalance**: predicted=`Bearing Fault — Early` — CONFIRMED priority collision: branch-2 (Bearing Fault) wins over the competing label even though both condition sets are deep-inside satisfied -- classifier returned 'Bearing Fault — Early'.
-- **__PROBE__ Bearing-vs-Misalignment**: predicted=`Bearing Fault — Early` — CONFIRMED priority collision: branch-2 (Bearing Fault) wins over the competing label even though both condition sets are deep-inside satisfied -- classifier returned 'Bearing Fault — Early'.
+- **__PROBE__ Bearing-vs-Imbalance**: predicted=`Bearing Fault — Early` — RESOLVED: 2 categories simultaneously satisfied their gate (relative-margin scores={'Bearing Fault': 0.31, 'Mechanical Imbalance': 0.1556}); classifier returned 'Bearing Fault — Early', matching the strongest-evidence category ('Bearing Fault') -- score-based, not branch-order.
+- **__PROBE__ Bearing-vs-Misalignment**: predicted=`Shaft Misalignment` — RESOLVED: 2 categories simultaneously satisfied their gate (relative-margin scores={'Bearing Fault': 0.35, 'Shaft Misalignment': 0.3857}); classifier returned 'Shaft Misalignment', matching the strongest-evidence category ('Shaft Misalignment') -- score-based, not branch-order.
 - Bearing-vs-Looseness dual-satisfaction is structurally impossible: Bearing requires hi_r>0.40 while Looseness requires hi_r<0.30 -- the two conditions cannot both hold on the same tuple.
 
-**20 boundary_artifact case(s)** (on-boundary/just-outside tuples that landed in a different label than intended — expected by construction, not bugs):
+**21 boundary_artifact case(s)** (on-boundary/just-outside tuples that landed in a different label than intended — expected by construction, not bugs):
 
 - intended=`Normal` (just-outside, swept `mic_kurtosis`), predicted=`Elevated Vibration`
 - intended=`Normal` (just-outside, swept `mic_crest`), predicted=`Anomalous Vibration`
@@ -53,10 +53,11 @@
 - intended=`Bearing Fault — Advanced` (just-outside, swept `mic_kurtosis`), predicted=`Bearing Fault — Early`
 - intended=`Mechanical Imbalance` (just-outside, swept `mic_crest`), predicted=`Elevated Vibration`
 - intended=`Mechanical Imbalance` (just-outside, swept `mic_kurtosis`), predicted=`Elevated Vibration`
+- intended=`Mechanical Imbalance` (on-boundary, swept `lo_r`), predicted=`Mechanical Looseness`
 - intended=`Mechanical Imbalance` (just-outside, swept `lo_r`), predicted=`Mechanical Looseness`
-- intended=`Shaft Misalignment` (just-outside, swept `imu_crest`), predicted=`Mechanical Looseness`
+- intended=`Shaft Misalignment` (just-outside, swept `imu_crest`), predicted=`Elevated Vibration`
 - intended=`Shaft Misalignment` (just-outside, swept `mid_r`), predicted=`Elevated Vibration`
-- intended=`Shaft Misalignment` (just-outside, swept `mic_kurtosis`), predicted=`Mechanical Looseness`
+- intended=`Shaft Misalignment` (just-outside, swept `mic_kurtosis`), predicted=`Severe Anomaly — Inspect`
 - intended=`Mechanical Looseness` (just-outside, swept `mic_kurtosis`), predicted=`Normal`
 - intended=`Mechanical Looseness` (just-outside, swept `hi_r`), predicted=`Elevated Vibration`
 - intended=`Mechanical Looseness` (on-boundary, swept `mid_r`), predicted=`Elevated Vibration`

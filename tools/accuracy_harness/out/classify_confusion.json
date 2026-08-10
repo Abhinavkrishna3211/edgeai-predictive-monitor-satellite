@@ -375,8 +375,8 @@
       "hi_r": 0.1,
       "lo_r": 0.46,
       "mid_r": 0.44,
-      "predicted_label": "Mechanical Imbalance",
-      "mismatch_class": null
+      "predicted_label": "Mechanical Looseness",
+      "mismatch_class": "boundary_artifact"
     },
     {
       "intended_label": "Mechanical Imbalance",
@@ -398,8 +398,8 @@
       "mic_kurtosis": 9.6,
       "mic_crest": 1.0,
       "imu_crest": 10.8,
-      "hi_r": 0.1,
-      "lo_r": 0.35,
+      "hi_r": 0.35,
+      "lo_r": 0.09999999999999998,
       "mid_r": 0.55,
       "predicted_label": "Shaft Misalignment",
       "mismatch_class": null
@@ -411,8 +411,8 @@
       "mic_kurtosis": 9.6,
       "mic_crest": 1.0,
       "imu_crest": 9.0,
-      "hi_r": 0.1,
-      "lo_r": 0.35,
+      "hi_r": 0.35,
+      "lo_r": 0.09999999999999998,
       "mid_r": 0.55,
       "predicted_label": "Shaft Misalignment",
       "mismatch_class": null
@@ -424,10 +424,10 @@
       "mic_kurtosis": 9.6,
       "mic_crest": 1.0,
       "imu_crest": 8.91,
-      "hi_r": 0.1,
-      "lo_r": 0.35,
+      "hi_r": 0.35,
+      "lo_r": 0.09999999999999998,
       "mid_r": 0.55,
-      "predicted_label": "Mechanical Looseness",
+      "predicted_label": "Elevated Vibration",
       "mismatch_class": "boundary_artifact"
     },
     {
@@ -437,8 +437,8 @@
       "mic_kurtosis": 9.6,
       "mic_crest": 1.0,
       "imu_crest": 10.8,
-      "hi_r": 0.1,
-      "lo_r": 0.35,
+      "hi_r": 0.35,
+      "lo_r": 0.09999999999999998,
       "mid_r": 0.55,
       "predicted_label": "Shaft Misalignment",
       "mismatch_class": null
@@ -450,8 +450,8 @@
       "mic_kurtosis": 9.6,
       "mic_crest": 1.0,
       "imu_crest": 10.8,
-      "hi_r": 0.1,
-      "lo_r": 0.54,
+      "hi_r": 0.35,
+      "lo_r": 0.29000000000000004,
       "mid_r": 0.36,
       "predicted_label": "Shaft Misalignment",
       "mismatch_class": null
@@ -463,8 +463,8 @@
       "mic_kurtosis": 9.6,
       "mic_crest": 1.0,
       "imu_crest": 10.8,
-      "hi_r": 0.1,
-      "lo_r": 0.56,
+      "hi_r": 0.35,
+      "lo_r": 0.31000000000000005,
       "mid_r": 0.33999999999999997,
       "predicted_label": "Elevated Vibration",
       "mismatch_class": "boundary_artifact"
@@ -476,8 +476,8 @@
       "mic_kurtosis": 9.6,
       "mic_crest": 1.0,
       "imu_crest": 10.8,
-      "hi_r": 0.1,
-      "lo_r": 0.35,
+      "hi_r": 0.35,
+      "lo_r": 0.09999999999999998,
       "mid_r": 0.55,
       "predicted_label": "Shaft Misalignment",
       "mismatch_class": null
@@ -489,8 +489,8 @@
       "mic_kurtosis": 11.88,
       "mic_crest": 1.0,
       "imu_crest": 10.8,
-      "hi_r": 0.1,
-      "lo_r": 0.35,
+      "hi_r": 0.35,
+      "lo_r": 0.09999999999999998,
       "mid_r": 0.55,
       "predicted_label": "Shaft Misalignment",
       "mismatch_class": null
@@ -502,10 +502,10 @@
       "mic_kurtosis": 12.12,
       "mic_crest": 1.0,
       "imu_crest": 10.8,
-      "hi_r": 0.1,
-      "lo_r": 0.35,
+      "hi_r": 0.35,
+      "lo_r": 0.09999999999999998,
       "mid_r": 0.55,
-      "predicted_label": "Mechanical Looseness",
+      "predicted_label": "Severe Anomaly \u2014 Inspect",
       "mismatch_class": "boundary_artifact"
     },
     {
@@ -747,6 +747,10 @@
     {
       "probe": "__PROBE__ Bearing-vs-Imbalance",
       "predicted_label": "Bearing Fault \u2014 Early",
+      "candidate_scores": {
+        "Bearing Fault": 0.31,
+        "Mechanical Imbalance": 0.1556
+      },
       "tuple": {
         "mic_kurtosis": 6.719999999999999,
         "mic_crest": 6.0,
@@ -755,11 +759,15 @@
         "lo_r": 0.5,
         "mid_r": -0.09999999999999998
       },
-      "verdict": "CONFIRMED priority collision: branch-2 (Bearing Fault) wins over the competing label even though both condition sets are deep-inside satisfied -- classifier returned 'Bearing Fault \u2014 Early'."
+      "verdict": "RESOLVED: 2 categories simultaneously satisfied their gate (relative-margin scores={'Bearing Fault': 0.31, 'Mechanical Imbalance': 0.1556}); classifier returned 'Bearing Fault \u2014 Early', matching the strongest-evidence category ('Bearing Fault') -- score-based, not branch-order."
     },
     {
       "probe": "__PROBE__ Bearing-vs-Misalignment",
-      "predicted_label": "Bearing Fault \u2014 Early",
+      "predicted_label": "Shaft Misalignment",
+      "candidate_scores": {
+        "Bearing Fault": 0.35,
+        "Shaft Misalignment": 0.3857
+      },
       "tuple": {
         "mic_kurtosis": 7.2,
         "mic_crest": 1.0,
@@ -768,7 +776,7 @@
         "lo_r": -0.15000000000000002,
         "mid_r": 0.55
       },
-      "verdict": "CONFIRMED priority collision: branch-2 (Bearing Fault) wins over the competing label even though both condition sets are deep-inside satisfied -- classifier returned 'Bearing Fault \u2014 Early'."
+      "verdict": "RESOLVED: 2 categories simultaneously satisfied their gate (relative-margin scores={'Bearing Fault': 0.35, 'Shaft Misalignment': 0.3857}); classifier returned 'Shaft Misalignment', matching the strongest-evidence category ('Shaft Misalignment') -- score-based, not branch-order."
     }
   ],
   "confusion_matrix": {
