@@ -147,8 +147,21 @@ class TestClassifyFaultType(unittest.TestCase):
     def test_shaft_misalignment(self):
         label = _classify_fault_type(
             mic_kurtosis=rv.K_WARN - 1.0, mic_crest=2.0,
-            imu_crest=rv.CREST_WARN + 1.0, hi_r=0.2, lo_r=0.3, mid_r=0.4)
+            imu_crest=rv.IMU_CREST_WARN + 1.0, hi_r=0.2, lo_r=0.3, mid_r=0.4)
         self.assertEqual(label, "Shaft Misalignment")
+
+    def test_imu_crest_between_mic_and_imu_warn_stays_normal(self):
+        """Regression test for the real-rig FPR fix: imu_crest sitting above
+        the old shared CREST_WARN (5.0) but below the new IMU-specific
+        IMU_CREST_WARN (9.0) must not escalate past Normal -- this is exactly
+        the ambient noise floor measured on the real rig (median imu_crest
+        5.233, see tools/accuracy_harness/out/rig_baseline_report.md)."""
+        self.assertGreater(rv.IMU_CREST_WARN, rv.CREST_WARN)
+        probe_imu_crest = (rv.CREST_WARN + rv.IMU_CREST_WARN) / 2.0
+        label = _classify_fault_type(
+            mic_kurtosis=3.0, mic_crest=2.0, imu_crest=probe_imu_crest,
+            hi_r=0.2, lo_r=0.3, mid_r=0.4)
+        self.assertEqual(label, "Normal")
 
     def test_mechanical_looseness(self):
         label = _classify_fault_type(
@@ -207,6 +220,31 @@ class TestComputeAlertCalibration(ComputeAlertTestBase):
                 sent_alert, hb=0.05)
         self.assertTrue(self.sat.calibrated)
         self.assertEqual(sent_alert, rv.EPM_ALERT_OK)
+
+
+class TestComputeAlertImuCrestThreshold(ComputeAlertTestBase):
+    """Regression coverage for the real-rig FPR fix: compute_alert() must
+    gate mic_crest and imu_crest against their own separate thresholds, not
+    max(mic_crest, imu_crest) against one shared CREST_WARN/CREST_FAULT."""
+
+    def test_imu_crest_between_thresholds_does_not_raise_warn(self):
+        probe_imu_crest = (rv.CREST_WARN + rv.IMU_CREST_WARN) / 2.0
+        frame = dict(mic_kurtosis=3.0, mic_crest=2.0, mic_rms=0.01,
+                     imu_crest=probe_imu_crest)
+        warn_streak, ok_streak, sent_alert = 0, 0, rv.EPM_ALERT_OK
+        for _ in range(rv.WARN_PERSIST + 1):
+            sent_alert, z, p, warn_streak, ok_streak = compute_alert(
+                self.sat, frame, warn_streak, ok_streak, sent_alert, hb=0.5)
+        self.assertEqual(sent_alert, rv.EPM_ALERT_OK)
+
+    def test_imu_crest_above_imu_warn_still_raises_warn(self):
+        frame = dict(mic_kurtosis=3.0, mic_crest=2.0, mic_rms=0.01,
+                     imu_crest=rv.IMU_CREST_WARN + 1.0)
+        warn_streak, ok_streak, sent_alert = 0, 0, rv.EPM_ALERT_OK
+        for _ in range(rv.WARN_PERSIST + 1):
+            sent_alert, z, p, warn_streak, ok_streak = compute_alert(
+                self.sat, frame, warn_streak, ok_streak, sent_alert, hb=0.5)
+        self.assertEqual(sent_alert, rv.EPM_ALERT_WARN)
 
 
 class TestComputeAlertNoiseFilter(ComputeAlertTestBase):

@@ -394,7 +394,8 @@ footer{text-align:center;padding:11px;color:var(--dim);font-size:.6rem;border-to
       <div class="rep-row"><span class="rep-key">Gateway Uptime</span><span class="rep-val" id="r-uptime">&#8212;</span></div>
       <div class="rep-row"><span class="rep-key">Satellites</span><span class="rep-val" id="r-sats">&#8212;</span></div>
       <div class="rep-row"><span class="rep-key">K Warn / Fault</span><span class="rep-val" id="r-kth">&#8212;</span></div>
-      <div class="rep-row"><span class="rep-key">CF Warn / Fault</span><span class="rep-val" id="r-cfth">&#8212;</span></div>
+      <div class="rep-row"><span class="rep-key">MIC CF Warn / Fault</span><span class="rep-val" id="r-cfth">&#8212;</span></div>
+      <div class="rep-row"><span class="rep-key">IMU CF Warn / Fault</span><span class="rep-val" id="r-imucfth">&#8212;</span></div>
       <div class="rep-row"><span class="rep-key">Notifications</span><span class="rep-val" id="r-notif">&#8212;</span></div>
     </div>
 
@@ -514,7 +515,7 @@ footer{text-align:center;padding:11px;color:var(--dim);font-size:.6rem;border-to
 <footer id="footer">EPM Dashboard &mdash; Auto-refreshes every 2 s</footer>
 
 <script>
-const CH={};let TH={k_warn:6,k_fault:12,cf_warn:5,cf_fault:10};let lastKey='';let STATUS=null;
+const CH={};let TH={k_warn:6,k_fault:12,cf_warn:5,cf_fault:10,imu_cf_warn:9,imu_cf_fault:18};let lastKey='';let STATUS=null;
 let alertsLoaded=false;
 
 const $=id=>document.getElementById(id);
@@ -816,7 +817,7 @@ async function refresh(){
     if($('pane-reports').classList.contains('active'))updateReports(d);
     if($('pane-maintenance').classList.contains('active'))renderMaintGrid(sats);
 
-    $('footer').textContent='EPM Gateway · '+(d.factory_name||'EPM')+' · Auto-refresh 2 s · K≥'+TH.k_warn+' WARN / K≥'+TH.k_fault+' FAULT · CF≥'+TH.cf_warn+' WARN / CF≥'+TH.cf_fault+' FAULT';
+    $('footer').textContent='EPM Gateway · '+(d.factory_name||'EPM')+' · Auto-refresh 2 s · K≥'+TH.k_warn+' WARN / K≥'+TH.k_fault+' FAULT · MIC CF≥'+TH.cf_warn+' WARN / CF≥'+TH.cf_fault+' FAULT · IMU CF≥'+TH.imu_cf_warn+' WARN / CF≥'+TH.imu_cf_fault+' FAULT';
   }catch(e){
     console.warn('[refresh]',e);
     const gs=$('gstatus');if(gs){gs.textContent='⚠ API error';gs.className='chip chip-fault';}
@@ -833,6 +834,7 @@ function updateReports(d){
   $('r-sats').textContent=sats.length;
   $('r-kth').textContent=TH.k_warn+' / '+TH.k_fault;
   $('r-cfth').textContent=TH.cf_warn+' / '+TH.cf_fault;
+  $('r-imucfth').textContent=TH.imu_cf_warn+' / '+TH.imu_cf_fault;
   $('r-notif').textContent=d.notify_active?'Active':'Not configured';
   $('r-wh').textContent=d.notify_active?'Configured':'Not configured';
   $('r-email').textContent=d.notify_active?'Check gateway log':'Not configured';
@@ -1194,6 +1196,7 @@ def _build_status_json():
         'thresholds': {
             'k_warn':       _rv.K_WARN, 'k_fault': _rv.K_FAULT,
             'cf_warn':      _rv.CREST_WARN, 'cf_fault': _rv.CREST_FAULT,
+            'imu_cf_warn':  _rv.IMU_CREST_WARN, 'imu_cf_fault': _rv.IMU_CREST_FAULT,
             'z_warn_sigma': _rv.Z_WARN_SIGMA, 'z_fault_sigma': _rv.Z_FAULT_SIGMA,
         },
         'satellites': sat_list,
@@ -1277,7 +1280,8 @@ class _DashHandler(BaseHTTPRequestHandler):
                     'factory_name': _rv._FACTORY_NAME, 'server_uptime_s': 0,
                     'notify_active': False,
                     'thresholds': {'k_warn': _rv.K_WARN, 'k_fault': _rv.K_FAULT,
-                                   'cf_warn': _rv.CREST_WARN, 'cf_fault': _rv.CREST_FAULT},
+                                   'cf_warn': _rv.CREST_WARN, 'cf_fault': _rv.CREST_FAULT,
+                                   'imu_cf_warn': _rv.IMU_CREST_WARN, 'imu_cf_fault': _rv.IMU_CREST_FAULT},
                 })
                 self._send(200, 'application/json', fallback)
                 import traceback

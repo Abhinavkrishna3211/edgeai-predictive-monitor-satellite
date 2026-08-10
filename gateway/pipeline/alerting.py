@@ -105,7 +105,7 @@ def _classify_fault_type(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
     """
     import recv_verify as _rv
     if (mic_kurtosis < _rv.K_WARN and mic_crest < _rv.CREST_WARN
-            and imu_crest < _rv.CREST_WARN):
+            and imu_crest < _rv.IMU_CREST_WARN):
         return "Normal"
 
     # --- Bearing impact fault: impulsive + high-frequency resonance ---
@@ -119,7 +119,7 @@ def _classify_fault_type(mic_kurtosis, mic_crest, imu_crest, hi_r, lo_r, mid_r):
         return "Mechanical Imbalance"
 
     # --- Misalignment: 2× shaft tone in mid band, elevated IMU crest ---
-    if imu_crest >= _rv.CREST_WARN and mid_r > 0.35 and mic_kurtosis < _rv.K_FAULT:
+    if imu_crest >= _rv.IMU_CREST_WARN and mid_r > 0.35 and mic_kurtosis < _rv.K_FAULT:
         return "Shaft Misalignment"
 
     # --- Looseness: broadband harmonics spread across all bands ---
@@ -190,9 +190,9 @@ def compute_alert(sat, frame, warn_streak, ok_streak, sent_alert, hb,
         raw = _rv.EPM_ALERT_FAULT
     elif mic_kurtosis >= _rv.K_WARN or z_score >= 3.0 or _z_adapt_max >= _rv.Z_WARN_SIGMA:
         raw = _rv.EPM_ALERT_WARN
-    elif max(mic_crest, imu_crest) >= _rv.CREST_FAULT:
+    elif mic_crest >= _rv.CREST_FAULT or imu_crest >= _rv.IMU_CREST_FAULT:
         raw = _rv.EPM_ALERT_FAULT
-    elif max(mic_crest, imu_crest) >= _rv.CREST_WARN:
+    elif mic_crest >= _rv.CREST_WARN or imu_crest >= _rv.IMU_CREST_WARN:
         raw = _rv.EPM_ALERT_WARN
 
     # ── Bayesian multi-channel fusion — escalates raw if multi-channel evidence

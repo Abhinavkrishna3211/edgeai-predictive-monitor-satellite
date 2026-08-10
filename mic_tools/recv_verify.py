@@ -204,8 +204,18 @@ EPM_ALERT_OK    = 0x00
 EPM_ALERT_WARN  = 0x01
 EPM_ALERT_FAULT = 0x02
 
-CREST_WARN  = 5.0   # override with --crest-warn
-CREST_FAULT = 10.0  # override with --crest-fault
+CREST_WARN  = 5.0   # override with --crest-warn (mic_crest only; see IMU_CREST_WARN)
+CREST_FAULT = 10.0  # override with --crest-fault (mic_crest only)
+# imu_crest gets its own thresholds: a 135k-frame/9.46h real-rig ambient
+# capture (tools/accuracy_harness/out/rig_baseline_report.md) found this
+# rig's imu_crest sitting at p50=5.233/p95=6.025/max=8.162 from ordinary
+# physical-contact noise alone -- already above the old shared CREST_WARN=5.0
+# -- while mic_crest stayed comfortably under (p50=3.09). IMU_CREST_WARN=9.0
+# sits ~10% above the single highest ambient sample seen in that entire
+# capture; IMU_CREST_FAULT=18.0 preserves the same 2x WARN->FAULT ratio the
+# mic channel already uses (10.0/5.0).
+IMU_CREST_WARN  = 9.0   # override with --imu-crest-warn
+IMU_CREST_FAULT = 18.0  # override with --imu-crest-fault
 K_WARN      = 6.0   # kurtosis warn  (Gaussian=3, early fault=6-10)
 K_FAULT     = 12.0  # kurtosis fault (advanced fault=12+)
 K_FAIL      = 40.0  # ISO 13381-1: severe-stage kurtosis threshold for rolling-element bearings

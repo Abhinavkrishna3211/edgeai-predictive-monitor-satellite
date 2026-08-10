@@ -15,11 +15,13 @@ gateway/pipeline/alerting.py::_classify_fault_type():
 
 Ground truth (`intended_label`) is always the label the tuple was built to
 hit — never the classifier's output. Deltas are computed live from
-recv_verify's K_WARN/K_FAULT/CREST_WARN so this stays correct if those
-constants change; the hi_r/lo_r/mid_r band cuts (0.40, 0.45, 0.35, 0.30,
-0.55, 0.20) are NOT rv attributes -- they're inline literals in
-alerting.py:98-134 -- so they're hardcoded in _BAND_CUTS below and must be
-re-synced if that function's band logic ever changes.
+recv_verify's K_WARN/K_FAULT/CREST_WARN/IMU_CREST_WARN so this stays correct
+if those constants change; CREST_WARN gates mic_crest-driven tuples,
+IMU_CREST_WARN gates imu_crest-driven tuples (they diverged in the real-rig
+FPR fix -- see recv_verify.py's IMU_CREST_WARN comment). The hi_r/lo_r/mid_r
+band cuts (0.40, 0.45, 0.35, 0.30, 0.55, 0.20) are NOT rv attributes -- they're
+inline literals in alerting.py:98-134 -- so they're hardcoded in _BAND_CUTS
+below and must be re-synced if that function's band logic ever changes.
 
 hi_r/lo_r/mid_r are fractions of total spectral power and must sum to 1.0
 (mirrors _band_ratios()'s own invariant) so Part 2's synthetic-FFT
@@ -123,8 +125,8 @@ _LOW_CREST     = 1.0   # well below CREST_WARN for any plausible CREST_WARN >= 2
 _LOW_HI_R      = 0.10  # well below the 0.40 bearing-fault band cut
 
 
-def _gen_normal(K_WARN, K_FAULT, CREST_WARN):
-    dk, dc = _mag_delta(K_WARN), _mag_delta(CREST_WARN)
+def _gen_normal(K_WARN, K_FAULT, CREST_WARN, IMU_CREST_WARN):
+    dk, dc, dic = _mag_delta(K_WARN), _mag_delta(CREST_WARN), _mag_delta(IMU_CREST_WARN)
     out = []
     hi, lo, mid = _ratios(hi=0.34, lo=0.33, mid=None)
     for zone in ('deep-inside', 'on-boundary', 'just-outside'):
@@ -134,8 +136,8 @@ def _gen_normal(K_WARN, K_FAULT, CREST_WARN):
         c = _zone_value(CREST_WARN, '<', zone, dc)
         out.append(_tuple("Normal", zone, 'mic_crest', 2.0, c, _LOW_CREST, hi, lo, mid))
     for zone in ('deep-inside', 'on-boundary', 'just-outside'):
-        c = _zone_value(CREST_WARN, '<', zone, dc)
-        out.append(_tuple("Normal", zone, 'imu_crest', 2.0, _LOW_CREST, c, hi, lo, mid))
+        ic = _zone_value(IMU_CREST_WARN, '<', zone, dic)
+        out.append(_tuple("Normal", zone, 'imu_crest', 2.0, _LOW_CREST, ic, hi, lo, mid))
     return out
 
 
@@ -180,13 +182,13 @@ def _gen_imbalance(K_WARN, CREST_WARN):
     return out
 
 
-def _gen_misalignment(K_FAULT, CREST_WARN):
+def _gen_misalignment(K_FAULT, IMU_CREST_WARN):
     out = []
-    dk, dc, dr = _mag_delta(K_FAULT), _mag_delta(CREST_WARN), _RATIO_DELTA
-    ic_deep = _zone_value(CREST_WARN, '>=', 'deep-inside', dc)
+    dk, dc, dr = _mag_delta(K_FAULT), _mag_delta(IMU_CREST_WARN), _RATIO_DELTA
+    ic_deep = _zone_value(IMU_CREST_WARN, '>=', 'deep-inside', dc)
     k_deep  = _zone_value(K_FAULT, '<', 'deep-inside', dk)
     for zone in ('deep-inside', 'on-boundary', 'just-outside'):
-        ic = _zone_value(CREST_WARN, '>=', zone, dc)
+        ic = _zone_value(IMU_CREST_WARN, '>=', zone, dc)
         hi, lo, mid = _ratios(hi=_LOW_HI_R, lo=None, mid=0.55)
         out.append(_tuple("Shaft Misalignment", zone, 'imu_crest',
                            k_deep, _LOW_CREST, ic, hi, lo, mid))
@@ -269,13 +271,13 @@ def _gen_anomalous_vibration(K_WARN, CREST_WARN):
     return out
 
 
-def _gen_dual_satisfaction_probes(K_WARN, CREST_WARN):
+def _gen_dual_satisfaction_probes(K_WARN, CREST_WARN, IMU_CREST_WARN):
     """Three tuples deep-inside Bearing Fault AND simultaneously deep-inside
     one of {Imbalance, Misalignment, Looseness} -- forces the branch-2
     short-circuit to confirm it's real and reachable (see classify_eval.py's
     priority_collision classification)."""
     out = []
-    dk_warn, dc = _mag_delta(K_WARN), _mag_delta(CREST_WARN)
+    dk_warn, dc, dic = _mag_delta(K_WARN), _mag_delta(CREST_WARN), _mag_delta(IMU_CREST_WARN)
     k_bearing = K_WARN + 20 * dk_warn  # deep-inside Bearing kurtosis gate
 
     # vs. Imbalance: hi_r deep>0.40 AND lo_r deep>0.45 AND mic_crest deep>=CREST_WARN
@@ -286,11 +288,12 @@ def _gen_dual_satisfaction_probes(K_WARN, CREST_WARN):
     out.append(_tuple("__PROBE__ Bearing-vs-Imbalance", 'dual-satisfaction', None,
                        k_imb, c_deep, _LOW_CREST, hi, lo, mid))
 
-    # vs. Misalignment: hi_r deep>0.40 AND mid_r deep>0.35 AND imu_crest deep>=CREST_WARN
+    # vs. Misalignment: hi_r deep>0.40 AND mid_r deep>0.35 AND imu_crest deep>=IMU_CREST_WARN
     # AND kurtosis < K_FAULT (still >= K_WARN so Bearing's Early gate holds).
     hi, lo, mid = _ratios(hi=0.60, lo=None, mid=0.35 + 20 * _RATIO_DELTA)
+    ic_deep = IMU_CREST_WARN + 20 * dic
     out.append(_tuple("__PROBE__ Bearing-vs-Misalignment", 'dual-satisfaction', None,
-                       k_bearing, _LOW_CREST, c_deep, hi, lo, mid))
+                       k_bearing, _LOW_CREST, ic_deep, hi, lo, mid))
 
     # vs. Looseness: hi_r deep>0.40 (Bearing) vs. Looseness needs hi_r<0.30 --
     # these two conditions are mutually exclusive on hi_r itself, so a true
@@ -311,19 +314,20 @@ def generate_all_tuples():
     all 9 labels x 3 zones x defining-conditions, `probe_tuples` are the
     dual-satisfaction priority-collision probes, and `structural_notes` lists
     any probe that could not be constructed for a structural reason."""
-    K_WARN, K_FAULT, CREST_WARN = rv.K_WARN, rv.K_FAULT, rv.CREST_WARN
+    K_WARN, K_FAULT, CREST_WARN, IMU_CREST_WARN = (
+        rv.K_WARN, rv.K_FAULT, rv.CREST_WARN, rv.IMU_CREST_WARN)
 
     tuples = []
-    tuples += _gen_normal(K_WARN, K_FAULT, CREST_WARN)
+    tuples += _gen_normal(K_WARN, K_FAULT, CREST_WARN, IMU_CREST_WARN)
     tuples += _gen_bearing("Bearing Fault — Early", K_WARN, K_WARN)
     tuples += _gen_bearing("Bearing Fault — Advanced", K_FAULT, K_WARN)
     tuples += _gen_imbalance(K_WARN, CREST_WARN)
-    tuples += _gen_misalignment(K_FAULT, CREST_WARN)
+    tuples += _gen_misalignment(K_FAULT, IMU_CREST_WARN)
     tuples += _gen_looseness(K_WARN)
     tuples += _gen_severe_and_elevated(K_WARN, K_FAULT)
     tuples += _gen_anomalous_vibration(K_WARN, CREST_WARN)
 
-    probes, notes = _gen_dual_satisfaction_probes(K_WARN, CREST_WARN)
+    probes, notes = _gen_dual_satisfaction_probes(K_WARN, CREST_WARN, IMU_CREST_WARN)
     return tuples, probes, [notes]
 
 
@@ -397,18 +401,19 @@ def tuple_to_frame(t):
 
 def generate_healthy_samples(n, rng, noise_scale=0.05):
     """n jittered Normal-zone tuples, clipped to stay strictly below
-    K_WARN/CREST_WARN so every sample is genuinely healthy by the same
-    thresholds the classifier itself uses (not just close to the deep-inside
-    seed point)."""
-    K_WARN, CREST_WARN = rv.K_WARN, rv.CREST_WARN
-    k_ceiling = K_WARN - _mag_delta(K_WARN)
-    c_ceiling = CREST_WARN - _mag_delta(CREST_WARN)
+    K_WARN/CREST_WARN/IMU_CREST_WARN so every sample is genuinely healthy by
+    the same thresholds the classifier itself uses (not just close to the
+    deep-inside seed point)."""
+    K_WARN, CREST_WARN, IMU_CREST_WARN = rv.K_WARN, rv.CREST_WARN, rv.IMU_CREST_WARN
+    k_ceiling  = K_WARN - _mag_delta(K_WARN)
+    c_ceiling  = CREST_WARN - _mag_delta(CREST_WARN)
+    ic_ceiling = IMU_CREST_WARN - _mag_delta(IMU_CREST_WARN)
     base = deep_inside_base("Normal")
     out = []
     for _ in range(n):
         k  = min(max(base['mic_kurtosis'] * (1.0 + noise_scale * rng.standard_normal()), 0.1), k_ceiling)
         c  = min(max(base['mic_crest']    * (1.0 + noise_scale * rng.standard_normal()), 0.1), c_ceiling)
-        ic = min(max(1.0                  * (1.0 + noise_scale * rng.standard_normal()), 0.1), c_ceiling)
+        ic = min(max(1.0                  * (1.0 + noise_scale * rng.standard_normal()), 0.1), ic_ceiling)
         hi = float(np.clip(0.34 + 0.03 * rng.standard_normal(), 0.05, 0.35))
         lo = float(np.clip(0.33 + 0.03 * rng.standard_normal(), 0.05, 1.0 - hi - 0.05))
         mid = max(1.0 - hi - lo, 0.01)

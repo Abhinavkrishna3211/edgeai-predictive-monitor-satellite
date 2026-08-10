@@ -212,9 +212,11 @@ def run_plot(fft_mic_n, fft_imu_n, mic_fs=16000, imu_fs=25600, shaft_hz=None,
     lc_imu,  = ax_cr.plot(xc, [0.0] * HISTORY_LEN, lw=1.0, color='#ff7f0e', label='IMU crest')
     lc_kurt, = ax_cr.plot(xc, [3.0] * HISTORY_LEN, lw=1.2, color='#aa44ff', label='MIC kurtosis/3')
     ax_cr.axhline(_rv.CREST_WARN,  color='yellow', ls='--', lw=0.8, alpha=0.8,
-                  label=f'Warn {_rv.CREST_WARN}')
+                  label=f'MIC Warn {_rv.CREST_WARN}')
     ax_cr.axhline(_rv.CREST_FAULT, color='red',    ls='--', lw=0.8, alpha=0.8,
-                  label=f'Fault {_rv.CREST_FAULT}')
+                  label=f'MIC Fault {_rv.CREST_FAULT}')
+    ax_cr.axhline(_rv.IMU_CREST_WARN, color='yellow', ls=':', lw=0.8, alpha=0.6,
+                  label=f'IMU Warn {_rv.IMU_CREST_WARN}')
     ax_cr.set_ylim(0, 10)
     ax_cr.set_xlim(0, HISTORY_LEN - 1)
     ax_cr.set_ylabel('Factor', color='#aaaaaa', fontsize=7)

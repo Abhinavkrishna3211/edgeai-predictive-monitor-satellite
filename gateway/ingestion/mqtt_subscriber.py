@@ -32,10 +32,10 @@ silently guessed (see PHASE_8A_PROMPT.md Task 4):
     imu_rms   = sqrt(rms_x^2 + rms_y^2 + rms_z^2)   -- vector-sum vibration energy
     imu_crest = max(crest_x, crest_y, crest_z)      -- worst-axis impulsiveness
   matching how compute_alert()/_classify_fault_type() already treat imu_crest
-  as a single worst-case signal (`max(mic_crest, imu_crest)`, and imu_crest's
-  own comparisons against CREST_WARN/CREST_FAULT) -- not an average, which
-  would dilute a fault that shows up strongly on only one axis (e.g. the
-  "Shaft Misalignment" case in _classify_fault_type).
+  as a single worst-case signal (its own comparisons against
+  IMU_CREST_WARN/IMU_CREST_FAULT) -- not an average, which would dilute a
+  fault that shows up strongly on only one axis (e.g. the "Shaft
+  Misalignment" case in _classify_fault_type).
 
   frame_id/ts_ms: the wire format carries neither. A per-node running counter
   stands in for frame_id (replay protection in _process_satellite_frame only

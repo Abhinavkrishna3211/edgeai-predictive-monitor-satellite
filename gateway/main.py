@@ -81,9 +81,14 @@ def main():
                         help='ML model prefix from ml_trainer.py (e.g. model/epm_model). '
                              'Enables ML-based alerting alongside threshold detection.')
     parser.add_argument('--crest-warn',  type=float, default=None,
-                        help=f'Crest factor WARN threshold (default {rv.CREST_WARN})')
+                        help=f'MIC crest factor WARN threshold (default {rv.CREST_WARN})')
     parser.add_argument('--crest-fault', type=float, default=None,
-                        help=f'Crest factor FAULT threshold (default {rv.CREST_FAULT})')
+                        help=f'MIC crest factor FAULT threshold (default {rv.CREST_FAULT})')
+    parser.add_argument('--imu-crest-warn',  type=float, default=None,
+                        help=f'IMU crest factor WARN threshold (default {rv.IMU_CREST_WARN} -- '
+                             f'separate from --crest-warn since IMU noise floor differs per rig)')
+    parser.add_argument('--imu-crest-fault', type=float, default=None,
+                        help=f'IMU crest factor FAULT threshold (default {rv.IMU_CREST_FAULT})')
     parser.add_argument('--dashboard-port', type=int, default=8080,
                         help='HTTP port for the web dashboard (default 8080)')
     parser.add_argument('--no-plot', action='store_true',
@@ -154,6 +159,10 @@ def main():
         rv.CREST_WARN = args.crest_warn
     if args.crest_fault is not None:
         rv.CREST_FAULT = args.crest_fault
+    if args.imu_crest_warn is not None:
+        rv.IMU_CREST_WARN = args.imu_crest_warn
+    if args.imu_crest_fault is not None:
+        rv.IMU_CREST_FAULT = args.imu_crest_fault
     rv._FAULT_PRIOR    = args.fault_prior
     rv._EVIDENCE_Z_MID = args.evidence_midpoint
     rv.Z_WARN_SIGMA    = args.threshold_sigma

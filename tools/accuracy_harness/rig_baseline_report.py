@@ -32,8 +32,9 @@ from collections import Counter
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _OUT_DIR = os.path.join(_HERE, 'out')
 
-_CREST_WARN_DEFAULT = 5.0  # recv_verify.py default; the value actually in
-                             # effect for this run is recorded in the runbook
+_IMU_CREST_WARN_DEFAULT = 9.0  # recv_verify.py IMU_CREST_WARN default (real-rig
+                                # FPR fix); the value actually in effect for this
+                                # run is recorded in the runbook
 
 
 def _percentiles(values, ps=(5, 50, 95)):
@@ -57,7 +58,7 @@ def analyze(csv_path):
     mic_kurtosis = [float(r['mic_kurtosis']) for r in rows]
     p_fault = [float(r['p_fault']) for r in rows]
 
-    frac_imu_over_warn = sum(1 for v in imu_crest if v >= _CREST_WARN_DEFAULT) / total if total else float('nan')
+    frac_imu_over_warn = sum(1 for v in imu_crest if v >= _IMU_CREST_WARN_DEFAULT) / total if total else float('nan')
 
     wall_span_s = float(rows[-1]['wall_time']) - float(rows[0]['wall_time']) if rows else 0.0
 
@@ -71,7 +72,7 @@ def analyze(csv_path):
         recall_normal=recall_normal,
         precision='n/a — no fault frames exist in this Normal-only baseline capture',
         f1='n/a — no fault frames exist in this Normal-only baseline capture',
-        frac_frames_imu_crest_over_default_crest_warn=frac_imu_over_warn,
+        frac_frames_imu_crest_over_default_imu_crest_warn=frac_imu_over_warn,
         imu_crest=_percentiles(imu_crest),
         mic_crest=_percentiles(mic_crest),
         mic_kurtosis=_percentiles(mic_kurtosis),
@@ -99,12 +100,12 @@ def _write_markdown(result, path):
 
     lines.append("## Root-cause signal: IMU crest factor\n")
     lines.append(
-        f"{result['frac_frames_imu_crest_over_default_crest_warn']*100:.1f}% of frames have "
-        f"`imu_crest >= {_CREST_WARN_DEFAULT}` (the default CREST_WARN threshold) from ambient "
-        f"vibration alone — median imu_crest across the capture is "
-        f"**{result['imu_crest']['p50']:.3f}**, already above the WARN gate. This is the primary "
-        f"driver of the FPR above, not the mic channel (mic_crest p50="
-        f"{result['mic_crest']['p50']:.3f}, well under threshold).\n")
+        f"{result['frac_frames_imu_crest_over_default_imu_crest_warn']*100:.1f}% of frames have "
+        f"`imu_crest >= {_IMU_CREST_WARN_DEFAULT}` (the default IMU_CREST_WARN threshold) from "
+        f"ambient vibration alone — median imu_crest across the capture is "
+        f"**{result['imu_crest']['p50']:.3f}**. This is the primary "
+        f"driver of the FPR above if it is still elevated, not the mic channel (mic_crest p50="
+        f"{result['mic_crest']['p50']:.3f}, well under its own threshold).\n")
 
     lines.append("## Distributions (p5 / p50 / p95 / min / max)\n")
     lines.append("| channel | p5 | p50 | p95 | min | max |")
@@ -117,10 +118,11 @@ def _write_markdown(result, path):
     lines.append("## Caveats\n")
     lines.append(
         "- recv_verify.py's alert field carries persistence (WARN_PERSIST/CLEAR_PERSIST/"
-        "FAULT_CLEAR_PERSIST hysteresis) — a fraction this high is not simply "
-        "\"72% of instantaneous samples exceeded threshold\" in isolation, but the underlying "
-        "per-frame imu_crest distribution (median already >= CREST_WARN) is the root cause "
-        "regardless of the persistence logic layered on top.")
+        "FAULT_CLEAR_PERSIST hysteresis) — the FPR above is not simply "
+        f"\"{result['frac_frames_imu_crest_over_default_imu_crest_warn']*100:.1f}% of instantaneous "
+        "samples exceeded threshold\" in isolation, but the underlying per-frame imu_crest "
+        "distribution relative to IMU_CREST_WARN is the primary driver of whatever WARN/FAULT "
+        "rate is measured, regardless of the persistence logic layered on top.")
     lines.append(
         "- mic_kurtosis has a heavy tail (max within this capture reaches into the hundreds) "
         "from real transient acoustic events (room noise, keyboard/movement near the mic) — "
