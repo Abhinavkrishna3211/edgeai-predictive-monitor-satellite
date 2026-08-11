@@ -911,7 +911,7 @@ PlatformIO platform is on ESP-IDF 4.x. Add to `platformio.ini`:
 - [x] Adaptive per-machine baselines — Welford warm-up (30 frames) then continuous EMA tracking (`alpha=5e-05`, ~11.5 min half-life at 2 fps), updated only on healthy frames (`adaptive_baseline.py`)
 - [x] MQTT streaming protocol (section-list telemetry frames; legacy binary TCP protocol kept for dev-only simulator use, `docs/decisions/ADR-028`)
 - [x] Multi-satellite gateway with per-satellite CSV logging
-- [x] 9-state WS2812/NeoPixel RGB LED indicator (`display_neopixel.c`), remote-overridable via `STATUS_LED` MQTT command
+- [x] 10-state WS2812/NeoPixel RGB LED indicator (`display_neopixel.c`), remote-overridable via `STATUS_LED` MQTT command
 - [x] Multi-satellite simulator (`satellite_sim.py`)
 - [x] ISO bearing fault frequency calculator — BPFO/BPFI/BSF/FTF (`bearing_math.py`)
 - [x] IsolationForest ML anomaly model training (`ml_trainer.py`)

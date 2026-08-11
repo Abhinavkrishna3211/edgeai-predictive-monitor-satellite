@@ -1,7 +1,7 @@
 # EPM System Architecture
 
 **As-built reference for the EdgeAI Predictive Monitor.** Describes what the code does
-today (2026-08-07), not aspirational design. Satellite firmware = XIAO ESP32-S3;
+today (2026-08-11), not aspirational design. Satellite firmware = XIAO ESP32-S3;
 gateway = the `gateway/` Python package. The laptop + `tools/devrig/` path is the one
 actually validated against real hardware end-to-end
 (`docs/performance/HARDWARE_INTEROP_TEST.md`); an Arduino Uno Q base station is the
@@ -17,7 +17,7 @@ broker either way. Wire-contract source of truth:
 ┌───────────────────────────── XIAO ESP32-S3 satellite ─────────────────────────────┐
 │                                                                                    │
 │  I2S mic (INMP441/ICS-43434)          KX134 SPI IMU (real driver by default;       │
-│        │ 16 kHz, 32-bit slots               accel_stub.c only under Kconfig        │
+│        │ 48 kHz, 32-bit slots               accel_stub.c only under Kconfig        │
 │        ▼                                     EPM_ACCEL_USE_STUB — ADR-017/ADR-024) │
 │  mic_task.c (I2S DMA capture, core 0,   imu_task.c (core 0, prio 3)                 │
 │    prio 5, drivers/mic_inmp441_i2s.h)     • hal_accel_read_block() X/Y/Z            │
@@ -108,8 +108,9 @@ longer exists — MQTT command traffic is limited to the `STATUS_LED` type today
   flash cache is off). GDMA cannot safely reach PSRAM through cache during
   concurrent WiFi DMA, so these stay internal.
 - **PSRAM (`EXT_RAM_BSS_ATTR`):** `dsp_task` `s_mag_db` (2 KB), `imu_task` `s_frame`
-  (12 KB), and `net_task`'s cached `s_last_mic`/`s_last_imu` frames (~14.5 KB
-  combined — too large for `net_task`'s 4 KB stack). The old TCP protocol's
+  (~15 KB — the three raw FFT arrays at 12 KB plus the three envelope arrays
+  added by ADR-032/Phase 11a), and `net_task`'s cached `s_last_mic`/`s_last_imu`
+  frames (~17 KB combined — too large for `net_task`'s 4 KB stack). The old TCP protocol's
   128 KB / 4 s snapshot pre-trigger ring (`EPM_SNAPSHOT_REQUEST`) was removed along
   with the v1/v2 reply mechanism — no equivalent exists on the MQTT path today.
 
