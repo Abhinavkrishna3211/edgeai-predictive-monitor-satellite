@@ -418,3 +418,121 @@ and after-capture, confirming both captures targeted the same AP.
 
 Test Kconfig flag disabled after verification, per the same convention
 used for the §1/ADR-036 low-heap test hook.
+
+---
+
+## Addendum: 2026-08-11 — recurring "blue breathing" drops during demo prep, root-caused live
+
+`tools/accuracy_harness/PHASE_B_REPORT.md`'s 2026-08-11 addendum noted "two
+real WiFi disconnects... each requiring an operator power-cycle" during that
+session. Before the demo video, this pass attached a live serial monitor
+(`pio device monitor` on COM15) plus a raw CSV-growth watch
+(`mic_tools/logs/csv/2026/08/epm_sat-5ab004_20260810.csv`, actively being
+written by the running `gateway/main.py`) to catch the next occurrence with
+real evidence instead of another manual power-cycle.
+
+**Code read first.** `src/threads/wifi_task.c`'s `on_wifi_disconnected()`
+calls `esp_wifi_connect()` unconditionally on every disconnect outside
+`PROVISIONING` — `WIFI_MAX_RETRY` (10) only gates a log message, there is no
+retry ceiling. Nothing in the code as written requires a manual power-cycle
+to recover from a WiFi-association-level drop.
+
+**Historical CSV pattern.** Scanning the full day's CSV for gaps >5s found
+11 gaps between 07:54 and 12:10 that morning, clustering tightly around
+**400-420 seconds** each — not random flakiness. That duration is very
+close to [ADR-036](../decisions/ADR-036-mqtt-reconnect-watchdog.md)'s own
+math (30 consecutive MQTT disconnects × ~13s retry cadence ≈ 6.5 min), which
+was the first sign this might be the watchdog cycle repeating rather than
+raw WiFi flakiness. Note this durations-cluster-tightly observation is
+explained by the watchdog's fixed 30-count ceiling itself — any MQTT outage
+that doesn't clear within the immediate-retry window gets truncated to
+~6.5 minutes by the forced reboot regardless of how long the underlying
+external cause would otherwise have lasted, so this does *not* imply the
+external trigger itself has a fixed ~400s duration.
+
+**Live capture caught the next cycle in full, end to end**, cross-referenced
+across the serial log, `wifi_task_get_stats()`/`link_mqtt_get_stats()`'s
+DIAG lines (30s cadence), and the CSV's own write timestamps:
+
+| t (uptime) | Event |
+|---|---|
+| 589332ms | `transport_base: Poll timeout or error, errno=Success, fd=54, timeout_ms=10000` → `mqtt_client: Writing didn't complete in specified timeout: errno=0` → `link_mqtt: disconnected`. No `wifi_task: Disconnect reason` anywhere near this — WiFi stayed associated. |
+| 589542ms | `net_task: MQTT disconnected — reverting display to local state` — LED goes to `RGB_WIFI_CONN` ("blue breathing") via the **MQTT-layer revert path** in [net_task.c](../../src/threads/net_task.c), not the WiFi-layer path in wifi_task.c. Same LED state, different cause. |
+| 601352ms+ | Repeating `esp-tls: select() timeout` / `transport_base: Failed to open a new connection: 32774` / `mqtt_client: Error transport connect` — esp-mqtt's own internal reconnect loop retrying and failing every ~13-15s, exactly ADR-036's documented signature. |
+| 589542 → 966402ms | `mqtt: disconnects` climbs 0→2→4→6→9→11→13→16→18→20→23→25→27→30 across DIAG cycles. `wifi: disconnects` stays at **0** the entire time. `publishes` frozen at 2736 — confirmed stuck, not slow. |
+| 966412ms | `DIAG: mqtt stuck: 30 consecutive disconnects with no successful reconnect - restarting to recover (ADR-036)` fires exactly at the calibrated threshold. |
+| 966452ms | `wifi_task: Disconnect reason: ASSOC_LEAVE (8) attempt=1` — self-inflicted, the STA gracefully leaving as part of `esp_restart()`, not an externally-caused drop. |
+| — | `rst:0xc (RTC_SW_CPU_RST)`, reboot. |
+| t=1367ms (new boot) | `wifi_task: STA started — connecting to "MUTHIYATTIRI 2.4GHz"...` — same home router used throughout this doc's earlier trials, not a hotspot. |
+| t=4047ms | `wifi_task: Got IP: 192.168.1.2 (after 1 attempt(s))` — clean, first-try reconnect. |
+| 12:26:18 wall clock | CSV resumes growing. |
+| t=31497ms | Fresh DIAG: `wifi: connects=1 disconnects=0`, `mqtt: connects=1 disconnects=0 publishes=129` — fully healthy. |
+
+Total outage: onset (12:19:32 wall clock) to confirmed data resuming
+(12:26:18) ≈ **403 seconds**, matching the historical ~400-420s CSV gap
+pattern almost exactly — this and the other 10 gaps that morning are the
+same self-heal cycle repeating roughly every 20-30 minutes, not distinct
+incidents.
+
+**Firmware-vs-external verdict: external. Not a firmware defect.** The
+firmware did exactly what it was designed to do at every step — WiFi's own
+unconditional-retry logic held the association the entire time (never even
+needed to engage), and ADR-036's watchdog caught the stuck MQTT session
+and self-healed in one clean cycle with zero data loss beyond the outage
+window and, critically, **zero manual power-cycle required**. The two
+"real WiFi disconnects" noted in `PHASE_B_REPORT.md`'s 2026-08-11 addendum
+were very likely this same self-recovering cycle interrupted early by an
+impatient operator power-cycle, not a state the firmware was actually stuck
+in — `on_wifi_disconnected()`'s unconditional retry and ADR-036's watchdog
+together mean nothing currently requires manual intervention on this
+failure path.
+
+**Correction to this session's original hypothesis.** The leading
+hypothesis going in was Windows Mobile Hotspot power management. Checked
+directly: `icssvc` (the service backing Windows Mobile Hotspot/ICS) is
+**stopped**, and `netsh wlan show hostednetwork` reports "Status: Not
+available" — the hotspot is not in use. This Windows machine is a WiFi
+*client* of a real router (`MUTHIYATTIRI 2.4GHz`, gateway 192.168.1.1),
+the same router already power-cycle-tested in §3 above. So the
+Windows-hotspot-specific fix Abhi is applying separately (adapter power
+management, hotspot auto-disable) is unlikely to be the relevant lever for
+*this* failure — it wasn't in the causal path this session.
+
+**What's actually failing (not fully root-caused, out of scope to chase
+further this session).** The proximate cause is a silent TCP stall between
+the ESP32 and the Mosquitto broker (`errno=Success` poll timeout — no RST,
+no explicit refusal, the socket just goes quiet) that WiFi's own
+disconnect detection never sees. Two untested candidates worth checking
+before the demo, in order of ease:
+
+1. **Dual-homed broker host.** `ipconfig` shows this machine has *two*
+   interfaces on the same `192.168.1.0/24` subnet at once — Ethernet
+   (`192.168.1.5`, which `gateway/main.py --mqtt-host` points at) and WiFi
+   (`192.168.1.7`). Same-subnet dual-homing is a known source of
+   intermittent silent packet loss on Windows (strongest-host routing
+   occasionally binding return traffic to the "wrong" interface). Worth
+   testing: disable the WiFi adapter (or unplug Ethernet) during a capture
+   and see if the ~20-30 min cadence changes.
+2. **Router-side flakiness on the 2.4GHz band** (channel congestion,
+   client isolation timeout, or similar) independent of this project's
+   code — the same router already flagged for general instability across
+   this doc's §3 trials.
+
+**Mitigation for the demo recording, regardless of root cause.** No
+firmware change needed or planned. If a drop happens on camera, the correct
+action is to **wait, not power-cycle** — the LED will show "blue breathing"
+for up to ~6.5 minutes and then self-recover on its own with `Got IP ...
+after 1 attempt(s)`. If that risk is unacceptable for a live recording,
+switching to a phone hotspot or a dedicated router (avoiding this
+machine's dual-homed subnet entirely) removes candidate #1 above without
+needing to confirm it first.
+
+**LED diagnostic note for future sessions.** `RGB_WIFI_CONN` ("blue,
+slow breathe", [hal_display.h](../../components/epm_hal/include/hal/hal_display.h))
+is driven by *two* independent call sites — a real WiFi disconnect
+(`wifi_task.c`) and a pure MQTT-session drop while WiFi stays up
+(`net_task.c`'s `MQTT disconnected — reverting display to local state`).
+`RGB_TCP_CONN` ("blue, fast strobe" — "blue flashing") means WiFi has an IP
+but MQTT/app-level isn't confirmed up yet. Same blue LED, three different
+underlying states; the DIAG wifi/mqtt disconnect counters (not LED color
+alone) are what actually distinguish them.
