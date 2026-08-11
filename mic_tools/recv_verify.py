@@ -406,7 +406,7 @@ def _process_satellite_frame(sat, frame, mac_hex, csv_w, csv_f,
     Deliberately excludes the TCP-specific adaptive-sensing reply
     (`_v2`/`conn.sendall`) and its ADAPT-event log — those belong to the v1/v2
     wire protocol's reverse channel, which MQTT's asymmetric cmd topic has no
-    equivalent of (see PHASE_8A_PROMPT.md Task 3/4).
+    equivalent of (Phase 8a, Tasks 3/4).
 
     Returns None if the frame was rejected (replay), in which case the caller
     must skip it exactly as the old inline `continue` did. Otherwise returns

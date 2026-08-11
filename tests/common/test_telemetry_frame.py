@@ -48,7 +48,7 @@ SCALARS = {RMS_MIC_ID: 0.0123, KURTOSIS_MIC_ID: 3.4}
 
 def _build_frame() -> bytes:
     """One SPECTRUM section (mic) + one SCALAR_SET section (rms_mic,
-    kurtosis_mic) -- the exit test's stated minimum, per PHASE_8A_PROMPT.md."""
+    kurtosis_mic) -- the exit test's stated minimum for Phase 8a."""
     spectrum_section = encode_section(
         SOURCE_SATELLITE, MIC_CHANNEL_ID, KIND_SPECTRUM,
         encode_spectrum_body(MIC_FS_HZ, MIC_FFT_N, MIC_BINS))

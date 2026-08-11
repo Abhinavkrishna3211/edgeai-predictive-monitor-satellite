@@ -9,7 +9,7 @@ adapts the result into the exact frame-dict shape `recv_verify.parse_frame()`
 (now `gateway.ingestion.tcp_legacy.parse_frame()`) already produces, and feeds
 it into `recv_verify._process_satellite_frame()` -- the same per-frame
 pipeline (alerting, HST/RUL/fusion, CSV logging, dashboard state) the TCP+AES
-path uses. See PHASE_8A_PROMPT.md Tasks 2/4.
+path uses (Phase 8a, Tasks 2/4).
 
 Modeled on the reference base-station implementation @
 base-station/python/ingestion/mqtt_subscriber.py (paho v2 callback API,
@@ -17,7 +17,7 @@ connect_async()+loop_start(), node_id-from-topic) -- fetched live rather than
 guessed, since paho-mqtt 2.x's Client() signature is a breaking change from 1.x.
 
 Deliberate deviations from the TCP wire format, spelled out rather than
-silently guessed (see PHASE_8A_PROMPT.md Task 4):
+silently guessed (Phase 8a, Task 4):
 
   Satellite identity: node_id (from the topic, `epm/<node_id>/data`) is used
   directly as the satellite registry key -- there is no hello-equivalent on
