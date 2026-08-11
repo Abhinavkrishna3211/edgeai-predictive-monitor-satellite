@@ -61,6 +61,7 @@ static const char *TAG = "rgb_led";
 #define RGB_AMBER    RGB_DUTY_FULL, 2800,          RGB_DUTY_OFF
 #define RGB_RED      RGB_DUTY_FULL, RGB_DUTY_OFF,  RGB_DUTY_OFF
 #define RGB_MAGENTA  RGB_DUTY_FULL, RGB_DUTY_OFF,  4900
+#define RGB_VIOLET   3500,          RGB_DUTY_OFF,  RGB_DUTY_FULL
 #define RGB_OFF      RGB_DUTY_OFF,  RGB_DUTY_OFF,  RGB_DUTY_OFF
 
 /* ── Pattern step ───────────────────────────────────────────────────────── */
@@ -88,6 +89,16 @@ static const DRAM_ATTR led_step_t pat_wifi[] = {
 static const DRAM_ATTR led_step_t pat_tcp[] = {
     {RGB_CYAN, 400, 100, false},
     {RGB_OFF,  400, 300, true},
+};
+
+/* Mirrors pat_wifi's fade-breathe shape (same 900ms fade-in/out this state
+ * uses on the NeoPixel driver's cosine breathe, display_neopixel.c) but in
+ * violet instead of blue -- keeps a broker-level MQTT stall visually
+ * distinct from a real WiFi-association drop on this Kconfig fallback too,
+ * not just on the default NeoPixel build. */
+static const DRAM_ATTR led_step_t pat_mqtt_stall[] = {
+    {RGB_VIOLET, 900, 0, false},
+    {RGB_OFF,    900, 0, true},
 };
 
 static const DRAM_ATTR led_step_t pat_cal[] = {
@@ -239,6 +250,7 @@ static void anim_start_for_state(rgb_led_state_t state)
     case RGB_BOOT:        anim_start(&g_anim, pat_boot,    ARRAY_SIZE(pat_boot));    break;
     case RGB_WIFI_CONN:   anim_start(&g_anim, pat_wifi,    ARRAY_SIZE(pat_wifi));    break;
     case RGB_TCP_CONN:    anim_start(&g_anim, pat_tcp,     ARRAY_SIZE(pat_tcp));     break;
+    case RGB_MQTT_STALL:  anim_start(&g_anim, pat_mqtt_stall, ARRAY_SIZE(pat_mqtt_stall)); break;
     case RGB_CALIBRATING: anim_start(&g_anim, pat_cal,     ARRAY_SIZE(pat_cal));     break;
     case RGB_LEARNING:    anim_start(&g_anim, pat_learn,   ARRAY_SIZE(pat_learn));   break;
     case RGB_OK:          anim_start(&g_anim, pat_ok,      ARRAY_SIZE(pat_ok));      break;

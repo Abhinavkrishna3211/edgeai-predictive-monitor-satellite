@@ -75,16 +75,23 @@ typedef struct {
  * COMMISSIONING_COLLECTING + COMMISSIONING_TRAINING) and both use CONST,
  * matching status_color.py exactly rather than distinguishing our two local
  * sub-phases on-device (see ADR-016's 2026-08-06 addendum for why exact
- * parity was chosen over that local distinction). BOOT/WIFI_CONN/TCP_CONN
- * have no NodeStatus analog (status_color.py has nothing for "not yet
- * joined the network" -- a node isn't in his registry until it's already
- * reporting) -- colors chosen locally, kept in the blue family (mirrors
- * display_ledc.c's old blue-wifi/cyan-tcp pattern, recolored off cyan since
- * that's now reserved for CALIBRATING). */
+ * parity was chosen over that local distinction). BOOT/WIFI_CONN/TCP_CONN/
+ * MQTT_STALL have no NodeStatus analog (status_color.py has nothing for
+ * "not yet joined the network" -- a node isn't in his registry until it's
+ * already reporting) -- colors chosen locally, kept in the blue family
+ * (mirrors display_ledc.c's old blue-wifi/cyan-tcp pattern, recolored off
+ * cyan since that's now reserved for CALIBRATING). MQTT_STALL (added after
+ * the 2026-08-11 stress test found net_task.c's MQTT-disconnect revert was
+ * silently reusing RGB_WIFI_CONN, making a broker-level stall
+ * indistinguishable from a real WiFi-association drop -- see ADR-025's
+ * 2026-08-11 addendum) uses violet, chosen specifically because it is
+ * unused by both this table and status_color.py's own palette (checked
+ * against the reference repo directly, not assumed). */
 static const led_pattern_t k_pattern[RGB_STATE_MAX] = {
     [RGB_BOOT]        = { 0xFFFFFF, MODE_CONST,   0    },
     [RGB_WIFI_CONN]   = { 0x0000FF, MODE_BREATHE, 1200 },
     [RGB_TCP_CONN]    = { 0x0000FF, MODE_STROBE,  300  },
+    [RGB_MQTT_STALL]  = { 0xBB00FF, MODE_BREATHE, 900  },
     [RGB_CALIBRATING] = { 0x22D3EE, MODE_CONST,   0    },
     [RGB_LEARNING]    = { 0x22D3EE, MODE_CONST,   0    },
     [RGB_OK]          = { 0x00FF00, MODE_CONST,   0    },

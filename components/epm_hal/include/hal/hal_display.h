@@ -27,6 +27,7 @@ typedef enum {
     RGB_BOOT = 0,
     RGB_WIFI_CONN,
     RGB_TCP_CONN,
+    RGB_MQTT_STALL,
     RGB_CALIBRATING,
     RGB_LEARNING,
     RGB_OK,

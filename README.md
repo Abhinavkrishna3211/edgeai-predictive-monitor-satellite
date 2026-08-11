@@ -721,6 +721,7 @@ identical on both sides of the wire (`docs/decisions/ADR-016-*.md`).
 | `RGB_BOOT` | White `#FFFFFF` | Solid | — | Power-on, initialising |
 | `RGB_WIFI_CONN` | Blue `#0000FF` | Breathe | 1200 ms | Connecting to WiFi |
 | `RGB_TCP_CONN` | Blue `#0000FF` | Strobe | 300 ms | WiFi up, connecting to broker |
+| `RGB_MQTT_STALL` | Violet `#BB00FF` | Breathe | 900 ms | WiFi is fine, but the MQTT session dropped and is self-healing (see [Debugging §9](docs/NEW_NODE_SETUP_GUIDE.md#9-debugging)) |
 | `RGB_CALIBRATING` | Cyan `#22D3EE` | Solid | — | Collecting baseline frames |
 | `RGB_LEARNING` | Cyan `#22D3EE` | Solid | — | Training baseline (same color as CALIBRATING — reference has one "commissioning" state, not two) |
 | `RGB_OK` | Green `#00FF00` | Solid | — | Healthy, normal vibration |

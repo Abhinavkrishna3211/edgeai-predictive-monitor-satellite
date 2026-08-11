@@ -108,3 +108,31 @@ decision should be revisited (see Consequences), not before.
 **Metrics to watch:**
 - Whether any future task besides `net_task.c`'s disconnect-revert path
   starts calling `rgb_led_set_state()` after boot — if so, re-open this ADR.
+
+## Addendum: 2026-08-11 — revert target changed from `RGB_WIFI_CONN` to a new `RGB_MQTT_STALL`
+
+This ADR's Decision picked `RGB_WIFI_CONN` as the disconnect-revert target,
+reasoning it was "the honest state" since WiFi itself may still be up. That
+reasoning about *what's true* was correct, but it had a cost this ADR didn't
+weigh at the time: reusing `RGB_WIFI_CONN` means a broker-level MQTT stall
+and a real WiFi-association drop render as the exact same color and
+animation, with no way to tell them apart from the LED alone.
+
+That collision caused real confusion during demo prep and stress testing —
+see `docs/performance/SATELLITE_STRESS_STABILITY_TEST.md`'s 2026-08-11
+addendum, independently reproduced again on a different network during
+`docs/performance/HARDWARE_INTEROP_TEST.md`'s 2026-08-11 addendum. Both times
+the LED alone was insufficient to tell "just wait, this self-heals"
+(MQTT-layer stall, ADR-036) apart from "something actually dropped WiFi"
+without opening a serial monitor and checking for a `Disconnect reason` log
+line.
+
+`net_task.c`'s disconnect-revert call now targets a new `RGB_MQTT_STALL`
+state (`components/epm_hal/include/hal/hal_display.h`, violet,
+`0xBB00FF`/breathe/900ms on the NeoPixel driver) instead of `RGB_WIFI_CONN`.
+The color was checked against both this project's own pattern table and the
+reference base station's `status_color.py` directly (not assumed from a
+stale doc) to confirm it collides with neither palette. This doesn't change
+anything else this ADR decided — last-write-wins priority, remote overriding
+local, and the revert-on-disconnect behavior itself are all unchanged; only
+which color that revert renders as.

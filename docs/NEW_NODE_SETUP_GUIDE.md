@@ -247,38 +247,43 @@ publishing, without the gateway's own decode/pipeline logic in the loop at
 all — useful for telling "firmware isn't sending" apart from "gateway isn't
 processing what it receives."
 
-### WiFi-layer drop vs. MQTT-layer stall — same LED, different cause
+### WiFi-layer drop vs. MQTT-layer stall — `RGB_WIFI_CONN` vs `RGB_MQTT_STALL`
 
-`RGB_WIFI_CONN` ("blue, slow breathe") is driven from **two independent
-call sites**, and this has caused real confusion during demo prep
+These two used to be indistinguishable — both were `RGB_WIFI_CONN` ("blue,
+slow breathe"), which caused real confusion during demo prep
 (`docs/performance/SATELLITE_STRESS_STABILITY_TEST.md`'s 2026-08-11
-addendum):
+addendum). They're now two different colors, but the underlying two call
+sites are worth knowing if you ever need to double-check against the serial
+log instead of trusting the LED alone:
 
-- `src/threads/wifi_task.c`'s `on_wifi_disconnected()` sets it on a genuine
-  WiFi-association-level drop, and **only this path** logs a line starting
-  `wifi_task: Disconnect reason: ...` (with a decoded reason like
-  `ASSOC_LEAVE`, `BEACON_TIMEOUT`, `AUTH_FAIL`, etc.).
-- `src/threads/net_task.c`'s publish loop *also* sets `RGB_WIFI_CONN`
-  whenever `transport_is_connected()` goes from true to false — i.e. purely
-  an MQTT-session drop, with WiFi still fully associated. This path logs
-  `net_task: MQTT disconnected — reverting display to local state` and
-  **does not** log any `Disconnect reason` line, because WiFi itself never
-  saw an event.
+- `src/threads/wifi_task.c`'s `on_wifi_disconnected()` sets `RGB_WIFI_CONN`
+  (blue, breathe 1200 ms) on a genuine WiFi-association-level drop, and
+  **only this path** logs a line starting `wifi_task: Disconnect reason:
+  ...` (with a decoded reason like `ASSOC_LEAVE`, `BEACON_TIMEOUT`,
+  `AUTH_FAIL`, etc.).
+- `src/threads/net_task.c`'s publish loop sets `RGB_MQTT_STALL` (violet,
+  breathe 900 ms) whenever `transport_is_connected()` goes from true to
+  false — i.e. purely an MQTT-session drop, with WiFi still fully
+  associated. This path logs `net_task: MQTT disconnected — reverting
+  display to local state` and **does not** log any `Disconnect reason`
+  line, because WiFi itself never saw an event.
 
-So: if the LED goes blue-breathing and the serial log has no `Disconnect
-reason` line anywhere nearby, WiFi is fine and this is a silent MQTT-layer
-stall, not a real network drop. That stall self-heals — `diagnostics_task_fn()`
+So: if the LED goes **violet**, WiFi is fine and this is a silent
+MQTT-layer stall, not a real network drop — no need to go check the serial
+log for a `Disconnect reason` line anymore, the color already tells you
+which layer dropped. That stall self-heals — `diagnostics_task_fn()`
 counts consecutive MQTT disconnects and calls `esp_restart()` once it hits
-30, which at the observed ~13 s retry cadence is roughly **6.5 minutes**
-of continuous failure before the board reboots itself and reconnects
-cleanly, with zero manual intervention needed (`docs/decisions/ADR-036-mqtt-reconnect-watchdog.md`).
-This was independently reproduced live on 2026-08-11 against the reference
-base station's own unmodified code — a ~403 s data gap, confirmed frozen on
-both `mosquitto_sub` and the reference dashboard's own `last_seen` field at
-once, then a clean self-recovery with no reset button pressed
+the threshold in `docs/decisions/ADR-036-mqtt-reconnect-watchdog.md` (see
+that ADR for the current value and real-hardware-confirmed recovery time —
+it was shortened from the original 30/~6.5 minutes on 2026-08-11). This was
+independently reproduced live on 2026-08-11 against the reference base
+station's own unmodified code — a ~403 s data gap, confirmed frozen on both
+`mosquitto_sub` and the reference dashboard's own `last_seen` field at once,
+then a clean self-recovery with no reset button pressed
 (`docs/performance/HARDWARE_INTEROP_TEST.md`'s 2026-08-11 addendum). If you
-see this during a demo or bring-up: **wait, don't power-cycle** — power-cycling
-mid-stall is what has been mistaken for "real disconnects" before.
+see the LED go violet during a demo or bring-up: **wait, don't power-cycle**
+— power-cycling mid-stall is what has been mistaken for "real disconnects"
+before.
 
 ---
 

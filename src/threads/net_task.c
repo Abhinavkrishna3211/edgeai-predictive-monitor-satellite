@@ -432,7 +432,12 @@ static void net_task_fn(void *arg)
 		if (mqtt_was_connected && !mqtt_connected) {
 			s_disconnect_reverts++;
 			ESP_LOGW(TAG, "MQTT disconnected — reverting display to local state");
-			rgb_led_set_state(RGB_WIFI_CONN);
+			/* RGB_MQTT_STALL, not RGB_WIFI_CONN: the two used to share a
+			 * color, which made a broker-level stall indistinguishable
+			 * from a real WiFi-association drop on the LED alone (see
+			 * ADR-025's 2026-08-11 addendum and
+			 * docs/NEW_NODE_SETUP_GUIDE.md §9). */
+			rgb_led_set_state(RGB_MQTT_STALL);
 		}
 		mqtt_was_connected = mqtt_connected;
 
