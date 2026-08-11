@@ -141,17 +141,17 @@ as the Phase 0 foundation for the full simulation sweep.
 
 | Parameter | File:Line | Current Value | Controls | Justification | Testable |
 |---|---|---|---|---|---|
-| `FFT_MIC_N` | epm_config.h:23 | 1024 | Microphone FFT window (samples) | ADR-008: frequency resolution 16000/1024=15.6 Hz/bin | HW |
+| `FFT_MIC_N` | epm_config.h:23 | 1024 | Microphone FFT window (samples) | ADR-008: frequency resolution 48000/1024=46.9 Hz/bin | HW |
 | `FFT_IMU_N` | epm_config.h:27 | 2048 | IMU FFT window (samples) | ADR-008: frequency resolution 25600/2048=12.5 Hz/bin | HW |
 | `SPEC_AVG_N` | epm_config.h:31 | 4 | Spectral frames to average before sending | Noise reduction; reduces frame rate to ~2.2 fps | HW |
-| `MIC_FS_HZ` | epm_config.h:40 | 16000 | I2S mic ODR | INMP441 supported rate; Nyquist = 8kHz covers bearing resonance band | HW |
+| `MIC_FS_HZ` | epm_config.h:40 | 48000 | I2S mic ODR | INMP441 supported rate; Nyquist = 24kHz covers bearing resonance band | HW |
 | `IMU_FS_HZ` | epm_config.h:45 | 25600 | KX134 ODR | KX134 max ODR; Nyquist = 12.8kHz | HW |
 | `LED_CAL_FRAMES` | epm_config.h:80 | 30 | Frames before RGB switches from CALIBRATING state | Matches CAL_FRAMES; consistent | HW |
 | `MIC_FAIL_MAX` | epm_config.h:88 | 50 | Consecutive mic failures before LOGE escalation | ~3s at 62ms/block; no documented justification for 50 | HW |
 | `WIFI_TX_POWER_QTR_DBM` | epm_config.h:99 | 68 (17 dBm) | WiFi TX power cap | ADR-010: reduces peak current 310→220 mA with negligible range loss at <10m | HW |
 | `TASK_STACK_MIC` | epm_config.h:122 | 8192 bytes | mic_task stack | 2× spec minimum; kurtosis buffer safety margin | HW |
-| `TASK_STACK_DSP` | epm_config.h:123 | 16384 bytes | dsp_task stack | 2× spec minimum; FFT + feature compute on Core 1 | HW |
-| `TASK_STACK_IMU` | epm_config.h:124 | 8192 bytes | imu_task stack | 2× spec minimum; 3-axis FFT + cosf() margin | HW |
+| `TASK_STACK_DSP` | epm_config.h:225 | 6144 bytes | dsp_task stack | measured HWM 2004; 3× measured peak (was 16384, 93% wasted) | HW |
+| `TASK_STACK_IMU` | epm_config.h:226 | 4096 bytes | imu_task stack | measured HWM 568 on real KX134 driver; ~63% margin over measured peak | HW |
 | `TASK_STACK_WIFI` | epm_config.h:125 | 10240 bytes | wifi_task stack | mbedTLS + mDNS + TCP overhead | HW |
 | `TASK_STACK_DIAG` | epm_config.h:126 | 3072 bytes | diagnostics_task stack | Exactly at spec minimum; 512-byte vTaskGetRunTimeStats buffer | HW |
 

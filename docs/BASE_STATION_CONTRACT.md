@@ -24,7 +24,7 @@ Supersedes the project's earlier internal wire-contract notes. Fetched directly 
 | Zero-fill rule (present + real bin_count + all-zero = real data; `bin_count=0` = channel absent) | `telemetry_frame_test.py::test_zero_fill_present_section_is_real_data` + `::test_bin_count_zero_omits_channel`, both passing |
 | Sensor params: mic 48000Hz/2048-pt, accel 6400Hz/1024-pt (nominal), 128 bins | `satellite_node_sim.py`: `NOMINAL_MIC_FS_HZ/FFT_SIZE`, `NOMINAL_ACCEL_FS_HZ/FFT_SIZE`, `DEFAULT_BIN_COUNT` — unchanged since 2026-07-30's check |
 | PERF/health scalars ride `channel_id=255` as a `SCALAR_SET` | `telemetry_schema.json`: `"perf_channel_id": 255` |
-| Per-channel `input_dim` = 134 (128 spectral bins + 6 scalars) | `registry.py`'s `_DIM_BY_CHANNEL`; matches Phase 0.5's independently-confirmed `input_dim=536` for 4 channels (4×134) |
+| Per-channel `input_dim` = `bin_count + 6` scalars, derived dynamically from wire bytes (not a fixed constant) | `registry.py`'s `_DIM_BY_CHANNEL`; at `EPM_MODEL_SPECTRUM_BINS=256` (ADR-040) this is 262/channel, `input_dim=1048` for 4 channels — confirmed on real hardware in the 2026-08-11 addendum of `docs/performance/HARDWARE_INTEROP_TEST.md`, up from the `536` (128-bin) figure documented pre-ADR-040 |
 
 ---
 
