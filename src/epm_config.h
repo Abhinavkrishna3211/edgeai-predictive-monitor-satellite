@@ -200,11 +200,11 @@
  *              declared *inside* kx134_fill_epoch() -- a genuine stack-local
  *              bug, not just legitimate stack growth -- which combined with
  *              the stale 3072 sizing to leave only 72-152 bytes of headroom
- *              and caused two observed stack-overflow reboots (see
- *              docs/IMU_TASK_STACK_OVERFLOW_FIX_PROMPT.md). Fixed by moving
- *              that buffer to file scope (s_raw_frame_buf); re-measured real
- *              peak usage afterward is 3072-568=2504 bytes. 4096 = measured
- *              peak + ~63% margin, matching net_task's existing stack size.
+ *              and caused two observed stack-overflow reboots. Fixed by
+ *              moving that buffer to file scope (s_raw_frame_buf);
+ *              re-measured real peak usage afterward is 3072-568=2504 bytes.
+ *              4096 = measured peak + ~63% margin, matching net_task's
+ *              existing stack size.
  *   net=4096  — esp-mqtt publish loop; receive destinations are file-scope
  *               statics (ADR-021), not stack, so this stays small
  *   diag=3072 (spec 3072) — only vTaskGetRunTimeStats 1024-byte static buffer

@@ -14,10 +14,10 @@
  * wifi_provision_task.h for why this file (unlike wifi_task.c) owns a
  * real FreeRTOS task.
  *
- * Design reference: docs/PHASE_12A_PROMPT.md's Context section (ported
- * from the reference satellite's satellite/src/threads/transport_task.cpp
- * state machine — that file lives in a different, non-ESP-IDF codebase and
- * was read directly, not copied).
+ * Design reference: this phase's own design notes (ported from the
+ * reference satellite's satellite/src/threads/transport_task.cpp state
+ * machine — that file lives in a different, non-ESP-IDF codebase and was
+ * read directly, not copied).
  */
 
 static const char *TAG = "wifi_provision";

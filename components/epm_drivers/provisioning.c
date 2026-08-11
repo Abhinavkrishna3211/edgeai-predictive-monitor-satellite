@@ -20,7 +20,7 @@
  *
  *   - the AP itself, brought up as WIFI_MODE_APSTA (not a full mode switch)
  *     so STA keeps retrying/reconnecting while the portal stays reachable —
- *     see docs/PHASE_12A_PROMPT.md's state machine and
+ *     see wifi_provision_task.c's PROVISIONING/STA_TESTING state machine and
  *     docs/decisions/ADR-031 for the WPA2-random-password policy this
  *     applies via drivers/ap_credentials.c;
  *   - drivers/dns_captive.c's DNS wildcard responder, so the OS

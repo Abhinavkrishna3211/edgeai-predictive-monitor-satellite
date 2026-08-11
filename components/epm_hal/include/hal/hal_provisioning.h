@@ -18,8 +18,8 @@ extern "C" {
  * Phase 12b implements it for real, in components/epm_drivers/
  * provisioning.c — esp_http_server (drivers/http_captive.c) + a DNS
  * wildcard responder (drivers/dns_captive.c), matching the reference
- * satellite's hal_provisioning.h design fetched during Phase 12a's scoping
- * (see docs/PHASE_12A_PROMPT.md).
+ * satellite's hal_provisioning.h design fetched live during Phase 12a's
+ * scoping.
  */
 
 /* Starts the provisioning AP + portal. Safe to call when already active. */

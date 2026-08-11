@@ -1,7 +1,7 @@
 /*
  * wifi_provision_task.h — Public API for the WiFi provisioning state machine.
  *
- * Phase 12a (docs/PHASE_12A_PROMPT.md Task 2). Unlike src/threads/
+ * Added in Phase 12a. Unlike src/threads/
  * wifi_task.c — which stays deliberately event-driven with no FreeRTOS
  * task of its own, per docs/decisions/ADR-022-wifi-task-revived.md — this
  * file DOES own a real task. ADR-022's reasoning covered WiFi STA

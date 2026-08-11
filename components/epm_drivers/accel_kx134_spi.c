@@ -164,9 +164,10 @@ static size_t  s_stage_n = 0;
 
 /* Per-burst frame-decode scratch, copied out of s_burst_buf by
  * kx134_read_regs(). File-scope, not a kx134_fill_epoch() local: this
- * driver is only ever called from imu_task's stack (docs/IMU_TASK_STACK_
- * OVERFLOW_FIX_PROMPT.md), and a 516-byte array here was silently eating
- * into that task's stack budget on every FIFO burst. */
+ * driver is only ever called from imu_task's stack (see the stack-overflow
+ * incident documented in src/epm_config.h's stack-sizing comment), and a
+ * 516-byte array here was silently eating into that task's stack budget on
+ * every FIFO burst. */
 static uint8_t s_raw_frame_buf[KX134_FIFO_MAX_FRAMES * KX134_FIFO_BYTES_PER_FRAME];
 
 /* ── Stats (Part I: one <module>_get_stats() accessor per module) ────────── */

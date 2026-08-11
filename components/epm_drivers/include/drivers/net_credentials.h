@@ -7,8 +7,8 @@ extern "C" {
 #endif
 
 /*
- * net_credentials — NVS-backed WiFi + MQTT broker credential storage
- * (Phase 12a, docs/PHASE_12A_PROMPT.md Task 1).
+ * net_credentials — NVS-backed WiFi + MQTT broker credential storage,
+ * added in Phase 12a (this project's WiFi-provisioning phase).
  *
  * Pure NVS wrapper: this module knows nothing about wifi_creds.h or
  * epm_config.h (epm_drivers must not depend back on the main component's
