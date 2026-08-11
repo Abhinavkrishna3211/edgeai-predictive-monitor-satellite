@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/base-station-interop]
+    branches: [main]
   pull_request:
-    branches: [main, feat/base-station-interop]
+    branches: [main]
 
 jobs:
   gateway-tests:
