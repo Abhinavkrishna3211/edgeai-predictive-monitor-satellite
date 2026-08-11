@@ -72,9 +72,11 @@ docs/*_PROMPT.md
 mic_tools/char_logs/
 tests/host/Testing/
 
-# ── Internal AI-planning docs — local-only working references, not pushed ────
+# ── Internal planning docs — local-only working references, not pushed ──────
 AGENTS.md
 docs/MASTER_PLAN.md
+/MASTERPLAN.md
+/PROJECT_STATUS.md
 
 # ── devrig local config (real reference-repo URL) — never commit ────────────
 tools/devrig/.env.local
