@@ -8,7 +8,7 @@ deciders: Abhinav Krishna N
 
 ## Context
 
-Part G Phase 11 (optional differentiator, `docs/PHASE_11A_PROMPT.md`) adds
+Part G Phase 11 (optional differentiator) adds
 envelope analysis (`components/epm_dsp/envelope.c`): band-pass around a
 structural resonance -> full-wave rectify -> low-pass -> decimate, the
 standard high-frequency resonance technique for bearing-defect detection.

@@ -8,7 +8,7 @@ deciders: Abhinav Krishna N
 
 ## Context
 
-Phase 12a (`docs/PHASE_12A_PROMPT.md`) ports the reference satellite's WiFi
+Phase 12a ports the reference satellite's WiFi
 onboarding design: a node with no saved credentials brings up its own AP
 (`EPM-SAT-<node_id>`) plus a captive portal, instead of blocking forever on
 compiled-in credentials. That portal itself is Phase 12b's job — this ADR

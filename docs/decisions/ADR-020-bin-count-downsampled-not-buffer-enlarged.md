@@ -8,7 +8,7 @@ deciders: Abhinav Krishna N
 
 ## Context
 
-`docs/PHASE_6B_PROMPT.md` (rescoped 2026-08-05 after reading the reference
+This phase's own scoping (rescoped 2026-08-05 after reading the reference
 `base-station/python/registry/registry.py` live) found that the phase's
 original premise — "our bin counts must match the base station's nominal
 128" — is wrong: `fs`/`fft_size`/`bin_count` are self-describing per-frame

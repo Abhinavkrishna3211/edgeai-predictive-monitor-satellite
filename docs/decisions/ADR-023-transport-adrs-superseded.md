@@ -15,7 +15,7 @@ as additive, non-breaking work — explicitly deferring the TCP path's removal
 to "Phase 7 with its own ADR once the base station gateway is the confirmed
 production path" (ADR-011). `docs/decisions/ADR-015-tcp-task-split-deferred.md`
 made the same deferral for `tcp_task.c`'s WiFi/PM code split. That point has
-now arrived: this session (Phase 7a, `docs/PHASE_7A_PROMPT.md`) deletes
+now arrived: this session (Phase 7a) deletes
 `tcp_task.c`, `tcp_task.h`, and `epm_protocol.h` outright
 (`git rm`), and the WiFi STA lifecycle + power management code they also
 carried moves to `src/threads/wifi_task.c`

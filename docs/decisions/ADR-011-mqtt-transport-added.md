@@ -163,10 +163,9 @@ removed or reordered.
 
 ## Addendum (2026-08-03): Windows Mobile Hotspot ruled out as the temporary stand-in base station
 
-Phase 0.5b (`docs/PHASE_0.5B_LAPTOP_AS_BASESTATION_PROMPT.md`) used the
-laptop's own WiFi Mobile Hotspot plus a native Mosquitto broker as a temporary
-stand-in for the real Uno Q base station, since that hardware was not yet
-available. This was config-only: `wifi_creds.h`'s SSID/password and
+Phase 0.5b used the laptop's own WiFi Mobile Hotspot plus a native Mosquitto
+broker as a temporary stand-in for the real Uno Q base station, since that
+hardware was not yet available. This was config-only: `wifi_creds.h`'s SSID/password and
 `EPM_MQTT_BROKER_HOST` pointed at the hotspot instead of the real base
 station, with no firmware structure changes.
 

@@ -8,7 +8,7 @@ deciders: Abhinav Krishna N
 
 ## Context
 
-`docs/PHASE_6C_PROMPT.md` set out to replace `net_task.c`'s synthetic MQTT
+This phase set out to replace `net_task.c`'s synthetic MQTT
 frame with real mic/IMU data. Live grep of `src/main.c:157` and
 `src/threads/tcp_task.c` found a real blocker not in the phase's original
 scope: `dsp_task_get_queue()` and `imu_task_get_queue()` already have exactly
