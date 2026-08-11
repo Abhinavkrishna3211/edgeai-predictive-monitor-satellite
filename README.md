@@ -222,6 +222,11 @@ edgeai-predictive-monitor-satellite/
 
 ## Quick Start — Satellite Firmware
 
+> Bringing up a brand-new node from a bare XIAO ESP32-S3 + INMP441 + KX134?
+> [`docs/NEW_NODE_SETUP_GUIDE.md`](docs/NEW_NODE_SETUP_GUIDE.md) walks the
+> whole thing end-to-end — wiring, build, provisioning, flashing, and
+> debugging — in one place.
+
 ### 1. Prerequisites
 
 - [PlatformIO](https://platformio.org/) with the Espressif32 platform installed, **or**
@@ -277,17 +282,40 @@ The gateway is a standard Python 3.9+ package. The setup below runs identically
 on a laptop, a Raspberry Pi, or an Arduino Uno Q base station — nothing in it
 is Uno-Q-specific except where noted.
 
-> **What's actually been hardware-tested:** a laptop + `tools/devrig/`, driving
-> the **reference repository's own dashboard** against real XIAO satellite
-> firmware (`docs/performance/HARDWARE_INTEROP_TEST.md`, 2026-08-07 — node
-> `5ab004`, 17m45s soak, 4599 data messages, zero errors/warnings). That
-> validates the firmware and wire protocol end-to-end. This repo's own
-> `gateway/` package below is covered by its pytest suites and by
-> `tools/satellite_sim.py`'s legacy TCP simulator, but hasn't had that same
-> real-firmware MQTT soak yet. See `tools/devrig/README.md` to reproduce the
-> hardware-validated path (WSL + a sibling read-only clone of the reference
-> repo; `tools\devrig\devrig.ps1 --nodes 1 --port 8180 --captures-dir ""
-> --auto-online` from PowerShell).
+> **What's actually been hardware-tested:** A laptop + `tools/devrig/`, driving
+> the **reference repository's own dashboard/classifier** against real XIAO
+> satellite firmware, has soaked the wire protocol multiple times — most
+> recently 2026-08-11 (14m16s, 2091 messages, ~4.75 msg/s), which re-verified
+> that ADR-040's 256-bin spectra and ADR-032's 3 envelope channels are still
+> wire-compatible with the reference base station's own *unmodified* code —
+> zero changes needed on that side (`input_dim` auto-sized 536→1048). That
+> same session also live-reproduced and root-caused the recurring "blue
+> breathing" LED drops as a **silent MQTT-layer stall** (data frozen for
+> ~400-450s, then self-recovers via the ADR-036 watchdog — WiFi itself never
+> drops). Full detail: `docs/performance/HARDWARE_INTEROP_TEST.md`.
+>
+> On classification accuracy specifically
+> (`tools/accuracy_harness/PHASE_B_REPORT.md`), across all 7 possible
+> classifier outputs:
+>
+> - **Normal** and **Bearing Fault** are real-hardware confirmed — 135,032
+>   ambient frames correctly read as Normal, and a real mic capture correctly
+>   classified "Bearing Fault — Early".
+> - **Mechanical Imbalance**, **Shaft Misalignment**, and **Mechanical
+>   Looseness** were each attempted on real hardware and did not trigger —
+>   not unexplored gaps, but honestly characterized negative results with the
+>   blocking mechanism identified for each (e.g. Misalignment's real
+>   `imu_crest` maxed at 5.6-5.9 against the 9.0 gate it needs; Looseness's
+>   `hi_r` improved from a ~0.46 to a ~0.30 mean after the 256-bin change
+>   (ADR-040) but still didn't clear its gate on any burst frame).
+> - The fallback labels **Severe Anomaly — Inspect** and **Elevated
+>   Vibration** are also real-hardware confirmed reachable.
+>
+> This repo's own `gateway/` package is covered by its pytest suites and
+> `tools/satellite_sim.py`'s legacy TCP simulator for everything above. See
+> `tools/devrig/README.md` to reproduce the hardware-validated path (WSL + a
+> sibling read-only clone of the reference repo; `tools\devrig\devrig.ps1
+> --nodes 1 --port 8180 --captures-dir "" --auto-online` from PowerShell).
 
 ### 1. First-time setup
 
@@ -766,21 +794,72 @@ receive.
 
 ## Alert Thresholds
 
-Configured at the top of `mic_tools/recv_verify.py`:
+Configured at the top of `mic_tools/recv_verify.py`. These drive the
+OK → WARN → FAULT alert engine (`gateway/pipeline/alerting.py`'s
+`compute_alert()`):
 
 | Parameter | Default | Meaning |
 |-----------|---------|---------|
 | `CAL_FRAMES` | 30 | Frames to build z-score baseline |
 | `K_WARN` | 6.0 | Kurtosis WARN (Gaussian noise ≈ 3) |
 | `K_FAULT` | 12.0 | Kurtosis FAULT (advanced bearing damage) |
-| `CREST_WARN` | 5.0 | Crest factor WARN |
-| `CREST_FAULT` | 10.0 | Crest factor FAULT |
+| `CREST_WARN` | 5.0 | Mic crest factor WARN |
+| `CREST_FAULT` | 10.0 | Mic crest factor FAULT |
+| `IMU_CREST_WARN` | 9.0 | Accelerometer crest factor WARN — a separate, higher threshold than the mic's, calibrated after real-hardware Part 3 testing found ambient IMU crest sits well above the mic's ambient baseline (`tools/accuracy_harness/PHASE_B_REPORT.md`) |
+| `IMU_CREST_FAULT` | 18.0 | Accelerometer crest factor FAULT |
 | `HIGH_BAND_MIN` | 0.12 | Min 2–8 kHz energy fraction to raise any alert |
-| `WARN_PERSIST` | 2 | Consecutive above-threshold frames to raise alert |
-| `CLEAR_PERSIST` | 3 | Consecutive OK frames to clear alert |
+| `WARN_PERSIST` | 2 | Consecutive above-threshold frames to raise WARN |
+| `CLEAR_PERSIST` | 3 | Consecutive OK frames to clear WARN |
+| `FAULT_CLEAR_PERSIST` | 8 | Consecutive OK frames to clear FAULT — longer than `CLEAR_PERSIST` so a confirmed fault can't clear on a couple of lucky-quiet frames |
 
 `HIGH_BAND_MIN` prevents low-frequency factory floor rumble from triggering false
 positives — bearing defects always excite the 2–8 kHz resonance band.
+
+---
+
+## Fault-Type Classification
+
+Separately from the OK/WARN/FAULT alert engine above,
+`gateway/pipeline/alerting.py`'s `_classify_fault_type()` labels every frame
+with one of four physics-based fault types (or `Normal`), by pattern-matching
+the same kurtosis/crest/band-ratio features against a per-fault-type gate.
+This is the most validated and technically substantial part of the pipeline —
+see [What's actually been hardware-tested](#quick-start--gateway) above and
+`tools/accuracy_harness/PHASE_B_REPORT.md` for the real-hardware status of
+every possible output.
+
+A frame is labeled `Normal` only if mic kurtosis, mic crest, and IMU crest
+are all below their WARN thresholds. Otherwise every gate below is evaluated,
+and the frame gets whichever fault type clears its gate by the largest
+relative margin (`_fault_candidate_scores()`). The order below only breaks an
+exact tie between two equally-strong candidates — it is not evaluated
+top-down:
+
+| Fault type | Gate (`gateway/pipeline/alerting.py`) |
+|---------------|----------------------------------------|
+| Bearing Fault | `hi_r > 0.40` and `mic_kurtosis >= K_WARN` |
+| Mechanical Imbalance | `mic_crest >= CREST_WARN` and `mic_kurtosis < K_WARN × 1.4` and `lo_r > 0.45` |
+| Shaft Misalignment | `imu_crest >= IMU_CREST_WARN` and `mid_r > 0.35` and `mic_kurtosis < K_FAULT` |
+| Mechanical Looseness | `mic_kurtosis >= K_WARN` and `hi_r < 0.30` and `lo_r < 0.55` and `mid_r > 0.20` |
+
+(`hi_r`/`lo_r`/`mid_r` are the mic FFT's high/low/mid band energy fractions —
+`_band_ratios()`.)
+
+If no fault-type gate is satisfied, the frame falls through to a
+kurtosis-magnitude label instead: `Severe Anomaly — Inspect`
+(`mic_kurtosis >= K_FAULT`), `Elevated Vibration` (`mic_kurtosis >= K_WARN`),
+or `Anomalous Vibration` (neither, but still not `Normal`).
+
+### Bearing frequency corroboration (ADR-038)
+
+When shaft speed and bearing geometry are supplied
+(`--shaft-hz`/`--shaft-rpm --bearing`),
+`gateway/pipeline/bearing_corroboration.py`'s `corroborate_bearing_fault()`
+adds one more, purely additive check on top of an already-triggered
+`Bearing Fault` label: it looks for the mic FFT's dominant peak within 2 FFT
+bins of a computed BPFO/BPFI/BSF/FTF marker (`bearing_math.py`). It never
+influences the label itself — it's out-of-band physics evidence attached to
+a label the pattern-match gate above already produced.
 
 ---
 
@@ -826,7 +905,7 @@ PlatformIO platform is on ESP-IDF 4.x. Add to `platformio.ini`:
 
 ## Roadmap
 
-- [x] MEMS microphone capture (I2S, 16 kHz, 1024-pt FFT)
+- [x] MEMS microphone capture (I2S, 48 kHz, 1024-pt FFT)
 - [x] Kurtosis, crest factor, high-band energy scoring — all six scalars now computed (`rms`/`kurtosis`/`crest_factor`/`peak`/`std`/`skewness`)
 - [x] Adaptive per-machine baselines — Welford warm-up (30 frames) then continuous EMA tracking (`alpha=5e-05`, ~11.5 min half-life at 2 fps), updated only on healthy frames (`adaptive_baseline.py`)
 - [x] MQTT streaming protocol (section-list telemetry frames; legacy binary TCP protocol kept for dev-only simulator use, `docs/decisions/ADR-028`)
