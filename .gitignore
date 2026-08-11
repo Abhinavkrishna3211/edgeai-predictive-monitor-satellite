@@ -77,6 +77,7 @@ AGENTS.md
 docs/MASTER_PLAN.md
 /MASTERPLAN.md
 /PROJECT_STATUS.md
+docs/SYSTEM_STATUS_REPORT.md
 
 # ── devrig local config (real reference-repo URL) — never commit ────────────
 tools/devrig/.env.local
