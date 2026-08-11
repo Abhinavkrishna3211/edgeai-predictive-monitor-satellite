@@ -11,8 +11,8 @@
 |---|---|---|---|---|---|
 | 0 | BOOT | Input | Strap | Boot mode select | FORBIDDEN for GPIO — hold LOW at reset = download mode |
 | 1 | RGB_R | Output | LEDC_CH_0 | LED red channel | Common-cathode; active HIGH duty; LEDC timer 0 |
-| 2 | I2S_BCLK | Output | I2S0 | Bit clock | 16 kHz × 32 bit = 512 kHz |
-| 3 | I2S_WS | Output | I2S0 | Word select (LRCLK) | 16 kHz frame rate |
+| 2 | I2S_BCLK | Output | I2S0 | Bit clock | 48 kHz sample rate, 32-bit I2S slot width (`MIC_SAMPLE_RATE_HZ`, `mic_inmp441_i2s.c`) |
+| 3 | I2S_WS | Output | I2S0 | Word select (LRCLK) | 48 kHz frame rate |
 | 4 | I2S_DIN | Input | I2S0 | Data in (mic → ESP32) | INMP441 DOUT |
 | 5 | RGB_G | Output | LEDC_CH_1 | LED green channel | LEDC timer 0 |
 | 6 | RGB_B | Output | LEDC_CH_2 | LED blue channel | LEDC timer 0 |
@@ -81,4 +81,4 @@ GPIO1/5/6 selected for RGB LED because:
 | VDD | 3V3 | Power |
 | GND | GND | Ground |
 
-I2S configuration: standard Philips mode, 16-bit samples, 16 kHz sample rate, stereo (left channel active via L/R=GND, right channel reads zero). Raw buffer collects 512-sample blocks.
+I2S configuration: standard Philips mode, 32-bit I2S slot width with the INMP441/ICS-43434's 24-bit samples left-justified within the slot, 48 kHz sample rate, mono (`I2S_SLOT_MODE_MONO`; L/R tied to GND selects the left channel). A capture call returns 1024-sample blocks (`MIC_RAW_BLOCK_SAMPLES`); internally the DMA driver chunks that into two 512-sample descriptors (`dma_frame_num = MIC_RAW_BLOCK_SAMPLES / 2`) to stay under the ESP32-S3's 4092-byte-per-descriptor limit. See `components/epm_drivers/mic_inmp441_i2s.c`.
