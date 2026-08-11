@@ -381,3 +381,65 @@ real-hardware attempted, real negative result with mechanism identified, gate no
 satisfied on this rig. **Shaft Misalignment** and the remaining classifier-only
 labels (Severe Anomaly — Inspect, Elevated Vibration, Anomalous Vibration) — still
 fully injected-data-only, untouched by this session's real-rig work.
+
+## Addendum — 2026-08-11: Looseness re-test at 256-bin wire resolution (ADR-040)
+
+`docs/decisions/ADR-040-wire-resolution-raised-to-256-bins.md` raised
+`EPM_MODEL_SPECTRUM_BINS` 128 -> 256 specifically to attack the leakage mechanism
+identified in Task 3 above (a short-tau burst's Lorentzian ringdown linewidth
+spreading across coarse 375 Hz bins near the mid/hi edge). This addendum re-runs
+that exact test against the new firmware to report the real before/after number,
+per this report's standing practice of reporting real numbers as found rather than
+assuming a fix worked.
+
+### Task 3 — Looseness re-test at 256 bins (method: real-rig)
+
+Same manifest parameters as the original 2026-08-10 test, no changes: carriers
+1650/1750/1850 Hz, `tau_ms=4`, `burst_ms=20`, `period_hz=30`, `amplitude=0.8`,
+`sample_rate=48000`, 6 s duration
+(`tools/bench_signal_gen/manifests/looseness_20260810_230258.json` was the
+original; `looseness_20260811_020612.json` and `looseness_20260811_071513.json`
+are this addendum's two repeat captures). At 256 bins the wire mid band shifts to
+468.8-1968.8 Hz (`hz_per=93.75` Hz, was 375-1875 Hz at 128 bins) — a real confound
+from finer resolution quantizing band edges differently, noted but not separated
+from the leakage-reduction effect below.
+
+Two independent live captures, 97 total mic frames. 73 frames coincide with the
+actual burst (identified the same way prior addenda did — `mid_r` overtaking
+`lo_r` marks a ~2.5 s post-playback tail, excluded from burst statistics as a
+likely click/silence artifact rather than the injected fault signal: tail frames
+show `lo_r` collapsing to 0.005-0.017 and `mid_r` jumping to 0.80-0.84, unlike
+anything in the actual burst).
+
+Real result: `hi_r` during the burst now measures **mean 0.3010, std 0.0284,
+range 0.2377-0.3802** across the 73 burst frames — down from the original
+firmware's consistent 0.45-0.48 (roughly a 35-40% reduction), and the mean now
+sits almost exactly on the 0.30 gate instead of nearly 2x over it. Real,
+reproducible improvement in the identified mechanism. It still does not reliably
+clear the gate: only 33/73 burst frames (45%) individually satisfy `hi_r < 0.30`,
+and the full gate (`mic_kurtosis >= 6.0 and hi_r < 0.30 and lo_r < 0.55 and
+mid_r > 0.20`) fires on 0 of the 73 burst frames — `mic_kurtosis` stays under 1 in
+magnitude throughout the real burst, nowhere near the 6.0 threshold this gate also
+requires. The gate does fire on 9 of the 24 excluded tail frames (kurtosis
+6.0-32.98, `mid_r` 0.80-0.84, `lo_r` 0.005-0.017), matching the tail signature
+above and excluded on the same basis — a likely playback-stop click, not the
+synthesized Looseness signal.
+
+**Gate: still not satisfied on any burst frame. Mechanical Looseness remains
+injected-data-only.** Unlike the two 2026-08-10 real-rig negative results above,
+this is not a static negative — ADR-040's bin-resolution change produced a real,
+measured, roughly 35-40% reduction in the specific mechanism that was blocking the
+gate, moving `hi_r`'s mean from clearly-over to straddling the 0.30 threshold. The
+category does not graduate today, but this is now a partially-closed gap with a
+characterized remaining margin (mean 0.001 over gate, std 0.028 — the frame-to-frame
+variance is larger than the remaining gap itself), not an open one.
+
+### Updated fault-category status (supersedes the table above for Looseness only)
+
+**Mechanical Looseness** — real-hardware attempted twice (2026-08-10 at 128 bins,
+2026-08-11 at 256 bins); real, measured leakage reduction from the bin-resolution
+change, gate still not satisfied on either attempt. **Mechanical Imbalance** —
+unchanged from the table above, not re-tested this addendum (its blocker, `lo_r`
+dominated by `mid_r`, is a rig acoustic-path property unrelated to bin resolution
+— ADR-040 was not expected to and did not address it). All other categories
+unchanged from the table above.
