@@ -273,10 +273,12 @@ MQTT-layer stall, not a real network drop — no need to go check the serial
 log for a `Disconnect reason` line anymore, the color already tells you
 which layer dropped. That stall self-heals — `diagnostics_task_fn()`
 counts consecutive MQTT disconnects and calls `esp_restart()` once it hits
-the threshold in `docs/decisions/ADR-036-mqtt-reconnect-watchdog.md` (see
-that ADR for the current value and real-hardware-confirmed recovery time —
-it was shortened from the original 30/~6.5 minutes on 2026-08-11). This was
-independently reproduced live on 2026-08-11 against the reference base
+10 (shortened from the original 30 on 2026-08-11; see
+`docs/decisions/ADR-036-mqtt-reconnect-watchdog.md`'s 2026-08-11 addendum
+for the reasoning). Real-hardware-confirmed self-heal time at the new
+threshold is **~152 seconds (~2.5 minutes)** from stall onset to automatic
+restart — measured directly, not just threshold × retry-cadence math. This
+was independently reproduced live on 2026-08-11 against the reference base
 station's own unmodified code — a ~403 s data gap, confirmed frozen on both
 `mosquitto_sub` and the reference dashboard's own `last_seen` field at once,
 then a clean self-recovery with no reset button pressed

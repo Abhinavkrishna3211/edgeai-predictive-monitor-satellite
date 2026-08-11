@@ -536,3 +536,33 @@ is driven by *two* independent call sites — a real WiFi disconnect
 but MQTT/app-level isn't confirmed up yet. Same blue LED, three different
 underlying states; the DIAG wifi/mqtt disconnect counters (not LED color
 alone) are what actually distinguish them.
+
+## Addendum: 2026-08-11 — watchdog threshold lowered to 10, real trigger-and-recover test; LED ambiguity above now fixed
+
+Two things above are now out of date, ahead of handing this satellite node
+off to Rahul for independent testing on his own hardware/network:
+
+**The "~6.5 minutes" figure (line 524 above) no longer applies.**
+`ADR-036`'s watchdog threshold was lowered 30 → 10 on 2026-08-11 — see that
+ADR's 2026-08-11 addendum for the full reasoning. A real trigger-and-recover
+test against this same dev broker (Windows Firewall inbound `Block` rule on
+port 1883, scoped to the satellite's IP, chosen specifically to reproduce a
+*silent* stall — no RST — rather than the easier clean-disconnect failure
+mode a broker-service stop would produce) measured **~152 seconds (~2.5
+minutes)** from stall onset to automatic restart, consistent across seven
+repeated cycles, with clean recovery confirmed after the block was lifted
+(`connects=1 disconnects=0` held with publishes climbing steadily, zero
+further disconnects). If a drop happens on camera during a future demo, the
+correct action is still **wait, not power-cycle** — just budget ~2.5
+minutes, not ~6.5.
+
+**The "LED diagnostic note for future sessions" (line 530 above) is
+superseded.** That note described `RGB_WIFI_CONN` as ambiguous between a
+real WiFi drop and an MQTT-only stall because both cases used to render
+identically. That's no longer true: `net_task.c`'s MQTT-disconnect revert
+now targets a distinct `RGB_MQTT_STALL` state (violet, breathe 900ms)
+instead of reusing `RGB_WIFI_CONN` — see `ADR-025`'s 2026-08-11 addendum and
+`docs/NEW_NODE_SETUP_GUIDE.md` §9. The DIAG counters are still the
+authoritative source if you need exact numbers, but the LED color alone is
+now sufficient to tell "WiFi actually dropped" (blue) apart from "just an
+MQTT-layer stall, self-heals in ~2.5 min" (violet) at a glance.

@@ -243,3 +243,86 @@ own comment in `net_task.c` have been corrected to document this.
 The live-router power-cycle trial (reproducing the original finding's exact
 conditions rather than the synthetic heap-reservation hook) remains
 deferred to a future validation pass.
+
+## Addendum: 2026-08-11 — threshold lowered 30 → 10 ahead of external testing, confirmed on real hardware
+
+This ADR's threshold of 30 was picked to weigh two failure costs against
+each other: false-triggering on an ordinary transient blip vs. leaving a
+field unit stuck for a long, human-noticeable time. 30 gave ~6.5 minutes at
+the observed ~13s retry cadence — comfortably longer than any transient
+this project had evidence for, but that same margin means a real stall
+reads as "frozen" for over six minutes to anyone watching without prior
+context on this failure mode, which is exactly the situation this
+project's satellite node was about to be put in: independent testing on a
+colleague's own hardware/network, ahead of a handoff, with no one present
+who already knows to just wait it out.
+
+**New value: 10.** At the same ~13s cadence that gives ~130s (~2.2 min)
+theoretical — see Verification below for the real measured figure, which
+runs somewhat higher due to this ADR's own documented 30s-poll-cadence
+overshoot. The reasoning for *why* 10 stays safe from false-triggering
+mirrors this ADR's original logic, re-derived from evidence rather than
+picked by simply halving 30: every transient this project has actual data
+for either clears within seconds (ordinary WiFi/broker blips, never seen to
+survive multiple retry cycles) or runs the full original ~6.5-minute
+outage without self-clearing at all (the overnight heap-exhaustion capture
+above, the live-router power-cycle trials, and the 2026-08-11 repro this
+addendum's own test reproduces below). Nothing in this project's history
+sits in the gap between "clears in seconds" and "doesn't clear in 6+
+minutes," so there is no observed transient that dropping to 10 would
+newly false-trigger on — the threshold still comfortably exceeds every
+short blip while cutting the stuck window roughly 3x. The full reasoning
+is also recorded next to the constant itself
+(`src/main.c`'s `MQTT_WATCHDOG_RESTART_THRESHOLD`).
+
+**Real trigger-and-recover test, real hardware, 2026-08-11.** Deliberately
+used a Windows Firewall inbound `Block` rule (`TCP`, local port 1883,
+scoped to the satellite's IP only) rather than stopping the dev broker
+(Mosquitto, running as a Windows service on the same laptop the board
+points at) to force the stall. Stopping the broker service closes the TCP
+session cleanly (FIN/RST) — an explicit, immediate "you're disconnected"
+signal, a different and easier failure mode than what this ADR's own
+Context section documents (`select() timeout`, a silent stall with no
+close signal at all). A firewall rule with the default `Block` action
+drops the satellite's packets with no RST and no ICMP-unreachable, so the
+socket just goes quiet from the satellite's side — the same shape as the
+originally observed failure, not a substitute for it.
+
+With the rule active, the watchdog fired and restarted the board
+repeatedly, cleanly reproducing this ADR's original per-attempt pattern
+each time (WiFi reconnects fine post-restart, `Got IP` within 1-2 attempts,
+MQTT immediately starts failing again since the block was still up). Seven
+consecutive full-block cycles landed within 152.0-152.1 seconds of boot
+each time — e.g. `E (152117) DIAG: mqtt stuck: 11 consecutive disconnects
+with no successful reconnect - restarting to recover (ADR-036)`, repeated
+at t=152057/152107/152117(×2)/152107/152117/152127 across successive
+reboots. The very first restart of the session fired at t=513975ms of
+*total* device uptime rather than ~152s — not a discrepancy, that boot had
+already been running healthily for a while before the firewall rule was
+applied mid-session, so most of that uptime was pre-stall normal operation,
+not stuck time. The steady-state ~152s figure (cycles where the stall was
+present from the very start of the boot) is the comparable, reportable
+number.
+
+**~152s vs. the ~130s theoretical estimate.** The extra ~22s matches this
+ADR's own already-documented mechanism (see the 2026-08-09 addendum's
+count-of-44 case): `diagnostics_task_fn()` only checks the counter every
+30 seconds, not the instant it crosses the threshold, so the observed
+trigger count came in at 10 the first time and 11 on every subsequent
+cycle rather than exactly 10 — one extra ~13s retry sneaking in before the
+next poll catches it. Real, reportable self-heal time for Rahul:
+**~152 seconds (~2.5 minutes)** from stall onset to automatic restart, not
+the raw threshold × cadence math.
+
+**Recovery confirmed clean.** After removing the firewall rule, one more
+restart occurred (residual disconnects mid-transition as the block lifted
+partway through a boot's retry cycle), and the very next boot reconnected
+immediately — `Got IP: 192.168.1.2 (after 1 attempt(s))` at t=4107ms, then
+`connects=1 disconnects=0` held for the rest of the observation window
+(180+ seconds) with `publishes` climbing steadily (129 → 555) and zero
+further disconnects. No manual intervention was needed at any point;
+self-heal worked exactly as designed at the new threshold.
+
+`docs/NEW_NODE_SETUP_GUIDE.md` §9 and
+`docs/performance/SATELLITE_STRESS_STABILITY_TEST.md` are updated with this
+real ~152s/~2.5min figure in place of the original ~6.5-minute one.

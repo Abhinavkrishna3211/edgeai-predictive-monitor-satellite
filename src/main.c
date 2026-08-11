@@ -136,12 +136,26 @@ static void diagnostics_task_fn(void *arg)
          * unattended (see docs/decisions/ADR-036-mqtt-reconnect-watchdog.md).
          * esp_restart() doesn't depend on heap availability, unlike
          * re-running link_mqtt_start(), so it's the only self-heal that
-         * still works once heap is this far gone. Threshold of 30 is
-         * calibrated off the observed ~13s real retry cadence (~6.5 min of
-         * continuous failure) - long enough not to fire on an ordinary
-         * transient blip, which resets this counter to 0 on its very next
-         * successful reconnect. */
-#define MQTT_WATCHDOG_RESTART_THRESHOLD 30
+         * still works once heap is this far gone.
+         *
+         * Threshold shortened 30 -> 10 (ADR-036's 2026-08-11 addendum):
+         * at the observed ~13s real retry cadence, 30 meant ~6.5 minutes
+         * stuck before self-heal, which was directly observed to be
+         * confusing/alarming during independent testing on someone else's
+         * hardware/network with no context on this failure mode loaded.
+         * 10 is ~130s (~2.2 min) - still an order of magnitude longer than
+         * any broker restart/blip this project has actually observed (the
+         * WiFi-AP power-cycle trials and the live 2026-08-11 repro both
+         * involved outages that ran the full original ~6.5 min without
+         * clearing on their own, i.e. every transient this project has
+         * hard evidence for either clears in a handful of seconds or
+         * doesn't clear within the watchdog's window at all - there is no
+         * observed case that would sit in between and get false-triggered
+         * by dropping to 10), so it keeps the same "won't fire on an
+         * ordinary blip" property while cutting the stuck window roughly
+         * 3x. This still resets to 0 on the very next successful
+         * reconnect, same as before. */
+#define MQTT_WATCHDOG_RESTART_THRESHOLD 10
         if (mqtt_st.consecutive_disconnects >= MQTT_WATCHDOG_RESTART_THRESHOLD) {
             ESP_LOGE("DIAG", "mqtt stuck: %lu consecutive disconnects with no "
                      "successful reconnect - restarting to recover (ADR-036)",
