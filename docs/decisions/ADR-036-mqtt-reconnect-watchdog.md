@@ -310,9 +310,9 @@ count-of-44 case): `diagnostics_task_fn()` only checks the counter every
 30 seconds, not the instant it crosses the threshold, so the observed
 trigger count came in at 10 the first time and 11 on every subsequent
 cycle rather than exactly 10 — one extra ~13s retry sneaking in before the
-next poll catches it. Real, reportable self-heal time for Rahul:
-**~152 seconds (~2.5 minutes)** from stall onset to automatic restart, not
-the raw threshold × cadence math.
+next poll catches it. Real, reportable self-heal time ahead of independent
+testing: **~152 seconds (~2.5 minutes)** from stall onset to automatic
+restart, not the raw threshold × cadence math.
 
 **Recovery confirmed clean.** After removing the firewall rule, one more
 restart occurred (residual disconnects mid-transition as the block lifted
@@ -326,3 +326,8 @@ self-heal worked exactly as designed at the new threshold.
 `docs/NEW_NODE_SETUP_GUIDE.md` §9 and
 `docs/performance/SATELLITE_STRESS_STABILITY_TEST.md` are updated with this
 real ~152s/~2.5min figure in place of the original ~6.5-minute one.
+
+**2026-08-11 (later) — name redaction ahead of external sharing.** The
+addendum above originally named the external tester by first name in one
+sentence; reworded generically before sharing this repo outside the team.
+No measurement, figure, or conclusion changed.

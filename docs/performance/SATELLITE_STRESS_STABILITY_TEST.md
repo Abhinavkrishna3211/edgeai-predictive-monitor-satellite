@@ -540,7 +540,7 @@ alone) are what actually distinguish them.
 ## Addendum: 2026-08-11 — watchdog threshold lowered to 10, real trigger-and-recover test; LED ambiguity above now fixed
 
 Two things above are now out of date, ahead of handing this satellite node
-off to Rahul for independent testing on his own hardware/network:
+off for independent testing on unfamiliar hardware/network:
 
 **The "~6.5 minutes" figure (line 524 above) no longer applies.**
 `ADR-036`'s watchdog threshold was lowered 30 → 10 on 2026-08-11 — see that
@@ -566,3 +566,8 @@ instead of reusing `RGB_WIFI_CONN` — see `ADR-025`'s 2026-08-11 addendum and
 authoritative source if you need exact numbers, but the LED color alone is
 now sufficient to tell "WiFi actually dropped" (blue) apart from "just an
 MQTT-layer stall, self-heals in ~2.5 min" (violet) at a glance.
+
+**2026-08-11 (later) — name redaction ahead of external sharing.** The
+addendum above originally named the external tester by first name in one
+sentence; reworded generically before sharing this repo outside the team.
+No measurement, figure, or conclusion changed.
