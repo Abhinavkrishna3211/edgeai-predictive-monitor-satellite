@@ -259,7 +259,7 @@ and build/flash through `pio.sh`/`pio.ps1` instead of `pio` directly — they
 read `.env.local` and pass the override through automatically, the same
 `.env.local` pattern `tools/devrig/` uses for its reference-repo URL. See
 `docs/decisions/ADR-031-provisioning-ap-random-per-device-password.md`
-and `docs/PHASE_12A_PROMPT.md`/`docs/PHASE_12B_PROMPT.md` for the full design.
+for the full design.
 
 ### 3. Build and Flash
 
