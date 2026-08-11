@@ -443,3 +443,152 @@ unchanged from the table above, not re-tested this addendum (its blocker, `lo_r`
 dominated by `mid_r`, is a rig acoustic-path property unrelated to bin resolution
 — ADR-040 was not expected to and did not address it). All other categories
 unchanged from the table above.
+
+## Addendum — 2026-08-11 (part 2): Phase B close-out — fallback-label confirmation and first real Shaft Misalignment attempt
+
+Closes out the two remaining Phase B items: confirming the generic kurtosis-fallback
+labels are real-hardware-reachable, and one genuine real-hardware attempt at Shaft
+Misalignment, the one fault type with zero prior real-hardware testing.
+`_classify_fault_type()` (`gateway/pipeline/alerting.py:170-201`) falls through to
+`"Severe Anomaly — Inspect"` (`mic_kurtosis >= K_FAULT`), `"Elevated Vibration"`
+(`mic_kurtosis >= K_WARN`), or `"Anomalous Vibration"` (below `K_WARN`, not Normal)
+only when none of the four named-fault gates matched — a kurtosis-magnitude ladder,
+not separate physical fault types. Real threshold values used throughout
+(`mic_tools/recv_verify.py`): `K_WARN=6.0`, `K_FAULT=12.0`, `CREST_WARN=5.0`,
+`IMU_CREST_WARN=9.0`.
+
+### Task 1 — fallback labels confirmed real-hardware-reachable (method: real-rig, existing data)
+
+**A correction surfaced first**: re-checking ADR-040's Task 3 Looseness re-test, the
+9 (of 24) excluded tail frames it attributed to a likely playback-stop click
+(`mic_kurtosis` 6.0-32.98, `mid_r` 0.80-0.84, `lo_r` 0.005-0.017) do not, in fact,
+reach a fallback label. Since `hi_r + lo_r + mid_r = 1` (`_band_ratios()` partitions
+total power exactly), those numbers put `hi_r` at roughly 0.14-0.20 — satisfying
+Mechanical Looseness's own gate (`mic_kurtosis >= 6.0 and hi_r < 0.30 and
+lo_r < 0.55 and mid_r > 0.20`) outright. `_classify_fault_type()` would score and
+return `"Mechanical Looseness"` for these 9 real frames, not a fallback label. This
+doesn't change ADR-040's verdict (that exclusion was about physical origin — a click
+artifact isn't the synthesized fault signal — not about which code branch fires), but
+it means these particular frames are not usable as fallback-label evidence, and are a
+reminder that the code's Looseness label is already real-hardware-triggerable from
+this artifact, just not from the intended signal.
+
+**Real evidence instead came from mining Part 3's existing ambient-baseline CSVs**
+(`mic_tools/logs/csv/2026/08/epm_sat-5ab004_20260810.csv`,
+`..._fresh_postfix.csv`, `..._postfix_bin0.csv` — no new capture). These CSVs log
+`mic_kurtosis`, `high_band_ratio` (`hi_r`), and `imu_crest` per frame but not
+`lo_r`/`mid_r`, so a rigorous bound was used instead of reconstructing the full gate:
+for a frame with `mic_kurtosis >= K_FAULT(12.0)` and `hi_r` in `[0.30, 0.40]`, Bearing
+(`hi_r > 0.40`) and Looseness (`hi_r < 0.30`) are excluded by the `hi_r` bound alone,
+and Imbalance (`mic_kurtosis < 8.4`) and Misalignment (`mic_kurtosis < K_FAULT`) are
+excluded by the kurtosis bound alone — all four named gates are provably unsatisfied
+regardless of the missing `lo_r`/`mid_r` values, so `_classify_fault_type()` must
+return `"Severe Anomaly — Inspect"`. **186 real frames** satisfy this bound across the
+three CSVs (168 + 0 + 18), e.g. `mic_kurtosis=644.7, hi_r=0.373, imu_crest=4.842`
+(`...20260810.csv` row `frame_id=2923`). The same argument at `K_WARN <= mic_kurtosis
+< K_FAULT`, `hi_r` in `[0.30,0.40]`, `mic_kurtosis >= 8.4` (excludes Imbalance) and
+`imu_crest < IMU_CREST_WARN(9.0)` (excludes Misalignment) proves **7 real frames**
+must return `"Elevated Vibration"`, e.g. `mic_kurtosis=10.579, hi_r=0.31,
+imu_crest=5.634`. **Both fallback labels are confirmed real-hardware-reachable**, from
+ordinary ambient/ambient-fault-free capture, no new rig time spent.
+
+`"Anomalous Vibration"` (below `K_WARN`, not `Normal`) — quick sanity check only, per
+scope. 8 of 2977 frames in `..._postfix_bin0.csv` satisfy `mic_kurtosis < K_WARN` and
+not-`Normal` (at least one of `mic_crest >= CREST_WARN` / `imu_crest >= IMU_CREST_WARN`
+true). This is plausible but **not proven** the same rigorous way — Imbalance and
+Misalignment are not excludable from the CSV's columns alone at low kurtosis (both
+have gates satisfiable with `mic_kurtosis < K_WARN`), so whether these 8 frames
+actually reach the fallback rather than a named-fault label is unconfirmed. Consistent
+with the task's own scoping (this label is close to trivially reachable and not worth
+deeper effort), reported honestly as "plausible, not rigorously confirmed" rather than
+padded into a positive.
+
+### Task 2 — Shaft Misalignment: one genuine real-hardware attempt (method: real-rig)
+
+**2.1 — mic mid-band re-characterization at 256 bins: inconclusive this session.**
+Four tones (900, 1300, 1700, 1900 Hz) plus a 2500 Hz control (previously
+real-hardware-confirmed clean at 128 bins) were played and captured via
+`capture_and_compare.py`'s tone path. All five, including the control, landed their
+peak at a near-DC bin (46.875 Hz or 140.625 Hz) instead of anywhere near the played
+frequency, at a low `peak_bin_db` (~-80 dB). The first tone (900 Hz) was confirmed
+audible by the operator, ruling out silent/no playback; the operator identified the
+laptop's own cooling fan as the dominant noise source this session. Since even the
+previously-clean 2500 Hz control failed to lock, this is an ambient-noise-limited
+session, not a genuine new mid-band data point — the 128-bin characterization's
+800-1700 Hz dirty-zone picture (`PHASE_B_REPORT.md`'s 2026-08-10 addendum) stands
+unchanged; no new mid-band evidence was gathered.
+
+Also worth recording: this session hit **two real WiFi disconnects** mid-testing
+(satellite LED breathing blue = `RGB_WIFI_CONN`, live CSV logger frozen both times),
+each requiring an operator power-cycle and a ~2-3 minute reconnect wait, plus one
+episode where the LED showed green (nominally connected) for over a minute while the
+satellite was still not publishing any MQTT frames (confirmed via direct subscription
+probe, 0 messages across two separate 6s/15s windows) before data resumed. Consistent
+with the recurring instability from the 2026-08-09 stress/stability test and the
+2026-08-10 mic-characterization session, but the green-LED/no-data gap is a new
+observation: the `OK` state LED does not guarantee frames are actually flowing.
+
+**2.2/2.3 — real combined mic+accel captures.** A small scratch probe
+(`misalignment_probe.py`, mirrors `_classify_fault_type()`'s exact inputs: per-frame
+`mic_kurtosis`, mic-channel `mid_r` via `_band_ratios()`'s own bucketing, and
+`imu_crest = max(crest_x, crest_y, crest_z)` matching
+`gateway/ingestion/mqtt_subscriber.py`'s derivation) recorded every frame during two
+real `bearing`-mode ringdown-burst plays (`tau_ms=3, burst_ms=15, shaft_hz=15,
+defect=bpfo, amplitude=1.0` — no dedicated "misalignment" synthesis mode exists, so
+the existing impulsive-burst generator was reused per the task's own framing):
+
+- **(a) low-freq burst, `resonance_hz=60`** (inside the accelerometer's known-reliable
+  <100 Hz presence band per the 2026-08-09 characterization): 35 mic frames captured.
+  Real max `imu_crest = 5.577` (gate needs `>= 9.0`) — never cleared. Many individual
+  frames did satisfy `mid_r > 0.35` and `mic_kurtosis < K_FAULT` simultaneously;
+  `imu_crest` was the sole, consistent blocker. Gate fired on 0/35 frames.
+- **(b) resonance-zone burst, `resonance_hz=1500`** (inside the mic's 800-1700 Hz
+  dirty/resonant zone, testing whether a resonant system's ring/overshoot might
+  produce real accelerometer impulsiveness even though that zone is mic-dirty): 34
+  mic frames captured. Real max `imu_crest = 5.936` (still `< 9.0`) — slightly higher
+  than (a) but not materially so. The mic reacted far more strongly here
+  (`mic_kurtosis` up to 14.2, `mid_r` up to 0.91) than in (a), confirming the
+  resonance zone genuinely excites the mic — but the accelerometer barely moved.
+  Gate fired on 0/34 frames.
+
+Both candidates' peak `imu_crest` (5.577, 5.936) sit within ~0.7 of this rig's own
+**ambient** baseline (`imu_crest` median 5.233, Part 3) — impulsive bursts, regardless
+of carrier frequency or how strongly they excite the mic, do not meaningfully move
+this rig's accelerometer above its ambient noise floor. Per the task's time-box
+(a handful of real captures, not an exhaustive sweep), no further candidates were
+attempted.
+
+**Gate: not satisfied on any frame, either candidate. Real, characterized negative.**
+
+**Distinct finding, not just a rig limitation**: a textbook shaft-misalignment
+vibration signature is a *continuous* 2x-shaft-rate tone, not an impulsive transient.
+This rig's only available vibration-synthesis method (this project's `bench_signal_gen`
+tooling) is impulsive-burst-based throughout (`bearing`/`imbalance`/`looseness` modes
+all use ringdown bursts) — there is no continuous-tone excitation path for the accel
+channel at all. That both burst candidates here left `imu_crest` essentially at
+ambient is consistent with impulsiveness (crest factor) being the wrong lens for a
+continuous-tone fault signature in the first place, not only with weak mechanical
+coupling. `Shaft Misalignment`'s gate (`imu_crest >= IMU_CREST_WARN`) is
+crest-factor-based — i.e., impulsiveness-seeking — which may be a structural mismatch
+against real misalignment's actual (continuous, non-impulsive) signature, independent
+of this rig's coupling limits. Flagged as a possible future classifier-design
+question, not acted on here (`compute_alert()`/gate thresholds are out of scope for
+this task per its own instructions).
+
+### Task 3 — final status table, all 7 possible classifier outputs
+
+| Output | Status | Evidence |
+| --- | --- | --- |
+| Normal | **Real-hardware confirmed** | Part 3, 135,032 ambient frames |
+| Bearing Fault (Early/Advanced) | **Real-hardware confirmed** | 2026-08-10 addendum: mic canonical capture classified "Bearing Fault — Early" |
+| Mechanical Imbalance | Real-hardware attempted, negative, mechanism characterized | 2026-08-10 addendum(s): `lo_r` blocked at both `threshold`/`safe` tau presets, `mid_r`-dominant throughout |
+| Mechanical Looseness | Real-hardware attempted, negative, mechanism characterized (partially improved) | 2026-08-10 (128 bins) + ADR-040/2026-08-11 retest (256 bins): `hi_r` reduced ~0.46 mean -> 0.30 mean, still doesn't clear gate on any burst frame |
+| Shaft Misalignment | Real-hardware attempted, negative, mechanism characterized | this addendum: 2 burst candidates, real `imu_crest` maxed 5.577/5.936 vs required 9.0, both within ~ambient baseline |
+| Severe Anomaly — Inspect (fallback) | **Real-hardware confirmed reachable** | this addendum Task 1: 186 real frames provably classified, existing Part 3 CSVs |
+| Elevated Vibration (fallback) | **Real-hardware confirmed reachable** | this addendum Task 1: 7 real frames provably classified, existing Part 3 CSV |
+| Anomalous Vibration (fallback) | Plausible, not rigorously confirmed | this addendum Task 1: 8 candidate frames found; full gate-exclusion needs `lo_r`/`mid_r` not present in the CSVs checked |
+
+Phase B is closed out on this basis: every classifier output now has an honest,
+evidence-labeled real-hardware status — confirmed, attempted-and-characterized, or
+(for one label) plausible-but-unproven. No output remains untouched by real-hardware
+work.
