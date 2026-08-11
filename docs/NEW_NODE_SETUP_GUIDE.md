@@ -218,6 +218,28 @@ summary here. Two things worth knowing before you dive in:
 
 ---
 
+## 8a. Making changes
+
+The actual rules — naming conventions, commit message format, the ADR
+process for anything architecturally significant — live in
+[`docs/CONVENTIONS.md`](CONVENTIONS.md); read that before your first commit
+rather than guessing from what's around it.
+
+The one thing most likely to bite someone unfamiliar with this repo: if a
+change touches the wire format (adding/changing a channel, scalar, or
+section), the source of truth is `schema/telemetry_schema.json` — edit that
+and re-run `schema/gen_schema.py`, never hand-edit the generated
+`components/epm_codec/include/frame_codec/telemetry_schema.h` or
+`gateway/common/telemetry_schema.py` directly (both carry a `GENERATED ...
+DO NOT EDIT BY HAND` banner at the top).
+
+Most tunables aren't buried in code logic — they're grouped at the top of
+two files: firmware knobs (FFT sizes, task stacks, bin count, thresholds)
+in `src/epm_config.h`, and gateway alert thresholds in
+`mic_tools/recv_verify.py`.
+
+---
+
 ## 9. Debugging
 
 ### Reading the serial monitor
