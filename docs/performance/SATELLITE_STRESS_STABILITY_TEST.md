@@ -18,6 +18,11 @@ captures referenced below live in `docs/performance/raw/`.
 | New findings | Low-heap MQTT-init stall (watchdog blind spot); captive-portal HTTP server starves under extended STA retry churn |
 | Deferred | Mosquitto broker-side connect/disconnect logging — blocked by write-access restrictions, twice |
 
+**Running a new soak/stress test:** the DIAG heartbeat and per-epoch accel
+lines this doc's heap/stats numbers come from are `ESP_LOGD` (quiet by
+default for the serial window). Rebuild with `CONFIG_LOG_DEFAULT_LEVEL_DEBUG=y`
+first, or none of it will show up in the capture.
+
 ---
 
 ## 1. Heap leak root-cause and soak
