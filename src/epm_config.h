@@ -54,6 +54,13 @@
 #define WIFI_PASS   "epm12345"
 #endif
 
+/* EPM_PROVISIONING_AP_OPEN is NOT here despite being conceptually a WiFi
+ * setting -- it's private to components/epm_drivers/provisioning.c, same
+ * reasoning as that file's EPM_MQTT_BROKER_HOST/PORT precedent in
+ * link_mqtt.c: epm_drivers must not depend back on this header (src already
+ * depends on epm_drivers; the reverse would be a component dependency
+ * cycle). See ADR-041 and provisioning.c's own comment for the flag itself. */
+
 /* ─── MQTT telemetry ─────────────────────────────────────────────────────── *
  * See docs/decisions/ADR-023-transport-adrs-superseded.md. Broker host/port
  * are NOT here: they're private to components/epm_drivers/link_mqtt.c (this
