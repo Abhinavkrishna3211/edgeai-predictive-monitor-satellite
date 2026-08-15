@@ -150,3 +150,15 @@ advertises WPA2-PSK (not open), the password differs between two
 physically distinct units, and the password survives a reboot without
 regenerating (reusing the persisted value, not the first-boot-only
 generation path).
+
+## Addendum (2026-08-15): default reverted to open by `docs/decisions/ADR-041`
+
+This ADR's WPA2-by-default decision no longer holds as the default. The
+project owner decided the onboarding friction it imposes isn't worth it
+for this project's actual deployment context (small fleet, physically
+supervised bring-up, contest/demo use) and reverted the provisioning AP to
+open by default, with WPA2-PSK kept available as an opt-in build flag
+(`EPM_PROVISIONING_AP_OPEN=0`) rather than removed outright. See
+`docs/decisions/ADR-041-provisioning-ap-default-reverted-to-open.md` for
+the full reasoning and the restated (not softened) risk this reversal
+accepts.
