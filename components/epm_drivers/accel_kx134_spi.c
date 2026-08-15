@@ -440,7 +440,12 @@ static int kx134_fill_epoch(float *out_x, size_t want)
         ESP_LOGW(TAG, "FIFO seen at max capacity (%u/%u frames) -- possible dropped samples",
                   (unsigned)max_smp_frames, (unsigned)KX134_FIFO_MAX_FRAMES);
     }
-    ESP_LOGI(TAG, "epoch: n=%u mean_g x=%.3f y=%.3f z=%.3f max_fifo=%u/%u",
+    /* Quiet by default (fires every epoch, ~180ms): ESP_LOGD compiles out
+     * under ESP-IDF's default CONFIG_LOG_DEFAULT_LEVEL (INFO). Rebuild with
+     * CONFIG_LOG_DEFAULT_LEVEL_DEBUG=y to get this back for a soak/stress
+     * test — see docs/performance/SATELLITE_STRESS_STABILITY_TEST.md. The
+     * FIFO-max-capacity ESP_LOGW above stays at its own level either way. */
+    ESP_LOGD(TAG, "epoch: n=%u mean_g x=%.3f y=%.3f z=%.3f max_fifo=%u/%u",
               (unsigned)s_stage_n, (float)(sum_x / s_stage_n), (float)(sum_y / s_stage_n),
               (float)(sum_z / s_stage_n), (unsigned)max_smp_frames, (unsigned)KX134_FIFO_MAX_FRAMES);
 
