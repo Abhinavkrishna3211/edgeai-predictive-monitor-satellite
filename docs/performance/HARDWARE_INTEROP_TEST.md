@@ -181,3 +181,131 @@ directly observed — only bracketed by before/after state. Flagging this as an 
 counters window recurs during an extended soak, enable broker-side connect/disconnect
 logging first (per the existing known limitation) and capture packets during the actual
 window, rather than resetting past it.
+
+---
+
+## Addendum: 2026-08-11 — Wire re-verification after ADR-040/ADR-032, plus a live-reproduced stall
+
+**Date:** 2026-08-11
+**Branch:** feat/base-station-interop
+**Commit:** 0bc9c0725018939d0a1b51adee40014df7a602fc
+
+### Context and scope
+
+Contest submission rules require the Arduino UNO Q as the primary board, with Rahul
+listed as a teammate. That makes a real pairing test against **his actual physical UNO
+Q hardware** the eventual goal — but today Rahul was remote at his own home while this
+session ran from a different location, so no physical co-location was possible. That
+specific test is off the table for this session regardless of anything else; no
+speculative "should work" writeup is included for it here.
+
+What *was* tractable: two wire-format changes have landed since the last interop check
+(2026-08-08 addendum above) — ADR-040 (128→256 FFT bins) and ADR-032 (HFRT envelope
+channels, scalar ids 9-11) — and neither had been re-verified against Rahul's own
+unmodified base-station code. This re-verifies the wire contract only, via
+`tools/devrig/` running his real, untouched `base-station/python/main.py` under WSL
+against the same live satellite (`5ab004`, uptime ~17h at test time), pointed at the
+same native Windows Mosquitto broker (`192.168.1.5:1883`) the satellite was already
+connected to. No reference-repo files were modified.
+
+### Result: wire format still holds
+
+- `5ab004` registered on `/nodes/5ab004` with `sensor_config: ['accel_x', 'accel_y',
+  'accel_z', 'mic']` and **`input_dim: 1048`** — up from the `536` last documented
+  (2026-08-04 contract doc, pre-ADR-040/032). His code computes `input_dim` dynamically
+  from the actual wire bytes rather than a hardcoded constant, so this jump required
+  **zero changes on his side** — the dynamic-sizing design absorbed both firmware
+  changes automatically.
+- Zero cross-talk: only `epm/5ab004/data` and `epm/5ab004/cmd` topics observed.
+
+### Soak window
+
+14m16s continuous `mosquitto_sub -t 'epm/#' -v` capture inside WSL, cross-checked
+against Rahul's own dashboard (`/nodes/5ab004`) and our own production gateway's
+dashboard as two independent second/third observers:
+
+| Topic | Count (at final check, still climbing) |
+|---|---|
+| `epm/5ab004/data` | 2091 |
+| `epm/5ab004/cmd` | 0 |
+
+**Throughput:** ~4.75 msg/s during confirmed-healthy windows — consistent with the
+2026-08-07 addendum's ~4.76 msg/s and the original run's ~4.3 msg/s.
+
+### Live-reproduced MQTT stall (self-recovered)
+
+Partway through this soak, the data stream went completely silent for **~400-450
+seconds**, independently confirmed by two separate subscriber implementations at once:
+
+- The raw `mosquitto_sub` capture: message count froze at exactly 1944 from t≈409s
+  through at least t≈818s into the soak (the pre-stall rate of ~4.75 msg/s × 409s
+  predicts 1943 — an exact match, confirming the freeze point).
+- Rahul's own unmodified `base-station/python/main.py`: its `/nodes/5ab004.last_seen`
+  field independently froze at the same wall-clock instant and was still reporting that
+  same stale value ~409s later.
+- Our own production gateway (third, differently-implemented observer) shows `fps`
+  dipping 4.8 → 3.5 across the same window while `frame_count` kept climbing —
+  consistent with a publish-side stall rather than the satellite itself locking up.
+
+Both external subscribers recovered on their own before the next check (~t=856s) — no
+satellite reset, WiFi bounce, or manual intervention. This is a live, real-hardware
+reproduction of the pattern root-caused in commit `0bc9c07` ("recurring blue-LED drops
+as MQTT-layer stalls, not WiFi"), and the fact that it was caught **simultaneously by
+Rahul's own independent MQTT subscriber code** rules out "bug specific to our gateway's
+ingestion path" as an explanation — the loss point is upstream of any one subscriber
+(broker- or satellite-publish-side), not a parsing/ingestion bug in either codebase.
+
+A trailing `mosquitto_sub ... '$SYS/broker/clients/connected' -C 1 -W 5` check chained
+onto this soak's automation exited non-zero (27) during the live run; a standalone
+retry moments later exited cleanly (0, no retained value inside the 5s window). Given
+the nested `wsl.exe -- bash -c "..."` invocation this ran under, and that the retry
+didn't reproduce a hang, this reads as a shell-nesting artifact of the test harness, not
+a second broker fault — treated as inconclusive, not folded into the stall finding
+above.
+
+### Stage 2 & 3 — not attempted this session
+
+Deploying our gateway onto real UNO Q hardware (Stage 2) and a reliability soak on
+Rahul's actual network (Stage 3) both require physical access to his board. Flagged as
+outstanding for the next session where that's possible, rather than written up
+speculatively here.
+
+### Gateway-choice evidence gathered this session
+
+Read (not exercised) from the reference repo to inform the "which gateway ships"
+decision, since real-hardware fault-detection validation to date in this project has
+only ever run against our own classifier (`gateway/pipeline/alerting.py`):
+
+- Rahul's system does have a second-stage supervised fault classifier
+  (`base-station/python/pipeline/classifier.py`, Edge-Impulse-trained TFLite). Per his
+  own `docs/EDGE_IMPULSE_FAULT_CLASSIFICATION_PLAN.md`, it is currently ~42% accurate,
+  trained on a 4-class Kaggle vibration dataset (`Ideal`/`Cracking`/`Offset_Pulley`/
+  `Wear`) that doesn't map onto this project's fault taxonomy (Bearing/Imbalance/
+  Misalignment/Looseness), and is explicitly scoped **out** for his real local hardware
+  nodes — that doc states local SPI motors "stay anomaly-only." His classifier only
+  runs against simulated/replayed satellites, not real hardware.
+- Our gateway's fault classifier is physics-based (bearing-resonance-band scoring,
+  Bayesian multi-channel fusion, RUL estimation) and has been validated against real
+  hardware repeatedly this project (see the accuracy-harness and Phase B/D closeout
+  memory entries).
+- Rahul's `classifier.py` docstring documents real-hardware GPU/NPU findings on the
+  actual QRB2210/QCM2290 board relevant to our own (not-yet-attempted) Stage 2 plan:
+  `ai-edge-litert`'s GPU delegate SIGILLs on this board (Kryo 260 CPU lacks ARMv8.1 LSE
+  atomics), there is no usable NPU path (`/dev/fastrpc-cdsp` absent), and the `ncnn`
+  Vulkan GPU path works but shows zero speedup on a model this small — a concrete,
+  real-hardware precedent worth planning around before assuming GPU acceleration pays
+  off for our own `mic_tools/inference_gpu.py` path.
+
+**Net read:** on fault-type classification specifically, running our own gateway keeps
+real, validated capability in the submission; running his drops it to anomaly-only for
+any real hardware node. This is evidence gathered from his repo, not a decision made
+for him — his own repo/hardware calls are his to make.
+
+### What this does NOT prove
+
+Same caveat as every entry above: this validates the wire protocol and reference
+gateway software path against a real satellite, not the reference implementation's own
+physical UNO Q hardware. It does add one new thing beyond re-confirming the wire
+contract: the first live, dual-independent-subscriber reproduction of the known
+MQTT-stall pattern, caught in the wild during a real interop test rather than
+constructed intentionally.
