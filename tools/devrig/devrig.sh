@@ -94,7 +94,14 @@ BEFORE="$(git -C "${REF_REPO_REAL}" status --porcelain --untracked-files=no)"
 # same invocation ADR-026's live cross-gateway test proved out.
 if [ "${MQTT_HOST}" != "localhost" ]; then
     echo "Targeting non-local broker ${MQTT_HOST}:${MQTT_PORT} -- running main.py directly."
-    python3 "${REF_REPO_REAL}/base-station/python/main.py" \
+    REF_VENV_PY="${REF_REPO_REAL}/base-station/python/.venv/bin/python3"
+    if [ ! -x "${REF_VENV_PY}" ]; then
+        echo "Reference repo venv not found at ${REF_VENV_PY}." >&2
+        echo "Run start_desktop_dashboard.sh once (Ctrl+C after venv setup) to create it, or:" >&2
+        echo "  python3 -m venv ${REF_REPO_REAL}/base-station/python/.venv && ${REF_VENV_PY} -m pip install -r ${REF_REPO_REAL}/base-station/python/requirements.txt" >&2
+        exit 1
+    fi
+    "${REF_VENV_PY}" "${REF_REPO_REAL}/base-station/python/main.py" \
         --mqtt-host "${MQTT_HOST}" --mqtt-port "${MQTT_PORT}" "${ARGS[@]}"
     status=$?
 else
