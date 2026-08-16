@@ -91,3 +91,4 @@ tools/provisioning_label/labels/
 # ── bench signal-gen manifests/WAVs (per-run outputs, not source) ────────────
 tools/bench_signal_gen/manifests/
 tools/bench_signal_gen/*.wav
+tools/bench_signal_gen/*.log
